@@ -14,10 +14,18 @@ import { DisambiguationModal } from './components/DisambiguationModal/Disambigua
 import { UndoToast } from './components/Voice/UndoToast';
 import { ProofRecorderModal } from './components/ProofRecorder/ProofRecorderModal';
 import { PrivacyModal } from './components/PrivacyModal';
+import { SupplierOrdersModal } from './components/SupplierOrder/SupplierOrdersModal';
+import { DailySummaryModal } from './components/Summary/DailySummaryModal';
 import { useVoiceController } from './hooks/useVoiceController';
 import { Customer, Transaction } from './types/schema';
 import { speechSynthesizer } from './tts/speechSynthesizer';
 import { getPlayableProofUrl } from './storage/proofStorage';
+import {
+  compute14DayStockAnalysis,
+  groupOrdersBySupplier,
+  computeDailySummary,
+  generateDailySummaryVoice,
+} from './lib/stockAnalytics';
 import { useI18n } from './i18n';
 import { Mic } from 'lucide-react';
 import { triggerHaptic } from './lib/sound';
@@ -29,6 +37,8 @@ export const AppContent: React.FC = () => {
     isLocked,
     customers,
     items,
+    suppliers,
+    transactions,
     lastTransaction,
     addTransaction,
     undoLastTransaction,
@@ -40,6 +50,8 @@ export const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
+  const [isSupplierOrdersOpen, setIsSupplierOrdersOpen] = useState(false);
+  const [isDailySummaryOpen, setIsDailySummaryOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showUndoToast, setShowUndoToast] = useState(false);
 
@@ -47,6 +59,23 @@ export const AppContent: React.FC = () => {
   const [proofTargetTx, setProofTargetTx] = useState<Transaction | null>(null);
   const [proofTargetCustomer, setProofTargetCustomer] = useState<Customer | null>(null);
   const [showProofPrompt, setShowProofPrompt] = useState(false);
+
+  // Dynamic Stock & Supplier Analytics
+  const stockAnalyses = React.useMemo(() => {
+    return compute14DayStockAnalysis(items, transactions);
+  }, [items, transactions]);
+
+  const supplierDrafts = React.useMemo(() => {
+    return groupOrdersBySupplier(stockAnalyses, suppliers);
+  }, [stockAnalyses, suppliers]);
+
+  const dailySummary = React.useMemo(() => {
+    return computeDailySummary(transactions);
+  }, [transactions]);
+
+  const dailySummaryVoiceText = React.useMemo(() => {
+    return generateDailySummaryVoice(dailySummary, language);
+  }, [dailySummary, language]);
 
   // Monitor online / offline network state
   useEffect(() => {
@@ -85,6 +114,7 @@ export const AppContent: React.FC = () => {
   const voice = useVoiceController({
     customers,
     items,
+    transactions,
     isOnline,
     onSaveTransaction: (txData) => {
       const savedTx = addTransaction(txData);
@@ -97,6 +127,8 @@ export const AppContent: React.FC = () => {
       return res;
     },
     onNavigateTab: (tab) => setActiveTab(tab),
+    onOpenSupplierOrders: () => setIsSupplierOrdersOpen(true),
+    onOpenDailySummary: () => setIsDailySummaryOpen(true),
   });
 
   if (!isLoggedIn) {
@@ -120,7 +152,8 @@ export const AppContent: React.FC = () => {
   };
 
   const handleSpeakTodaySummary = () => {
-    voice.processInput('aaj kitni kamai hui');
+    setIsDailySummaryOpen(true);
+    speechSynthesizer.speak(dailySummaryVoiceText, language);
   };
 
   const handleOpenProofRecorder = (transaction: Transaction, customer: Customer) => {
@@ -183,10 +216,8 @@ export const AppContent: React.FC = () => {
 
         {activeTab === 'stock' && (
           <Stock
-            onOpenSupplierOrders={() => voice.processInput('agle hafte ka samaan mangwana hai')}
-            onQuickStockOrder={(item) =>
-              voice.processInput(`${item.name} ka order banao`)
-            }
+            onOpenSupplierOrders={() => setIsSupplierOrdersOpen(true)}
+            onQuickStockOrder={(_item) => setIsSupplierOrdersOpen(true)}
           />
         )}
 
@@ -247,6 +278,27 @@ export const AppContent: React.FC = () => {
 
       {/* Privacy Policy Modal */}
       <PrivacyModal isOpen={isPrivacyOpen} onClose={() => setIsPrivacyOpen(false)} />
+
+      {/* Supplier Orders Modal */}
+      <SupplierOrdersModal
+        isOpen={isSupplierOrdersOpen}
+        onClose={() => setIsSupplierOrdersOpen(false)}
+        drafts={supplierDrafts}
+        shopName={shop.name}
+        language={language}
+        onConfirmOrder={(_order) => {
+          // Order confirmed in app
+        }}
+      />
+
+      {/* Daily Financial Summary Modal */}
+      <DailySummaryModal
+        isOpen={isDailySummaryOpen}
+        onClose={() => setIsDailySummaryOpen(false)}
+        summary={dailySummary}
+        spokenText={dailySummaryVoiceText}
+        language={language}
+      />
 
       {/* Undo Toast Notification */}
       {showUndoToast && lastTransaction && (

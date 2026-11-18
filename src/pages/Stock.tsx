@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useShop } from '../context/ShopContext';
 import { useI18n } from '../i18n';
 import { Item } from '../types/schema';
 import { formatINR } from '../lib/utils';
+import { compute14DayStockAnalysis } from '../lib/stockAnalytics';
 import {
   AlertTriangle,
   ShoppingCart,
@@ -17,13 +18,18 @@ interface StockProps {
 }
 
 export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStockOrder }) => {
-  const { items } = useShop();
+  const { items, transactions } = useShop();
   const { t } = useI18n();
 
   const [filter, setFilter] = useState<'all' | 'low'>('all');
 
-  const lowStockItems = items.filter((it) => it.current_stock <= it.min_threshold);
-  const displayedItems = filter === 'low' ? lowStockItems : items;
+  // Dynamically compute 14-day velocity and days left from past transactions
+  const stockAnalyses = useMemo(() => {
+    return compute14DayStockAnalysis(items, transactions);
+  }, [items, transactions]);
+
+  const lowStockAnalyses = stockAnalyses.filter((a) => a.isLowStock);
+  const displayedAnalyses = filter === 'low' ? lowStockAnalyses : stockAnalyses;
 
   return (
     <div className="pb-28 px-4 pt-3 max-w-md mx-auto space-y-4">
@@ -34,7 +40,7 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
             {t.stock.title}
           </span>
           <h2 className="text-xl font-black mt-0.5">
-            {lowStockItems.length} सामान कम है
+            {lowStockAnalyses.length} सामान कम है
           </h2>
           <p className="text-xs text-emerald-100 mt-1">
             14 दिनों की बिक्री के आधार पर री-ऑर्डर तैयार
@@ -75,15 +81,16 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
           }`}
         >
           <AlertTriangle className="w-3.5 h-3.5 mr-1" />
-          <span>{t.stock.filterLow} ({lowStockItems.length})</span>
+          <span>{t.stock.filterLow} ({lowStockAnalyses.length})</span>
         </button>
       </div>
 
       {/* Items List */}
       <div className="space-y-3">
-        {displayedItems.map((item) => {
-          const isLow = item.current_stock <= item.min_threshold;
-          const isCritical = (item.days_stock_left || 5) < 2;
+        {displayedAnalyses.map((analysis) => {
+          const item = analysis.item;
+          const isLow = analysis.isLowStock;
+          const isCritical = analysis.isCritical;
 
           return (
             <div
@@ -135,7 +142,7 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
                 <div className="flex items-center space-x-3 text-app-muted">
                   <span className="flex items-center">
                     <TrendingDown className="w-3.5 h-3.5 mr-1 text-emerald-600" />
-                    रोज़ाना बिक्री: ~{item.daily_avg_sales || 5} {item.unit}
+                    रोज़ाना बिक्री: ~{analysis.dailyAvgSales} {item.unit}
                   </span>
                 </div>
 
@@ -149,7 +156,7 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
                         : 'bg-emerald-50 text-emerald-700'
                     }`}
                   >
-                    {item.days_stock_left !== undefined ? `${item.days_stock_left} दिन बाकी` : 'पर्याप्त'}
+                    {`${analysis.daysStockLeft} दिन बाकी`}
                   </span>
 
                   {isLow && (

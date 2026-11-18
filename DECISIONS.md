@@ -147,3 +147,35 @@ This log records major technical and product decisions made during the developme
     3. Generate short-lived signed URLs for playback when fetched from cloud.
   - Shopkeeper retains full compliance control with a right-to-delete button on any recorded clip in the Ledger.
 
+---
+
+### DECISION-014: 14-Day Sales Velocity & Stock Depletion Prediction
+- **Date**: 2026-11-18
+- **Context**: Kirana shopkeepers frequently stock out of fast-moving staples (milk, sugar, bread) because they rely on visual inspection of shelves rather than run-rate math.
+- **Decision**:
+  - Calculate 14-day item sales velocity dynamically: $\text{daily\_avg} = \frac{\sum \text{quantities sold in past 14 days}}{14}$.
+  - Compute days of stock remaining: $\text{days\_left} = \frac{\text{current\_stock}}{\text{daily\_avg}}$.
+  - Critical threshold flagged when $\text{days\_left} < 2$ days (e.g. Milk at 0.7 days).
+  - Natural spoken response dynamically formulated with localized Indic names (दूध, ਖੰਡ, ਆਟਾ) and days remaining.
+
+---
+
+### DECISION-015: Supplier Order Partitioning & 1-Tap Messaging Dispatch
+- **Date**: 2026-11-18
+- **Context**: Indian shopkeepers deal with distinct suppliers for grain wholesale vs packaged FMCG/dairy. Placing weekly orders manually is error-prone and time-consuming.
+- **Decision**:
+  - Automatically partition low-stock items by supplier (`Aggarwal Grain Wholesale Mandi` for grains/pulses/sugar vs `Gupta Dairy & FMCG` for dairy/oil/packaged goods).
+  - Auto-calculate 7-day target replenishment buffer quantities.
+  - Support instant dispatch via WhatsApp deep links (`https://wa.me/...`) and SMS (`sms:...`) with clean, formatted grocery order slips.
+
+---
+
+### DECISION-016: Spoken Daily Summary & Net Profit Estimation
+- **Date**: 2026-11-18
+- **Context**: At shop closing, shopkeepers want to know how much they earned today without calculating by hand.
+- **Decision**:
+  - Voice query *"Aaj kitni kamai hui?"* or Today screen button computes today's total sales, new credit given, cash collected on old debts, and shop expenses.
+  - Computes estimated net profit based on standard ~15% Kirana gross margin minus expenses.
+  - Generates natural, continuous speech readout in Hindi, Punjabi, or English, alongside a 4-box financial summary sheet.
+
+

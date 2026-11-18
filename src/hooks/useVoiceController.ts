@@ -6,23 +6,35 @@ import { PendingConfirmation } from '../components/ConfirmationCard/Confirmation
 import { speechSynthesizer } from '../tts/speechSynthesizer';
 import { playAudioCue, triggerHaptic } from '../lib/sound';
 import { useI18n } from '../i18n';
+import {
+  compute14DayStockAnalysis,
+  generateStockVoiceReply,
+  computeDailySummary,
+  generateDailySummaryVoice,
+} from '../lib/stockAnalytics';
 
 interface UseVoiceControllerProps {
   customers: Customer[];
   items: Item[];
+  transactions: Transaction[];
   isOnline: boolean;
   onSaveTransaction: (tx: Omit<Transaction, 'id' | 'shop_id' | 'created_at'>) => Transaction;
   onUndoLast: () => { success: boolean; message: string };
   onNavigateTab: (tab: 'home' | 'ledger' | 'stock' | 'today') => void;
+  onOpenSupplierOrders?: () => void;
+  onOpenDailySummary?: () => void;
 }
 
 export function useVoiceController({
   customers,
   items,
+  transactions,
   isOnline,
   onSaveTransaction,
   onUndoLast,
   onNavigateTab,
+  onOpenSupplierOrders,
+  onOpenDailySummary,
 }: UseVoiceControllerProps) {
   const { language, t } = useI18n();
 
@@ -87,7 +99,12 @@ export function useVoiceController({
         if (result.intent === 'summary') {
           setVoiceState('success');
           onNavigateTab('today');
-          speechSynthesizer.speak('आज की कुल कमाई और हिसाब दिखाया जा रहा है', language);
+          const summary = computeDailySummary(transactions);
+          const summaryVoice = generateDailySummaryVoice(summary, language);
+          speechSynthesizer.speak(summaryVoice, language);
+          if (onOpenDailySummary) {
+            onOpenDailySummary();
+          }
           setTimeout(() => setVoiceState('idle'), 1500);
           return;
         }
@@ -95,7 +112,14 @@ export function useVoiceController({
         if (result.intent === 'ordering') {
           setVoiceState('success');
           onNavigateTab('stock');
-          speechSynthesizer.speak('सप्लायर के लिए सामान की सूची खोली जा रही है', language);
+          const orderVoice =
+            language === 'pa'
+              ? 'ਸਪਲਾਇਰ ਆਰਡਰ ਸੂਚੀ ਤਿਆਰ ਹੈ। 14 ਦਿਨਾਂ ਦੀ ਵਿਕਰੀ ਅਨੁਸਾਰ ਆਰਡਰ ਬਣਾਇਆ ਗਿਆ ਹੈ।'
+              : 'सप्लायर आर्डर लिस्ट तैयार है। 14 दिनों की बिक्री के अनुसार आर्डर बनाया गया है।';
+          speechSynthesizer.speak(orderVoice, language);
+          if (onOpenSupplierOrders) {
+            onOpenSupplierOrders();
+          }
           setTimeout(() => setVoiceState('idle'), 1500);
           return;
         }
@@ -111,12 +135,31 @@ export function useVoiceController({
         if (result.intent === 'stock') {
           setVoiceState('success');
           onNavigateTab('stock');
+          const analyses = compute14DayStockAnalysis(items, transactions);
           const matchedItem = result.matchedItem;
+
           if (matchedItem) {
-            const stockReply = `${matchedItem.name} का स्टॉक ${matchedItem.current_stock} ${matchedItem.unit} बाकी है, जो लगभग ${matchedItem.days_stock_left || 5} दिन चलेगा।`;
+            const analysis =
+              analyses.find((a) => a.item.id === matchedItem.id) || {
+                item: matchedItem,
+                totalSold14Days: 0,
+                dailyAvgSales: matchedItem.daily_avg_sales || 2,
+                daysStockLeft: matchedItem.days_stock_left || 5,
+                isLowStock: matchedItem.current_stock <= matchedItem.min_threshold,
+                isCritical: (matchedItem.days_stock_left || 5) < 2,
+                suggestedReorderQty: 10,
+                estimatedReorderCost: 500,
+              };
+
+            const stockReply = generateStockVoiceReply(analysis, language);
             speechSynthesizer.speak(stockReply, language);
           } else {
-            speechSynthesizer.speak('दुकान का स्टॉक खोला जा रहा है', language);
+            const lowCount = analyses.filter((a) => a.isLowStock).length;
+            const genericReply =
+              language === 'pa'
+                ? `ਸਟਾਕ ਖੋਲ੍ਹਿਆ ਗਿਆ ਹੈ। ਕੁੱਲ ${lowCount} ਚੀਜ਼ਾਂ ਘੱਟ ਹਨ।`
+                : `स्टॉक खोला गया है। कुल ${lowCount} सामान का स्टॉक कम है।`;
+            speechSynthesizer.speak(genericReply, language);
           }
           setTimeout(() => setVoiceState('idle'), 1500);
           return;
@@ -187,7 +230,19 @@ export function useVoiceController({
         speechSynthesizer.speak(t.voice.noiseError, language);
       }
     },
-    [customers, items, isOnline, pendingConfirmation, language, t, onUndoLast, onNavigateTab]
+    [
+      customers,
+      items,
+      transactions,
+      isOnline,
+      pendingConfirmation,
+      language,
+      t,
+      onUndoLast,
+      onNavigateTab,
+      onOpenSupplierOrders,
+      onOpenDailySummary,
+    ]
   );
 
   // Start voice listening

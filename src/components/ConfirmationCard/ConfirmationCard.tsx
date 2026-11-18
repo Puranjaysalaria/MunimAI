@@ -180,6 +180,33 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
             </div>
           )}
 
+          {/* Balance adjustment preview for Credit or Payment */}
+          {pending.customer && (isCredit || isPayment) && (
+            <div className="p-3 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-between text-xs">
+              <span className="font-bold text-app-muted">
+                {isPayment ? 'बकाया उधार (Balance):' : 'नया कुल उधार:'}
+              </span>
+              <div className="text-right">
+                <span className="text-gray-500 line-through mr-2">
+                  {formatINR(pending.customer.balance_owed)}
+                </span>
+                <span
+                  className={`font-black text-sm ${
+                    isPayment ? 'text-received' : 'text-owed'
+                  }`}
+                >
+                  {formatINR(
+                    Math.max(
+                      0,
+                      Number(pending.customer.balance_owed) +
+                        (isCredit ? pending.amount : -pending.amount)
+                    )
+                  )}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Credit Limit Warning if exceeding limit */}
           {isCredit &&
             pending.customer &&

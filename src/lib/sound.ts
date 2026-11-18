@@ -3,10 +3,13 @@
  * Tactile vibration cues are essential for noisy kirana shop environments.
  */
 
-export const triggerHaptic = (type: 'start' | 'stop' | 'success' | 'warning' | 'error' = 'start') => {
+export const triggerHaptic = (type: 'start' | 'stop' | 'success' | 'warning' | 'error' | 'light' = 'start') => {
   if (typeof window !== 'undefined' && 'vibrate' in navigator) {
     try {
       switch (type) {
+        case 'light':
+          navigator.vibrate(20); // Very light tick
+          break;
         case 'start':
           navigator.vibrate(40); // Short crisp tap
           break;

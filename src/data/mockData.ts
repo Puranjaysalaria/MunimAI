@@ -327,7 +327,7 @@ export function generate14DaysTransactions(): Transaction[] {
       confirmed_by_voice: true,
       voice_transcript: `Subah ki sale: doodh, chini aur maggi`,
       items: [
-        { name: 'doodh', quantity: 3, unit: 'litre', price: 198 },
+        { name: 'doodh', quantity: 12, unit: 'litre', price: 792 },
         { name: 'chini', quantity: 4, unit: 'kilo', price: 176 },
         { name: 'maggi', quantity: 5, unit: 'packet', price: 70 },
       ],
