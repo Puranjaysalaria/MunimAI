@@ -93,3 +93,19 @@ This log records major technical and product decisions made during the developme
   - Pre-load demo shop ('Sharma Kirana Store') with the exact 8 specified customers (including Ramesh Sharma at Gali 4 and Ramesh Kumar near Temple), 12 staple grocery items, 14 days of realistic transactions, and 2 suppliers.
   - 1-tap "Open Demo Shop" button on login screen allows instant hands-on verification of all ledger, stock, and today features.
   - 4-digit PIN default set to `1234` for rapid lock/unlock testing.
+
+---
+
+### DECISION-009: Hindi Verb Disambiguation for Number Parsing ('Likh do' vs Digit 2)
+- **Date**: 2026-11-18
+- **Context**: In colloquial Hindi and Punjabi, phrases like "likh do", "kar do", "bhej do", and "de do" use the auxiliary verb "do" (meaning "please write / do / send / give"), which collided with the numeral "do" (2).
+- **Decision**:
+  - The number parser normalizes verb stems followed by "do" (e.g. `likh do`, `kar do`, `bhej do`, `mod do`) as actions rather than numerals, ensuring accurate intent detection for "Haan likh do" without accidental extraction of amount `₹2`.
+
+---
+
+### DECISION-010: Chronological Multi-Item Extraction in Kirana Natural Language
+- **Date**: 2026-11-18
+- **Context**: Shopkeepers often speak multiple items in a single sentence ("Chawal aur aata becha").
+- **Decision**:
+  - `findMentionedItems` sorts recognized synonyms strictly by their text position index rather than registry array order, accurately preserving the primary item spoken.
