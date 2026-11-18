@@ -14,6 +14,7 @@ import {
   Volume2,
 } from 'lucide-react';
 import { triggerHaptic } from '../lib/sound';
+import { LiveWaveform } from '../components/Voice/LiveWaveform';
 
 interface HomeProps {
   onStartVoice: () => void;
@@ -177,6 +178,9 @@ export const Home: React.FC<HomeProps> = ({
               />
             </button>
           </div>
+
+          {/* Live Waveform when listening */}
+          <LiveWaveform isListening={isListening} />
 
           {/* Live Transcript or Example Prompts */}
           <div className="mt-4 min-h-[44px] flex items-center justify-center w-full px-2">

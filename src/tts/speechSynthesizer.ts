@@ -1,8 +1,9 @@
+import { LanguageCode } from '../i18n/types';
+
 /**
  * SpeechSynthesis Wrapper for Spoken Replies
  * Voices responses in Hindi (hi-IN), Punjabi (pa-IN), and English (en-IN).
  */
-
 export class SpeechSynthesizer {
   private synth: SpeechSynthesis | null = null;
   private isMuted: boolean = false;
@@ -24,7 +25,7 @@ export class SpeechSynthesizer {
     }
   }
 
-  speak(text: string, lang: 'hi' | 'pa' | 'en' = 'hi'): Promise<void> {
+  speak(text: string, lang: LanguageCode | 'hi' | 'pa' | 'en' = 'hi'): Promise<void> {
     return new Promise((resolve) => {
       if (!this.synth || this.isMuted || !text) {
         resolve();

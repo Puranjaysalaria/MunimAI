@@ -9,13 +9,31 @@ import { Today } from './pages/Today';
 import { Auth } from './pages/Auth';
 import { PinLock } from './pages/PinLock';
 import { SettingsModal } from './components/SettingsModal';
+import { ConfirmationCard } from './components/ConfirmationCard/ConfirmationCard';
+import { DisambiguationModal } from './components/DisambiguationModal/DisambiguationModal';
+import { UndoToast } from './components/Voice/UndoToast';
+import { useVoiceController } from './hooks/useVoiceController';
 import { Customer } from './types/schema';
+import { speechSynthesizer } from './tts/speechSynthesizer';
+import { useI18n } from './i18n';
 
 export const AppContent: React.FC = () => {
-  const { isLoggedIn, isLocked } = useShop();
+  const {
+    isLoggedIn,
+    isLocked,
+    customers,
+    items,
+    lastTransaction,
+    addTransaction,
+    undoLastTransaction,
+  } = useShop();
+
+  const { language } = useI18n();
+
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [showUndoToast, setShowUndoToast] = useState(false);
 
   // Monitor online / offline network state
   useEffect(() => {
@@ -29,11 +47,31 @@ export const AppContent: React.FC = () => {
     };
   }, []);
 
-  // Voice placeholder states (will be wired in Phase 2 & 3)
-  const [isListening, setIsListening] = useState(false);
-  const [voiceState, setVoiceState] = useState<'idle' | 'listening' | 'thinking' | 'success' | 'error'>('idle');
-  const [liveTranscript, setLiveTranscript] = useState('');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Show Undo toast whenever a new transaction is recorded
+  useEffect(() => {
+    if (lastTransaction) {
+      setShowUndoToast(true);
+      const timer = setTimeout(() => setShowUndoToast(false), 9000);
+      return () => clearTimeout(timer);
+    }
+  }, [lastTransaction]);
+
+  // Voice Flow Controller Hook
+  const voice = useVoiceController({
+    customers,
+    items,
+    isOnline,
+    onSaveTransaction: (txData) => {
+      const savedTx = addTransaction(txData);
+      return savedTx;
+    },
+    onUndoLast: () => {
+      const res = undoLastTransaction();
+      setShowUndoToast(false);
+      return res;
+    },
+    onNavigateTab: (tab) => setActiveTab(tab),
+  });
 
   if (!isLoggedIn) {
     return <Auth />;
@@ -43,34 +81,20 @@ export const AppContent: React.FC = () => {
     return <PinLock />;
   }
 
-  const handleStartVoice = () => {
-    if (isListening) {
-      setIsListening(false);
-      setVoiceState('idle');
-    } else {
-      setIsListening(true);
-      setVoiceState('listening');
-      setErrorMessage(null);
-      // Demo simulated prompt if mic is tapped before Phase 2/3 full wiring
-      setLiveTranscript('सुन रहे हैं... बोलिए');
-      setTimeout(() => {
-        setIsListening(false);
-        setVoiceState('idle');
-        setLiveTranscript('');
-      }, 3000);
-    }
-  };
-
-  const handleTextSubmit = (text: string) => {
-    setLiveTranscript(text);
-    setVoiceState('thinking');
-    setTimeout(() => {
-      setVoiceState('idle');
-    }, 1000);
-  };
-
   const handleSelectCustomer = (_customer: Customer) => {
     setActiveTab('ledger');
+  };
+
+  const handleQuickCustomerAction = (customer: Customer, action: 'credit' | 'payment') => {
+    voice.processInput(
+      action === 'credit'
+        ? `${customer.name} ko 500 ka udhaar`
+        : `${customer.name} ne 500 diye`
+    );
+  };
+
+  const handleSpeakTodaySummary = () => {
+    voice.processInput('aaj kitni kamai hui');
   };
 
   return (
@@ -82,45 +106,72 @@ export const AppContent: React.FC = () => {
       <main className="flex-1 overflow-y-auto">
         {activeTab === 'home' && (
           <Home
-            onStartVoice={handleStartVoice}
-            onTextSubmit={handleTextSubmit}
-            isListening={isListening}
-            voiceState={voiceState}
-            liveTranscript={liveTranscript}
-            errorMessage={errorMessage}
-            onRetryVoice={handleStartVoice}
-            onSelectCustomerSuggestion={(name) => handleTextSubmit(`${name} ko 500 ka udhaar`)}
+            onStartVoice={voice.startListening}
+            onTextSubmit={voice.processInput}
+            isListening={voice.isListening}
+            voiceState={voice.voiceState}
+            liveTranscript={voice.liveTranscript}
+            errorMessage={voice.errorMessage}
+            onRetryVoice={voice.startListening}
+            onSelectCustomerSuggestion={(name) =>
+              voice.processInput(`${name} ko 500 ka udhaar`)
+            }
           />
         )}
 
         {activeTab === 'ledger' && (
           <Ledger
             onSelectCustomer={handleSelectCustomer}
-            onOpenRecovery={() => alert('तगादा फीचर: 1000+ वालों को रिमाइंडर')}
-            onPlayProof={(clipPath) => alert(`आवाज का सबूत: ${clipPath}`)}
-            onQuickAction={(customer, action) =>
-              handleTextSubmit(
-                action === 'credit'
-                  ? `${customer.name} ko 500 ka udhaar`
-                  : `${customer.name} ne 500 diye`
-              )
-            }
+            onOpenRecovery={() => voice.processInput('jinka 1000 se zyada baaki hai unko yaad dilao')}
+            onPlayProof={(_clipPath) => {
+              speechSynthesizer.speak('ग्राहक की सहमति का सबूत: हाँ, 500 रुपये मेरे नाम लिख दो', language);
+            }}
+            onQuickAction={handleQuickCustomerAction}
           />
         )}
 
         {activeTab === 'stock' && (
           <Stock
-            onOpenSupplierOrders={() => alert('सप्लायर आर्डर लिस्ट')}
+            onOpenSupplierOrders={() => voice.processInput('agle hafte ka samaan mangwana hai')}
             onQuickStockOrder={(item) =>
-              alert(`${item.name} का आर्डर सप्लायर को तैयार किया गया`)
+              voice.processInput(`${item.name} ka order banao`)
             }
           />
         )}
 
         {activeTab === 'today' && (
-          <Today onSpeakSummary={() => alert('आज की कुल कमाई बोलकर सुनाई जा रही है')} />
+          <Today onSpeakSummary={handleSpeakTodaySummary} />
         )}
       </main>
+
+      {/* Bottom Slide-up Confirmation Card */}
+      <ConfirmationCard
+        pending={voice.pendingConfirmation}
+        onConfirm={voice.handleConfirmSave}
+        onCancel={voice.handleCancelConfirmation}
+        isListeningForReply={voice.isListening}
+      />
+
+      {/* Disambiguation Modal ("Kaunsa Ramesh?") */}
+      <DisambiguationModal
+        isOpen={voice.disambiguationCustomers.length > 0}
+        customers={voice.disambiguationCustomers}
+        onSelectCustomer={voice.handleSelectDisambiguatedCustomer}
+        onCancel={voice.handleCancelConfirmation}
+      />
+
+      {/* Undo Toast Notification */}
+      {showUndoToast && lastTransaction && (
+        <UndoToast
+          lastTransaction={lastTransaction}
+          onUndo={() => {
+            const res = undoLastTransaction();
+            speechSynthesizer.speak(res.message, language);
+            setShowUndoToast(false);
+          }}
+          onDismiss={() => setShowUndoToast(false)}
+        />
+      )}
 
       {/* Fixed Bottom Tab Navigation */}
       <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} />

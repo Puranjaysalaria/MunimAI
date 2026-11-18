@@ -3,7 +3,7 @@
  * Used to read amounts back in both words and digits per prompt requirement.
  */
 
-export function amountToWords(amount: number, lang: 'hi' | 'pa' | 'en' = 'hi'): string {
+export function amountToWords(amount: number, lang: string = 'hi'): string {
   const rounded = Math.round(amount);
 
   if (lang === 'pa') {

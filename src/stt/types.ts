@@ -1,7 +1,7 @@
 export type STTProviderType = 'browser' | 'server';
 
 export interface STTOptions {
-  language: 'hi' | 'pa' | 'en' | 'hi-IN' | 'pa-IN' | 'en-IN';
+  language: 'hi' | 'pa' | 'en' | 'mr' | 'bn' | 'gu' | 'ta' | 'hi-IN' | 'pa-IN' | 'en-IN' | string;
   continuous?: boolean;
   interimResults?: boolean;
   maxAlternatives?: number;
