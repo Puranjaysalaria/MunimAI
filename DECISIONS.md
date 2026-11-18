@@ -109,3 +109,25 @@ This log records major technical and product decisions made during the developme
 - **Context**: Shopkeepers often speak multiple items in a single sentence ("Chawal aur aata becha").
 - **Decision**:
   - `findMentionedItems` sorts recognized synonyms strictly by their text position index rather than registry array order, accurately preserving the primary item spoken.
+
+---
+
+### DECISION-011: Strict Two-Stage Confirmation Card Architecture & Voice Readback
+- **Date**: 2026-11-18
+- **Context**: Every voice command must be verified before mutating the shop's financial state.
+- **Decision**:
+  - The `ConfirmationCard` component slides up from the bottom with 64px tap targets for "Haan (लिख दो)" and "Nahi (रद्द)".
+  - On mount, `SpeechSynthesizer` speaks the readback in the shopkeeper's selected language, voicing both digits and words (e.g. *"Ramesh Sharma, पाँच सौ (500) रुपये उधार। लिख दूँ?"*).
+  - Both buttons respond to tap and continuous voice detection ("Haan" saves, "Nahi" cancels).
+
+---
+
+### DECISION-012: In-Memory Undo Stack with Immediate Balance & Inventory Rollback
+- **Date**: 2026-11-18
+- **Context**: If a shopkeeper confirms an entry by mistake, they must be able to cancel it immediately without manual ledger editing.
+- **Decision**:
+  - On confirming any transaction, an `UndoToast` banner appears with a direct "वापस करो (Undo)" button.
+  - Speaking "Wapas karo" or tapping Undo instantly reverses the transaction:
+    - Restores the customer's previous `balance_owed`.
+    - Restores deducted inventory quantities.
+    - Plays audio confirmation cue: *"₹500 का लेन-देन वापस कर दिया गया है"*.
