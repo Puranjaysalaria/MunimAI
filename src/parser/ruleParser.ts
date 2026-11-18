@@ -45,7 +45,7 @@ export function parseWithRules(
   // Extract amount & quantity early to distinguish command types
   const amount = extractAmount(text);
   const qtyInfo = extractQuantityAndUnit(text);
-  const mentionedItems = findMentionedItems(text);
+  const mentionedItems = findMentionedItems(text, context.items);
   const firstItem = mentionedItems.length > 0 ? mentionedItems[0].canonical : null;
 
   // 3. Undo: "Wapas karo" / "Undo"

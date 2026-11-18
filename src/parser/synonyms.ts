@@ -1,7 +1,4 @@
-/**
- * Kirana Item Synonym Dictionary & Normalizer
- * Maps local Hindi, Punjabi, and colloquial terms to canonical inventory items.
- */
+import { Item } from '../types/schema';
 
 export interface ItemSynonymDef {
   canonical: string;
@@ -73,15 +70,32 @@ export const KIRANA_SYNONYM_REGISTRY: ItemSynonymDef[] = [
 ];
 
 /**
- * Finds all matched items mentioned in a sentence, ordered by their appearance in the text.
+ * Finds all matched items mentioned in a sentence.
+ * Dynamically checks BOTH the built-in dictionary AND the shopkeeper's dynamic inventory items!
  */
 export function findMentionedItems(
-  text: string
-): { canonical: string; matchedSynonym: string; defaultUnit: string; index: number }[] {
+  text: string,
+  dynamicItems: Item[] = []
+): { canonical: string; matchedSynonym: string; defaultUnit: string; index: number; isCustom?: boolean }[] {
   const lower = text.toLowerCase();
-  const matched: { canonical: string; matchedSynonym: string; defaultUnit: string; index: number }[] = [];
+  const matched: { canonical: string; matchedSynonym: string; defaultUnit: string; index: number; isCustom?: boolean }[] = [];
 
-  for (const item of KIRANA_SYNONYM_REGISTRY) {
+  // 1. Build combined registry: static items + shopkeeper's dynamic custom inventory
+  const combinedRegistry: ItemSynonymDef[] = [...KIRANA_SYNONYM_REGISTRY];
+
+  if (dynamicItems && dynamicItems.length > 0) {
+    for (const dyn of dynamicItems) {
+      if (!combinedRegistry.some((c) => c.canonical.toLowerCase() === dyn.name.toLowerCase())) {
+        combinedRegistry.push({
+          canonical: dyn.name,
+          unit: dyn.unit,
+          synonyms: [dyn.name, ...(dyn.synonyms || [])],
+        });
+      }
+    }
+  }
+
+  for (const item of combinedRegistry) {
     for (const syn of item.synonyms) {
       const regex = new RegExp(`\\b${syn.replace(/\s+/g, '\\s+')}\\b`, 'i');
       const match = lower.match(regex);
@@ -99,13 +113,34 @@ export function findMentionedItems(
     }
   }
 
+  // 2. Positional Grammar Fallback for completely unknown words outside dictionary:
+  // e.g., "5 kilo besan becha" -> matches pattern `(\d+|adha|ek|do|teen)\s+(kilo|packet|litre|piece)\s+([a-zA-Z\u0900-\u097F]+)`
+  if (matched.length === 0) {
+    const unknownItemPattern = /(?:\d+|adha|aadha|paav|pao|ek|ik|do|teen|char|paanch|panj)\s*(?:kilo|kg|litre|packet|piece|gram|bori)\s+([a-zA-Z\u0900-\u097F]+)/i;
+    const match = lower.match(unknownItemPattern);
+    if (match && match[1]) {
+      const extractedWord = match[1].trim();
+      // Ignore common action verbs
+      const ignoreWords = ['bechi', 'becha', 'vechi', 'vech', 'diya', 'diye', 'ka', 'ke', 'ko', 'aur', 'te', 'de', 'bika'];
+      if (!ignoreWords.includes(extractedWord) && extractedWord.length >= 3) {
+        matched.push({
+          canonical: extractedWord,
+          matchedSynonym: extractedWord,
+          defaultUnit: 'piece',
+          index: match.index ?? 0,
+          isCustom: true,
+        });
+      }
+    }
+  }
+
   // Sort by order of appearance in the sentence
   matched.sort((a, b) => a.index - b.index);
 
   return matched;
 }
 
-export function resolveItemSynonym(query: string): string | null {
-  const matches = findMentionedItems(query);
+export function resolveItemSynonym(query: string, dynamicItems: Item[] = []): string | null {
+  const matches = findMentionedItems(query, dynamicItems);
   return matches.length > 0 ? matches[0].canonical : null;
 }

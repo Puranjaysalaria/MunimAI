@@ -76,6 +76,32 @@ describe('Synonym Registry - Kirana Items', () => {
     expect(names).toContain('chini');
     expect(names).toContain('doodh');
   });
+
+  it('handles words outside the starter dictionary via dynamic inventory', () => {
+    // Custom item added by shopkeeper not in starter 12
+    const customItem = {
+      id: 'custom-1',
+      shop_id: 'shop-1',
+      name: 'besan',
+      synonyms: ['chana aata', 'gram flour'],
+      unit: 'kilo' as const,
+      cost_price: 70,
+      selling_price: 85,
+      current_stock: 20,
+      min_threshold: 5,
+    };
+
+    const result = resolveItemSynonym('gram flour', [customItem]);
+    expect(result).toBe('besan');
+  });
+
+  it('extracts completely unknown spoken items using positional grammar', async () => {
+    // "poha" is neither in static dictionary nor in demo items
+    const res = await parseSpeech('5 kilo poha bechi', testContext);
+    expect(res.intent).toBe('sale');
+    expect(res.item).toBe('poha');
+    expect(res.quantity).toBe(5);
+  });
 });
 
 describe('Speech Parser - 30+ Multilingual Sentences Across All Intents', () => {
