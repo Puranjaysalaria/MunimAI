@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { useShop } from '../context/ShopContext';
 import { useI18n } from '../i18n';
 import { formatINR, formatRelativeTime } from '../lib/utils';
@@ -9,8 +10,11 @@ import {
   ArrowDownLeft,
   Receipt,
   Award,
+  Sparkles,
+  ShoppingBag,
 } from 'lucide-react';
 import { triggerHaptic } from '../lib/sound';
+import { CustomerAvatar } from '../components/CustomerAvatar';
 
 interface TodayProps {
   onSpeakSummary: () => void;
@@ -43,7 +47,7 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
     .filter((t) => t.type === 'expense')
     .reduce((sum, t) => sum + Number(t.amount), 0);
 
-  // Estimated gross profit: ~14% average margin on Kirana groceries
+  // Estimated gross profit: ~15% average margin on Kirana groceries
   const estimatedProfit = Math.round((totalSales + creditGiven) * 0.15 - expenses);
 
   const handleSpeakClick = () => {
@@ -52,142 +56,192 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
   };
 
   return (
-    <div className="pb-28 px-4 pt-3 max-w-md mx-auto space-y-4">
+    <div className="pb-32 px-4 pt-3 max-w-md mx-auto space-y-4 select-none">
       {/* Top Hero: Estimated Profit Card */}
-      <div className="bg-primary text-white rounded-3xl p-5 shadow-card relative overflow-hidden">
+      <motion.div
+        initial={{ opacity: 0, y: -6 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-gradient-to-br from-emerald-950 via-primary to-emerald-900 text-white rounded-3xl p-6 shadow-card relative overflow-hidden border border-emerald-800/40"
+      >
         <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-emerald-200 uppercase tracking-wider flex items-center">
+          <span className="text-xs font-black text-emerald-200 uppercase tracking-wider flex items-center">
             <Award className="w-4 h-4 mr-1 text-accent" />
             {t.today.title}
           </span>
-          <span className="text-xs bg-white/20 px-2.5 py-0.5 rounded-full font-semibold">
-            {todayTxs.length} सौदे
+          <span className="text-xs bg-white/15 px-3 py-1 rounded-full font-black border border-white/20">
+            {todayTxs.length} कुल सौदे
           </span>
         </div>
 
-        <div className="mt-3">
-          <p className="text-xs text-emerald-100">{t.today.estimatedProfit}</p>
+        <div className="mt-4">
+          <p className="text-xs text-emerald-200 font-semibold">{t.today.estimatedProfit}</p>
           <div className="text-4xl font-black tracking-tight text-white mt-1">
             {isOwner ? formatINR(Math.max(0, estimatedProfit)) : '••••••'}
           </div>
-          {!isOwner && (
-            <p className="text-[11px] text-emerald-200 mt-1">
+          {!isOwner ? (
+            <p className="text-[11px] text-emerald-300 mt-1">
               (स्टाफ मोड: शुद्ध मुनाफा केवल दुकान मालिक को दिखता है)
+            </p>
+          ) : (
+            <p className="text-[11px] text-emerald-300 mt-1 font-semibold flex items-center">
+              <Sparkles className="w-3.5 h-3.5 mr-1 text-accent" />
+              किराना औसत मुनाफ़ा ~15% मार्जिन
             </p>
           )}
         </div>
 
         {/* Speak Summary Button */}
-        <div className="mt-5 pt-3 border-t border-emerald-700/60 flex items-center justify-between">
-          <p className="text-xs text-emerald-100">दिन भर का पूरा हिसाब</p>
-          <button
+        <div className="mt-5 pt-3.5 border-t border-emerald-800/60 flex items-center justify-between">
+          <p className="text-xs text-emerald-200 font-semibold">दिन भर का पूरा हिसाब सुनें</p>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.94 }}
             onClick={handleSpeakClick}
-            className="touch-target-64 px-4 py-2 bg-accent hover:bg-accent-hover text-app-text font-black text-xs rounded-xl shadow-md active:scale-95 flex items-center space-x-2"
+            className="touch-target-64 px-4 py-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs rounded-2xl shadow-md flex items-center space-x-2 border border-amber-300"
           >
-            <Volume2 className="w-4 h-4 text-zinc-900" />
+            <Volume2 className="w-4 h-4 text-slate-950" />
             <span>{t.today.voiceSummaryButton}</span>
-          </button>
+          </motion.button>
         </div>
-      </div>
+      </motion.div>
 
       {/* 4-Box Financial Grid */}
       <div className="grid grid-cols-2 gap-3">
         {/* Cash Sales */}
-        <div className="bg-surface rounded-2xl p-4 shadow-card border border-gray-100">
-          <div className="flex items-center justify-between text-app-muted text-xs font-semibold">
+        <motion.div
+          whileHover={{ y: -2 }}
+          className="bg-white rounded-3xl p-4 shadow-card border border-emerald-100 flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
             <span>{t.today.totalSales}</span>
-            <div className="p-1 rounded-full bg-emerald-50 text-emerald-600">
-              <TrendingUp className="w-3.5 h-3.5" />
+            <div className="p-1.5 rounded-xl bg-emerald-50 text-emerald-600">
+              <TrendingUp className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-emerald-700 mt-2">
+          <div className="text-2xl font-black text-emerald-700 mt-3 tracking-tight">
             {formatINR(totalSales)}
           </div>
-          <p className="text-[10px] text-app-muted mt-0.5">नकद बिक्री</p>
-        </div>
+          <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">नकद बिक्री</p>
+        </motion.div>
 
         {/* Udhaar Given */}
-        <div className="bg-surface rounded-2xl p-4 shadow-card border border-gray-100">
-          <div className="flex items-center justify-between text-app-muted text-xs font-semibold">
+        <motion.div
+          whileHover={{ y: -2 }}
+          className="bg-white rounded-3xl p-4 shadow-card border border-rose-100 flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
             <span>{t.today.creditGiven}</span>
-            <div className="p-1 rounded-full bg-red-50 text-owed">
-              <ArrowUpRight className="w-3.5 h-3.5" />
+            <div className="p-1.5 rounded-xl bg-rose-50 text-owed">
+              <ArrowUpRight className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-owed mt-2">
+          <div className="text-2xl font-black text-owed mt-3 tracking-tight">
             {formatINR(creditGiven)}
           </div>
-          <p className="text-[10px] text-app-muted mt-0.5">खाते में लिखा</p>
-        </div>
+          <p className="text-[11px] text-rose-600 font-semibold mt-0.5">नया उधार दिया</p>
+        </motion.div>
 
         {/* Cash Collected on Old Udhaar */}
-        <div className="bg-surface rounded-2xl p-4 shadow-card border border-gray-100">
-          <div className="flex items-center justify-between text-app-muted text-xs font-semibold">
+        <motion.div
+          whileHover={{ y: -2 }}
+          className="bg-white rounded-3xl p-4 shadow-card border border-emerald-100 flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
             <span>{t.today.cashCollected}</span>
-            <div className="p-1 rounded-full bg-emerald-50 text-received">
-              <ArrowDownLeft className="w-3.5 h-3.5" />
+            <div className="p-1.5 rounded-xl bg-emerald-50 text-received">
+              <ArrowDownLeft className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-received mt-2">
+          <div className="text-2xl font-black text-received mt-3 tracking-tight">
             {formatINR(cashCollected)}
           </div>
-          <p className="text-[10px] text-app-muted mt-0.5">पुराना उधार लौटा</p>
-        </div>
+          <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">पुराना उधार लौटा</p>
+        </motion.div>
 
         {/* Expenses */}
-        <div className="bg-surface rounded-2xl p-4 shadow-card border border-gray-100">
-          <div className="flex items-center justify-between text-app-muted text-xs font-semibold">
+        <motion.div
+          whileHover={{ y: -2 }}
+          className="bg-white rounded-3xl p-4 shadow-card border border-amber-100 flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
             <span>{t.today.expenses}</span>
-            <div className="p-1 rounded-full bg-amber-50 text-amber-600">
-              <Receipt className="w-3.5 h-3.5" />
+            <div className="p-1.5 rounded-xl bg-amber-50 text-amber-600">
+              <Receipt className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-black text-amber-700 mt-2">
+          <div className="text-2xl font-black text-amber-700 mt-3 tracking-tight">
             {formatINR(expenses)}
           </div>
-          <p className="text-[10px] text-app-muted mt-0.5">दुकान का खर्च</p>
-        </div>
+          <p className="text-[11px] text-amber-600 font-semibold mt-0.5">दुकान का खर्चा</p>
+        </motion.div>
       </div>
 
       {/* Today's Transactions Timeline */}
-      <div className="bg-surface rounded-2xl p-4 shadow-card border border-gray-100">
-        <h3 className="font-bold text-sm text-app-text mb-3">
-          आज के सभी लेन-देन ({todayTxs.length})
-        </h3>
+      <div className="bg-white rounded-3xl p-5 shadow-card border border-gray-100">
+        <div className="flex items-center justify-between mb-3 px-1">
+          <h3 className="font-black text-sm text-slate-900">
+            आज के सभी लेन-देन ({todayTxs.length})
+          </h3>
+          <span className="text-xs font-bold text-slate-500 bg-gray-100 px-2 py-0.5 rounded-full">
+            समय अनुसार
+          </span>
+        </div>
 
         {todayTxs.length === 0 ? (
-          <p className="text-xs text-app-muted text-center py-6">
-            आज अभी तक कोई सौदा दर्ज नहीं हुआ है
-          </p>
+          <div className="py-8 text-center text-slate-400">
+            <ShoppingBag className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+            <p className="text-xs font-bold text-slate-600">आज अभी तक कोई सौदा दर्ज नहीं हुआ</p>
+          </div>
         ) : (
           <div className="divide-y divide-gray-100">
             {todayTxs.map((tx) => {
               const customer = customers.find((c) => c.id === tx.customer_id);
+              const isOwed = tx.type === 'credit';
+              const isPayment = tx.type === 'payment';
+
               return (
-                <div key={tx.id} className="py-2.5 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-bold text-app-text">
-                      {customer?.name || (tx.type === 'sale' ? 'नकद बिक्री' : 'खर्चा')}
-                    </p>
-                    <p className="text-xs text-app-muted">
-                      {tx.voice_transcript || tx.type}
-                    </p>
+                <div key={tx.id} className="py-3 flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    {customer ? (
+                      <CustomerAvatar
+                        name={customer.name}
+                        size="sm"
+                        trustScore={customer.trust_score}
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center text-slate-600 font-bold text-xs">
+                        🛒
+                      </div>
+                    )}
+
+                    <div>
+                      <p className="text-sm font-black text-slate-900">
+                        {customer?.name || (tx.type === 'sale' ? 'नकद बिक्री' : 'दुकान खर्चा')}
+                      </p>
+                      <p className="text-xs text-slate-500 font-medium">
+                        {tx.voice_transcript || tx.type}
+                      </p>
+                    </div>
                   </div>
+
                   <div className="text-right">
                     <p
-                      className={`text-base font-bold ${
-                        tx.type === 'credit'
+                      className={`text-base font-black ${
+                        isOwed
                           ? 'text-owed'
-                          : tx.type === 'payment'
+                          : isPayment
                           ? 'text-received'
-                          : 'text-app-text'
+                          : 'text-slate-900'
                       }`}
                     >
-                      {tx.type === 'credit' ? '+' : tx.type === 'payment' ? '-' : ''}
+                      {isOwed ? '+' : isPayment ? '-' : ''}
                       {formatINR(tx.amount)}
                     </p>
-                    <p className="text-[10px] text-gray-400">
-                      {formatRelativeTime(tx.created_at, language === 'pa' ? 'pa' : language === 'en' ? 'en' : 'hi')}
+                    <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                      {formatRelativeTime(
+                        tx.created_at,
+                        language === 'pa' ? 'pa' : language === 'en' ? 'en' : 'hi'
+                      )}
                     </p>
                   </div>
                 </div>

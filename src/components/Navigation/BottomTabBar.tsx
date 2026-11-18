@@ -1,6 +1,8 @@
 import React from 'react';
 import { useI18n } from '../../i18n';
 import { Home, BookOpen, Package, TrendingUp } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { triggerHaptic } from '../../lib/sound';
 
 export type TabKey = 'home' | 'ledger' | 'stock' | 'today';
 
@@ -20,12 +22,12 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({ activeTab, onTabChan
   ];
 
   return (
-    <nav
-      className="fixed bottom-0 left-0 right-0 bg-surface border-t border-gray-200/80 shadow-sheet z-40 pb-[env(safe-area-inset-bottom)] select-none"
-      role="navigation"
-      aria-label="Main Navigation"
-    >
-      <div className="max-w-md mx-auto grid grid-cols-4 h-16">
+    <div className="fixed bottom-0 left-0 right-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1 pointer-events-none select-none">
+      <nav
+        className="max-w-md mx-auto pointer-events-auto rounded-3xl glass-panel shadow-dock border border-white/70 p-1.5 flex items-center justify-around"
+        role="navigation"
+        aria-label="Main Navigation"
+      >
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.key;
@@ -33,35 +35,58 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({ activeTab, onTabChan
           return (
             <button
               key={tab.key}
-              onClick={() => onTabChange(tab.key)}
-              className={`touch-target-64 flex flex-col items-center justify-center relative transition-colors duration-200 active:scale-95 ${
-                isActive ? 'text-primary' : 'text-app-muted hover:text-app-text'
-              }`}
+              onClick={() => {
+                triggerHaptic('light');
+                onTabChange(tab.key);
+              }}
+              className="relative flex-1 py-2 px-1 flex flex-col items-center justify-center rounded-2xl transition-all active:scale-95 touch-target-64 focus:outline-none"
               aria-label={tab.label}
               aria-current={isActive ? 'page' : undefined}
             >
-              <div
-                className={`relative flex items-center justify-center p-1.5 rounded-full transition-all ${
-                  isActive ? 'bg-primary-light text-primary' : ''
+              {/* Animated Floating Pill Background */}
+              {isActive && (
+                <motion.div
+                  layoutId="activeTabPill"
+                  className="absolute inset-0 bg-primary/10 rounded-2xl border border-primary/20 shadow-inner"
+                  transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                />
+              )}
+
+              {/* Icon Container with Spring Animation */}
+              <motion.div
+                animate={{
+                  scale: isActive ? 1.15 : 1,
+                  y: isActive ? -2 : 0,
+                }}
+                transition={{ type: 'spring', stiffness: 500, damping: 28 }}
+                className={`relative z-10 flex items-center justify-center ${
+                  isActive ? 'text-primary' : 'text-gray-400 hover:text-gray-600'
                 }`}
               >
                 <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5]' : 'stroke-[1.8]'}`} />
-              </div>
+              </motion.div>
+
+              {/* Tab Label */}
               <span
-                className={`text-[11px] font-semibold mt-0.5 tracking-tight ${
-                  isActive ? 'text-primary font-bold' : 'text-app-muted'
+                className={`relative z-10 text-[11px] font-bold mt-1 tracking-tight transition-colors ${
+                  isActive ? 'text-primary font-black' : 'text-gray-500 font-medium'
                 }`}
               >
                 {tab.label}
               </span>
 
+              {/* Tiny glowing dot under active tab */}
               {isActive && (
-                <span className="absolute top-0 w-8 h-1 bg-primary rounded-b-full shadow-sm" />
+                <motion.span
+                  layoutId="activeTabDot"
+                  className="absolute -bottom-0.5 w-1.5 h-1.5 bg-primary rounded-full shadow-sm"
+                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                />
               )}
             </button>
           );
         })}
-      </div>
-    </nav>
+      </nav>
+    </div>
   );
 };

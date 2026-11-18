@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useShop } from './context/ShopContext';
 import { Header } from './components/Navigation/Header';
 import { BottomTabBar, TabKey } from './components/Navigation/BottomTabBar';
@@ -245,25 +246,40 @@ export const AppContent: React.FC = () => {
       </main>
 
       {/* "Customer se bulwayein" Post-Credit Voice Proof Button */}
-      {showProofPrompt && proofTargetTx && (
-        <div className="fixed bottom-36 left-4 right-4 z-40 max-w-md mx-auto animate-bounce-short select-none">
-          <button
-            onClick={() => {
-              triggerHaptic('start');
-              setShowProofPrompt(false);
-            }}
-            className="w-full bg-amber-500 hover:bg-amber-600 text-zinc-950 font-black py-3 px-4 rounded-2xl shadow-mic flex items-center justify-between border-2 border-amber-600 active:scale-95"
+      <AnimatePresence>
+        {showProofPrompt && proofTargetTx && (
+          <motion.div
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 30, scale: 0.95 }}
+            transition={{ type: 'spring', damping: 22, stiffness: 350 }}
+            className="fixed bottom-24 left-4 right-4 z-40 max-w-md mx-auto select-none"
           >
-            <div className="flex items-center space-x-2">
-              <Mic className="w-5 h-5 text-zinc-950 animate-pulse" />
-              <span className="text-sm">ग्राहक से बुलवाएं (आवाज़ का सबूत लें)</span>
-            </div>
-            <span className="text-xs bg-zinc-950/20 px-2 py-1 rounded-lg">
-              5 सेकंड रिकॉर्ड
-            </span>
-          </button>
-        </div>
-      )}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                triggerHaptic('start');
+                setShowProofPrompt(false);
+              }}
+              className="w-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-slate-950 font-black py-3.5 px-4 rounded-2xl shadow-mic-hero flex items-center justify-between border-2 border-amber-300"
+            >
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-slate-950/15 flex items-center justify-center">
+                  <Mic className="w-5 h-5 text-slate-950 animate-pulse stroke-[2.4]" />
+                </div>
+                <div className="text-left">
+                  <span className="text-sm block leading-tight">ग्राहक से बुलवाएं (आवाज़ का सबूत)</span>
+                  <span className="text-[11px] text-amber-950/80 font-bold">झगड़े और मुकरने से बचें</span>
+                </div>
+              </div>
+              <span className="text-xs bg-slate-950 text-white font-black px-2.5 py-1.5 rounded-xl shadow-xs">
+                5 सेकंड रिकॉर्ड
+              </span>
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Bottom Slide-up Confirmation Card */}
       <ConfirmationCard
