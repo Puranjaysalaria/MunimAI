@@ -7,9 +7,10 @@ import { X, Globe, Lock, Shield, LogOut, Check, Store } from 'lucide-react';
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenPrivacy?: () => void;
 }
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPrivacy }) => {
   const { shop, updateShopSettings, setShopPin, logout } = useShop();
   const { language, setLanguage, availableLanguages, t } = useI18n();
 
@@ -132,11 +133,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           </div>
 
           {/* Privacy Note */}
-          <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs text-app-muted flex items-start space-x-2">
+          <div
+            onClick={onOpenPrivacy}
+            className="bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl p-3 text-xs text-app-muted flex items-start space-x-2 cursor-pointer active:scale-[0.98] transition-all"
+          >
             <Shield className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-            <span>
-              {t.settings.privacy}: दुकान का डेटा निजी है। ग्राहक की आवाज केवल सहमति के साथ 5 सेकंड रिकॉर्ड होती है।
-            </span>
+            <div>
+              <p className="font-bold text-app-text">{t.settings.privacy} नीति देखें</p>
+              <p className="mt-0.5">
+                दुकान का डेटा निजी है। ग्राहक की आवाज केवल सहमति के साथ 5 सेकंड रिकॉर्ड होती है।
+              </p>
+            </div>
           </div>
 
           {/* Action Buttons */}

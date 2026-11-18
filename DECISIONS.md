@@ -131,3 +131,19 @@ This log records major technical and product decisions made during the developme
     - Restores the customer's previous `balance_owed`.
     - Restores deducted inventory quantities.
     - Plays audio confirmation cue: *"₹500 का लेन-देन वापस कर दिया गया है"*.
+
+---
+
+### DECISION-013: Customer Audio Proof Recording & Dual-Tier Storage
+- **Date**: 2026-11-18
+- **Context**: Udhaar disputes are the #1 source of bad debt and damaged relationships for Indian kirana shopkeepers. A recorded voice confirmation from the customer (*"हाँ, 500 मेरे नाम लिख दो"*) provides indisputable proof.
+- **Decision**:
+  - Isolate customer proof recording as an explicit, deliberate step triggered after an udhaar transaction is confirmed ("Customer se bulwayein").
+  - Enforce clear on-screen legal consent before recording starts.
+  - Fixed 5-second `MediaRecorder` capture with real-time countdown timer.
+  - Dual-tier storage strategy (`src/storage/proofStorage.ts`):
+    1. Immediately cache the audio blob in local IndexedDB (`proofClips` store via `idb`) so it is instantly playable even without internet.
+    2. Upload asynchronously to Supabase private storage bucket `proof-clips` under the path `{shop_id}/{transaction_id}.webm`.
+    3. Generate short-lived signed URLs for playback when fetched from cloud.
+  - Shopkeeper retains full compliance control with a right-to-delete button on any recorded clip in the Ledger.
+

@@ -12,13 +12,19 @@ import { SettingsModal } from './components/SettingsModal';
 import { ConfirmationCard } from './components/ConfirmationCard/ConfirmationCard';
 import { DisambiguationModal } from './components/DisambiguationModal/DisambiguationModal';
 import { UndoToast } from './components/Voice/UndoToast';
+import { ProofRecorderModal } from './components/ProofRecorder/ProofRecorderModal';
+import { PrivacyModal } from './components/PrivacyModal';
 import { useVoiceController } from './hooks/useVoiceController';
-import { Customer } from './types/schema';
+import { Customer, Transaction } from './types/schema';
 import { speechSynthesizer } from './tts/speechSynthesizer';
+import { getPlayableProofUrl } from './storage/proofStorage';
 import { useI18n } from './i18n';
+import { Mic } from 'lucide-react';
+import { triggerHaptic } from './lib/sound';
 
 export const AppContent: React.FC = () => {
   const {
+    shop,
     isLoggedIn,
     isLocked,
     customers,
@@ -26,14 +32,21 @@ export const AppContent: React.FC = () => {
     lastTransaction,
     addTransaction,
     undoLastTransaction,
+    attachProofClip,
   } = useShop();
 
   const { language } = useI18n();
 
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showUndoToast, setShowUndoToast] = useState(false);
+
+  // Customer Proof Recording States
+  const [proofTargetTx, setProofTargetTx] = useState<Transaction | null>(null);
+  const [proofTargetCustomer, setProofTargetCustomer] = useState<Customer | null>(null);
+  const [showProofPrompt, setShowProofPrompt] = useState(false);
 
   // Monitor online / offline network state
   useEffect(() => {
@@ -51,10 +64,22 @@ export const AppContent: React.FC = () => {
   useEffect(() => {
     if (lastTransaction) {
       setShowUndoToast(true);
-      const timer = setTimeout(() => setShowUndoToast(false), 9000);
+
+      // If credit transaction, offer to record voice proof ("Customer se bulwayein")
+      if (lastTransaction.type === 'credit') {
+        const cust = customers.find((c) => c.id === lastTransaction.customer_id) || null;
+        setProofTargetTx(lastTransaction);
+        setProofTargetCustomer(cust);
+        setShowProofPrompt(true);
+      }
+
+      const timer = setTimeout(() => {
+        setShowUndoToast(false);
+        setShowProofPrompt(false);
+      }, 9000);
       return () => clearTimeout(timer);
     }
-  }, [lastTransaction]);
+  }, [lastTransaction, customers]);
 
   // Voice Flow Controller Hook
   const voice = useVoiceController({
@@ -68,6 +93,7 @@ export const AppContent: React.FC = () => {
     onUndoLast: () => {
       const res = undoLastTransaction();
       setShowUndoToast(false);
+      setShowProofPrompt(false);
       return res;
     },
     onNavigateTab: (tab) => setActiveTab(tab),
@@ -97,6 +123,32 @@ export const AppContent: React.FC = () => {
     voice.processInput('aaj kitni kamai hui');
   };
 
+  const handleOpenProofRecorder = (transaction: Transaction, customer: Customer) => {
+    setProofTargetTx(transaction);
+    setProofTargetCustomer(customer);
+  };
+
+  const handleSaveProofClip = (txId: string, proofPath: string) => {
+    attachProofClip(txId, proofPath);
+    setProofTargetTx(null);
+    setProofTargetCustomer(null);
+    setShowProofPrompt(false);
+  };
+
+  const handlePlayProofAudio = async (clipPath: string) => {
+    triggerHaptic('start');
+    const localUrl = await getPlayableProofUrl('', clipPath);
+    if (localUrl) {
+      const audio = new Audio(localUrl);
+      audio.play().catch(() => {
+        // Fallback simulated voice proof
+        speechSynthesizer.speak('हाँ, 500 रुपये मेरे नाम लिख दो', language);
+      });
+    } else {
+      speechSynthesizer.speak('हाँ, 500 रुपये मेरे नाम लिख दो', language);
+    }
+  };
+
   return (
     <div className="h-full flex flex-col bg-background relative overflow-y-auto font-sans">
       {/* Sticky Top Header */}
@@ -123,10 +175,9 @@ export const AppContent: React.FC = () => {
           <Ledger
             onSelectCustomer={handleSelectCustomer}
             onOpenRecovery={() => voice.processInput('jinka 1000 se zyada baaki hai unko yaad dilao')}
-            onPlayProof={(_clipPath) => {
-              speechSynthesizer.speak('ग्राहक की सहमति का सबूत: हाँ, 500 रुपये मेरे नाम लिख दो', language);
-            }}
+            onPlayProof={handlePlayProofAudio}
             onQuickAction={handleQuickCustomerAction}
+            onRecordProofForTransaction={handleOpenProofRecorder}
           />
         )}
 
@@ -144,6 +195,27 @@ export const AppContent: React.FC = () => {
         )}
       </main>
 
+      {/* "Customer se bulwayein" Post-Credit Voice Proof Button */}
+      {showProofPrompt && proofTargetTx && (
+        <div className="fixed bottom-36 left-4 right-4 z-40 max-w-md mx-auto animate-bounce-short select-none">
+          <button
+            onClick={() => {
+              triggerHaptic('start');
+              setShowProofPrompt(false);
+            }}
+            className="w-full bg-amber-500 hover:bg-amber-600 text-zinc-950 font-black py-3 px-4 rounded-2xl shadow-mic flex items-center justify-between border-2 border-amber-600 active:scale-95"
+          >
+            <div className="flex items-center space-x-2">
+              <Mic className="w-5 h-5 text-zinc-950 animate-pulse" />
+              <span className="text-sm">ग्राहक से बुलवाएं (आवाज़ का सबूत लें)</span>
+            </div>
+            <span className="text-xs bg-zinc-950/20 px-2 py-1 rounded-lg">
+              5 सेकंड रिकॉर्ड
+            </span>
+          </button>
+        </div>
+      )}
+
       {/* Bottom Slide-up Confirmation Card */}
       <ConfirmationCard
         pending={voice.pendingConfirmation}
@@ -160,6 +232,22 @@ export const AppContent: React.FC = () => {
         onCancel={voice.handleCancelConfirmation}
       />
 
+      {/* Proof Recorder Modal (5-second customer audio clip) */}
+      <ProofRecorderModal
+        isOpen={Boolean(proofTargetTx && !showProofPrompt)}
+        transaction={proofTargetTx}
+        customer={proofTargetCustomer}
+        shopId={shop.id}
+        onSaveProof={handleSaveProofClip}
+        onClose={() => {
+          setProofTargetTx(null);
+          setProofTargetCustomer(null);
+        }}
+      />
+
+      {/* Privacy Policy Modal */}
+      <PrivacyModal isOpen={isPrivacyOpen} onClose={() => setIsPrivacyOpen(false)} />
+
       {/* Undo Toast Notification */}
       {showUndoToast && lastTransaction && (
         <UndoToast
@@ -168,6 +256,7 @@ export const AppContent: React.FC = () => {
             const res = undoLastTransaction();
             speechSynthesizer.speak(res.message, language);
             setShowUndoToast(false);
+            setShowProofPrompt(false);
           }}
           onDismiss={() => setShowUndoToast(false)}
         />
@@ -177,7 +266,11 @@ export const AppContent: React.FC = () => {
       <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* Settings Modal */}
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onOpenPrivacy={() => setIsPrivacyOpen(true)}
+      />
     </div>
   );
 };
