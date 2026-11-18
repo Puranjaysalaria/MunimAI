@@ -3,6 +3,8 @@ import { useShop } from '../context/ShopContext';
 import { useI18n } from '../i18n';
 import { Customer, Transaction } from '../types/schema';
 import { formatINR, formatRelativeTime } from '../lib/utils';
+import { exportLedgerToCSV, printCustomerStatement } from '../lib/exportService';
+import { calculateCustomerTrustScore } from '../lib/trustScore';
 import {
   Search,
   UserCheck,
@@ -19,6 +21,8 @@ import {
   Play,
   Pause,
   Trash2,
+  FileSpreadsheet,
+  Printer,
 } from 'lucide-react';
 import { triggerHaptic } from '../lib/sound';
 
@@ -36,7 +40,7 @@ export const Ledger: React.FC<LedgerProps> = ({
   onQuickAction,
   onRecordProofForTransaction,
 }) => {
-  const { customers, transactions, attachProofClip } = useShop();
+  const { customers, transactions, shop, attachProofClip } = useShop();
   const { t, language } = useI18n();
 
   const [search, setSearch] = useState('');
@@ -93,18 +97,32 @@ export const Ledger: React.FC<LedgerProps> = ({
           </p>
         </div>
 
-        {over1000Count > 0 && (
+        <div className="flex items-center space-x-2">
           <button
             onClick={() => {
               triggerHaptic('start');
-              onOpenRecovery();
+              exportLedgerToCSV(transactions, customers, shop.name);
             }}
-            className="touch-target-64 px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl shadow-md text-xs font-bold active:scale-95 flex flex-col items-center justify-center space-y-1"
+            className="touch-target-64 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl font-bold text-xs active:scale-95 flex flex-col items-center justify-center space-y-1"
+            title="Excel CSV डाउनलोड करें"
           >
-            <BellRing className="w-5 h-5 text-white animate-bounce" />
-            <span>तगादा ({over1000Count})</span>
+            <FileSpreadsheet className="w-5 h-5 text-primary" />
+            <span>CSV डाउनलोड</span>
           </button>
-        )}
+
+          {over1000Count > 0 && (
+            <button
+              onClick={() => {
+                triggerHaptic('start');
+                onOpenRecovery();
+              }}
+              className="touch-target-64 px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl shadow-md text-xs font-bold active:scale-95 flex flex-col items-center justify-center space-y-1"
+            >
+              <BellRing className="w-5 h-5 text-white animate-bounce" />
+              <span>तगादा ({over1000Count})</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Search and Filters */}
@@ -316,10 +334,28 @@ export const Ledger: React.FC<LedgerProps> = ({
                 <span className="text-xl font-bold text-app-text block mt-0.5">
                   {formatINR(selectedCustomer.credit_limit)}
                 </span>
-                <span className="text-[10px] text-emerald-700 font-bold">
-                  भरोसा: {selectedCustomer.trust_score}%
-                </span>
+                <div className="mt-1">
+                  {(() => {
+                    const trust = calculateCustomerTrustScore(selectedCustomer, transactions);
+                    return (
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${trust.badgeColor}`}>
+                        भरोसा: {trust.score}% • {trust.tierLabelHi}
+                      </span>
+                    );
+                  })()}
+                </div>
               </div>
+            </div>
+
+            {/* Print Slip Button */}
+            <div className="mb-4">
+              <button
+                onClick={() => printCustomerStatement(selectedCustomer, transactions, shop)}
+                className="touch-target-64 w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs rounded-xl active:scale-95 flex items-center justify-center space-x-1.5 border border-gray-200"
+              >
+                <Printer className="w-4 h-4 text-gray-700" />
+                <span>बही-खाता रसीद पर्ची प्रिंट करें (Print Slip)</span>
+              </button>
             </div>
 
             {/* Customer's Individual Transactions History */}

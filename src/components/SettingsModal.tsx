@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useShop } from '../context/ShopContext';
 import { useI18n } from '../i18n';
 import { LanguageCode } from '../i18n/types';
-import { X, Globe, Lock, Shield, LogOut, Check, Store } from 'lucide-react';
+import { X, Globe, Lock, Shield, LogOut, Check, Store, UserCheck } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -11,7 +11,7 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPrivacy }) => {
-  const { shop, updateShopSettings, setShopPin, logout } = useShop();
+  const { shop, user, updateShopSettings, setShopPin, setUserRole, logout } = useShop();
   const { language, setLanguage, availableLanguages, t } = useI18n();
 
   const [shopName, setShopName] = useState(shop.name);
@@ -125,6 +125,43 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
               placeholder="1234"
               className="w-full px-4 py-3 rounded-xl border border-gray-300 font-mono text-center tracking-widest text-lg font-bold focus:outline-none focus:ring-2 focus:ring-primary"
             />
+          </div>
+
+          {/* User Role Switcher */}
+          <div>
+            <label className="block text-sm font-bold text-app-text mb-2 flex items-center">
+              <UserCheck className="w-4 h-4 mr-1.5 text-primary" />
+              उपयोगकर्ता भूमिका (User Role)
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setUserRole('owner')}
+                className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all ${
+                  user?.role !== 'staff'
+                    ? 'border-primary bg-primary text-white shadow-xs'
+                    : 'border-gray-200 bg-gray-50 text-gray-700'
+                }`}
+              >
+                👑 दुकानदार (Owner)
+              </button>
+              <button
+                type="button"
+                onClick={() => setUserRole('staff')}
+                className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all ${
+                  user?.role === 'staff'
+                    ? 'border-primary bg-primary text-white shadow-xs'
+                    : 'border-gray-200 bg-gray-50 text-gray-700'
+                }`}
+              >
+                🧑‍💼 सहायक (Staff)
+              </button>
+            </div>
+            {user?.role === 'staff' && (
+              <p className="text-[11px] text-amber-700 mt-1">
+                स्टाफ मोड सक्रिय: बिक्री व उधार दर्ज कर सकते हैं, पर लागत व शुद्ध मुनाफा गुप्त रहेगा।
+              </p>
+            )}
           </div>
 
           {/* Staff role note */}

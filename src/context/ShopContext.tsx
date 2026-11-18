@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Customer, Item, Shop, Supplier, Transaction, User } from '../types/schema';
+import { Customer, Item, Shop, Supplier, Transaction, User, UserRole } from '../types/schema';
 import {
   DEMO_SHOP_ID,
   INITIAL_CUSTOMERS,
@@ -41,6 +41,7 @@ interface ShopContextType {
   findCustomerByName: (query: string) => Customer[];
   findItemByName: (query: string) => Item | undefined;
   syncOfflineData: () => Promise<number>;
+  setUserRole: (role: UserRole) => void;
 }
 
 const ShopContext = createContext<ShopContextType | null>(null);
@@ -356,6 +357,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return res.syncedCount;
   };
 
+  // Change active user role
+  const setUserRole = (role: UserRole) => {
+    setUser((prev) => (prev ? { ...prev, role } : null));
+  };
+
   return (
     <ShopContext.Provider
       value={{
@@ -385,6 +391,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         findCustomerByName,
         findItemByName,
         syncOfflineData,
+        setUserRole,
       }}
     >
       {children}

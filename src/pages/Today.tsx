@@ -17,8 +17,9 @@ interface TodayProps {
 }
 
 export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
-  const { transactions, customers } = useShop();
+  const { transactions, customers, user } = useShop();
   const { t, language } = useI18n();
+  const isOwner = user?.role !== 'staff';
 
   // Filter today's transactions
   const todayStart = new Date();
@@ -67,8 +68,13 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
         <div className="mt-3">
           <p className="text-xs text-emerald-100">{t.today.estimatedProfit}</p>
           <div className="text-4xl font-black tracking-tight text-white mt-1">
-            {formatINR(Math.max(0, estimatedProfit))}
+            {isOwner ? formatINR(Math.max(0, estimatedProfit)) : '••••••'}
           </div>
+          {!isOwner && (
+            <p className="text-[11px] text-emerald-200 mt-1">
+              (स्टाफ मोड: शुद्ध मुनाफा केवल दुकान मालिक को दिखता है)
+            </p>
+          )}
         </div>
 
         {/* Speak Summary Button */}

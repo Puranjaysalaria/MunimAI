@@ -218,5 +218,43 @@ This log records major technical and product decisions made during the developme
   - Configure Vite PWA plugin with `generateSW` caching all scripts, stylesheets, and fonts in CacheStorage.
   - Present a tactile, saffron-accented install banner upon `beforeinstallprompt` (*"मुनीम AI को फोन में इंस्टॉल करें (बिना इंटरनेट भी चलेगा)"*).
 
+---
+
+### DECISION-021: Customer Trust Score & Credit-Limit Warning Safeguards
+- **Date**: 2026-11-18
+- **Context**: Shopkeepers suffer when giving excessive udhaar to chronic defaulters.
+- **Decision**:
+  - Dynamically calculate customer trust score (0 - 100) based on repayment velocity and ratio of borrowed vs cleared debt.
+  - Tier customer badges: Excellent (90+), Good (75-89), Moderate (60-74), and High Risk (<60).
+  - If a new udhaar transaction breaches the customer's preset credit limit, the confirmation card highlights an amber warning banner and speaks a credit breach alert.
+
+---
+
+### DECISION-022: Seasonal Festive Demand Analytics & Calendar-Aware Stock Buffering
+- **Date**: 2026-11-18
+- **Context**: Demand for specific items (sugar, flour, oil, dairy) fluctuates sharply around Indian festivals (Diwali, Holi, weddings, summer).
+- **Decision**:
+  - Provide calendar-aware seasonal intelligence (`src/lib/seasonalInsights.ts`) in the Stock screen.
+  - Surfaces actionable restock advice with recommended % boost and item impact list.
+
+---
+
+### DECISION-023: Excel CSV Export with UTF-8 BOM & Authentic Bahi-Khata Print Slip
+- **Date**: 2026-11-18
+- **Context**: Shopkeepers and chartered accountants require ledger exports for tax filing and end-of-year reconciliations. Customers also occasionally demand printed proof of transactions.
+- **Decision**:
+  - Add instant 1-tap CSV export with UTF-8 Byte Order Mark (`\uFEFF`) ensuring Hindi text renders cleanly in Microsoft Excel.
+  - Add printable Customer Bahi-Khata statement slip formatted in authentic green ledger layout with shop phone, date, debit/credit breakdown, and final outstanding balance.
+
+---
+
+### DECISION-024: Staff Role Permissions with Commercial Margin Masking
+- **Date**: 2026-11-18
+- **Context**: Many kirana shops employ a helper or relative ("chhotu" / staff) who should record daily sales and payments, but must not see supplier cost prices, wholesale profit margins, or shop PIN.
+- **Decision**:
+  - Implement role separation (`owner` vs `staff`) toggleable in Settings.
+  - In staff mode, cost prices and net estimated profit are masked (`••••••`), while sales and udhaar entries remain fully functional.
+
+
 
 

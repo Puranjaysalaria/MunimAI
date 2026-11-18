@@ -4,11 +4,14 @@ import { useI18n } from '../i18n';
 import { Item } from '../types/schema';
 import { formatINR } from '../lib/utils';
 import { compute14DayStockAnalysis } from '../lib/stockAnalytics';
+import { getSeasonalStockInsights } from '../lib/seasonalInsights';
 import {
   AlertTriangle,
   ShoppingCart,
   Truck,
   TrendingDown,
+  Sparkles,
+  TrendingUp,
 } from 'lucide-react';
 import { triggerHaptic } from '../lib/sound';
 
@@ -18,10 +21,14 @@ interface StockProps {
 }
 
 export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStockOrder }) => {
-  const { items, transactions } = useShop();
-  const { t } = useI18n();
+  const { items, transactions, user } = useShop();
+  const { t, language } = useI18n();
 
   const [filter, setFilter] = useState<'all' | 'low'>('all');
+
+  // Seasonal smart recommendations
+  const seasonalInsights = useMemo(() => getSeasonalStockInsights(), []);
+  const activeSeason = seasonalInsights[0];
 
   // Dynamically compute 14-day velocity and days left from past transactions
   const stockAnalyses = useMemo(() => {
@@ -30,6 +37,7 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
 
   const lowStockAnalyses = stockAnalyses.filter((a) => a.isLowStock);
   const displayedAnalyses = filter === 'low' ? lowStockAnalyses : stockAnalyses;
+  const isOwner = user?.role !== 'staff';
 
   return (
     <div className="pb-28 px-4 pt-3 max-w-md mx-auto space-y-4">
@@ -58,6 +66,36 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
           <span>सप्लायर लिस्ट</span>
         </button>
       </div>
+
+      {/* Smart Seasonal Stocking Alert Card */}
+      {activeSeason && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 shadow-xs flex items-start space-x-3">
+          <div className="p-2 rounded-xl bg-accent text-zinc-950 flex-shrink-0 mt-0.5">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center justify-between">
+              <h4 className="font-bold text-xs text-amber-900">
+                {language === 'pa'
+                  ? activeSeason.seasonNamePa
+                  : language === 'en'
+                  ? activeSeason.seasonNameEn
+                  : activeSeason.seasonName}
+              </h4>
+              <span className="text-[10px] bg-amber-200/60 font-bold px-2 py-0.5 rounded-full text-amber-900">
+                +{activeSeason.recommendedBoostPercentage}% मांग
+              </span>
+            </div>
+            <p className="text-[11px] text-amber-800 mt-1 leading-snug">
+              {language === 'pa'
+                ? activeSeason.descriptionPa
+                : language === 'en'
+                ? activeSeason.descriptionEn
+                : activeSeason.description}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Filter Tabs */}
       <div className="flex space-x-2">
@@ -114,8 +152,20 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
                       </span>
                     )}
                   </h3>
-                  <p className="text-xs text-app-muted mt-0.5">
-                    भाव: <span className="font-bold text-app-text">{formatINR(item.selling_price)}</span> /{item.unit} • लागत: {formatINR(item.cost_price)}
+                  <p className="text-xs text-app-muted mt-0.5 leading-relaxed">
+                    भाव: <span className="font-bold text-app-text">{formatINR(item.selling_price)}</span> /{item.unit}
+                    {isOwner ? (
+                      <>
+                        {' • '}लागत: {formatINR(item.cost_price)}
+                        {' • '}
+                        <span className="text-emerald-700 font-bold inline-flex items-center">
+                          <TrendingUp className="w-3 h-3 mr-0.5 text-emerald-600" />
+                          +₹{item.selling_price - item.cost_price} ({Math.round(((item.selling_price - item.cost_price) / item.selling_price) * 100)}%)
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-gray-400 ml-1">• लागत गुप्त</span>
+                    )}
                   </p>
                 </div>
 
