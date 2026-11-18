@@ -1,3 +1,5 @@
+import { transliterateIndicToLatin } from './indicNormalizer';
+
 /**
  * Multilingual Number & Amount Parser for Munim AI
  * Supports Hindi, Punjabi, Hinglish, and English spoken numbers.
@@ -123,7 +125,8 @@ const EXACT_NUMBER_WORDS: Record<string, number> = {
 };
 
 function cleanText(text: string): string {
-  return text
+  const normalized = transliterateIndicToLatin(text);
+  return normalized
     .toLowerCase()
     .replace(/[₹,]/g, ' ')
     // Protect Hindi imperative verbs ending in "do" ("likh do", "kar do", "bhej do", "de do")
@@ -201,10 +204,9 @@ export function extractNumbers(text: string): number[] {
 }
 
 export function extractAmount(text: string): number | null {
-  const numbers = extractNumbers(text);
-  if (numbers.length === 0) return null;
-
   const clean = cleanText(text);
+
+  // 1. Explicit amount patterns like "500 ka", "500 rupaye", "₹500"
   const amountPattern = /(\d+|pachaas|fifty|paanch sau|panj sau|dhai sau|sau|hazaar|thousand)\s*(?:ka|ke|rupaye|rs|inr|da|de|roopaye|rupaiya)\b/i;
   const match = clean.match(amountPattern);
   if (match) {
@@ -212,11 +214,22 @@ export function extractAmount(text: string): number | null {
     if (extracted.length > 0) return extracted[0];
   }
 
-  if (numbers.length === 1) {
-    return numbers[0];
+  // 2. Filter out numbers that represent quantities with units (e.g. "2 kilo", "1 packet")
+  const textWithoutUnits = clean.replace(
+    /(\b\d+(?:\.\d+)?|\badha\b|\baadha\b|\bpaav\b|\bpao\b|\bdedh\b|\bdhai\b|\bek\b|\bik\b|\bdo\b|\bteen\b|\bchar\b|\bpaanch\b|\bpanj\b|\bcheh\b|\bsaat\b|\baath\b|\bnau\b|\bdas\b)\s*(kilo|kg|kgs|kilogram|ser|litre|liter|ltr|lit|l|gram|gm|gms|g|packet|packets|pkt|pkts|dibba|dabba|piece|pieces|nag|pc|pcs|bori|bag)\b/gi,
+    ' '
+  );
+
+  const nonUnitNumbers = extractNumbers(textWithoutUnits);
+  if (nonUnitNumbers.length === 0) {
+    return null;
   }
 
-  return Math.max(...numbers);
+  if (nonUnitNumbers.length === 1) {
+    return nonUnitNumbers[0];
+  }
+
+  return Math.max(...nonUnitNumbers);
 }
 
 export function extractQuantityAndUnit(text: string): { quantity: number | null; unit: string | null } {

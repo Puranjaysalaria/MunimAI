@@ -354,4 +354,42 @@ describe('Speech Parser - 30+ Multilingual Sentences Across All Intents', () => 
     expect(res.confidence).toBeLessThan(0.7);
     expect(res.spokenReply).toContain('साफ़ नहीं आई');
   });
+
+  // 10. Devanagari Native Hindi Voice Inputs & STT phonetic corrections
+  describe('Devanagari Native Hindi Speech Recognition', () => {
+    it('39. parses Devanagari multi-item credit with phonetic STT repair (दूर -> doodh): "शर्मा को दो किलो चीनी और एक पैकेट दूर लिख दो।"', async () => {
+      const res = await parseSpeech('शर्मा को दो किलो चीनी और एक पैकेट दूर लिख दो।', testContext);
+      expect(res.intent).toBe('credit');
+      expect(res.confidence).toBeGreaterThanOrEqual(0.85);
+      expect(res.matchedCustomer?.name).toBe('Ramesh Sharma');
+      // Chini (44 * 2 = 88) + Doodh (66 * 1 = 66) = 154
+      expect(res.amount).toBe(154);
+      expect(res.item).toContain('chini');
+    });
+
+    it('40. handles Devanagari ambiguous customer: "रमेश को 500 रुपये लिख दो"', async () => {
+      const res = await parseSpeech('रमेश को 500 रुपये लिख दो', testContext);
+      expect(res.intent).toBe('credit');
+      expect(res.amount).toBe(500);
+      expect(res.ambiguousCustomers?.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('41. parses Devanagari payment: "सुनीता ने 350 रुपये जमा किए"', async () => {
+      const res = await parseSpeech('सुनीता ने 350 रुपये जमा किए', testContext);
+      expect(res.intent).toBe('payment');
+      expect(res.matchedCustomer?.name).toBe('Sunita Devi');
+      expect(res.amount).toBe(350);
+    });
+
+    it('42. parses Devanagari stock check: "दूध कितना बचा है"', async () => {
+      const res = await parseSpeech('दूध कितना बचा है', testContext);
+      expect(res.intent).toBe('stock');
+      expect(res.item).toBe('doodh');
+    });
+
+    it('43. parses Devanagari daily summary: "आज की कमाई कितनी हुई"', async () => {
+      const res = await parseSpeech('आज की कमाई कितनी हुई', testContext);
+      expect(res.intent).toBe('summary');
+    });
+  });
 });

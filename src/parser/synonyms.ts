@@ -1,4 +1,5 @@
 import { Item } from '../types/schema';
+import { transliterateIndicToLatin } from './indicNormalizer';
 
 export interface ItemSynonymDef {
   canonical: string;
@@ -10,62 +11,62 @@ export const KIRANA_SYNONYM_REGISTRY: ItemSynonymDef[] = [
   {
     canonical: 'chini',
     unit: 'kilo',
-    synonyms: ['chini', 'cheeni', 'khand', 'khandi', 'sugar', 'sakkar', 'mishri', 'shakkar'],
+    synonyms: ['chini', 'cheeni', 'khand', 'khandi', 'sugar', 'sakkar', 'mishri', 'shakkar', 'चीनी', 'चीनि', 'खांड', 'ਸ਼ੱਕਰ', 'ਖੰਡ'],
   },
   {
     canonical: 'aata',
     unit: 'kilo',
-    synonyms: ['aata', 'atta', 'flour', 'gehu aata', 'gehun ka aata', 'chakki aata', 'ashirvaad aata'],
+    synonyms: ['aata', 'atta', 'flour', 'gehu aata', 'gehun ka aata', 'chakki aata', 'ashirvaad aata', 'आटा', 'आट्टा', 'ਆਟਾ'],
   },
   {
     canonical: 'doodh',
     unit: 'litre',
-    synonyms: ['doodh', 'dudh', 'dhoodh', 'milk', 'amul doodh', 'amul taaza', 'taaza doodh', 'dahi'],
+    synonyms: ['doodh', 'dudh', 'dhoodh', 'milk', 'amul doodh', 'amul taaza', 'taaza doodh', 'dahi', 'door', 'दूध', 'दुध', 'दूर', 'ਦੁੱਧ'],
   },
   {
     canonical: 'chawal',
     unit: 'kilo',
-    synonyms: ['chawal', 'chaawal', 'rice', 'basmati', 'kolam', 'tota pari'],
+    synonyms: ['chawal', 'chaawal', 'rice', 'basmati', 'kolam', 'tota pari', 'चावल', 'ਚੌਲ'],
   },
   {
     canonical: 'dal',
     unit: 'kilo',
-    synonyms: ['dal', 'daal', 'toor dal', 'arhar dal', 'moong dal', 'chana dal', 'masoor dal', 'pulses'],
+    synonyms: ['dal', 'daal', 'toor dal', 'arhar dal', 'moong dal', 'chana dal', 'masoor dal', 'pulses', 'दाल', 'ਦਾਲ'],
   },
   {
     canonical: 'tel',
     unit: 'litre',
-    synonyms: ['tel', 'tail', 'oil', 'mustard oil', 'sarso tel', 'sarson tel', 'fortune oil', 'refine', 'refined tel'],
+    synonyms: ['tel', 'tail', 'oil', 'mustard oil', 'sarso tel', 'sarson tel', 'fortune oil', 'refine', 'refined tel', 'तेल', 'ਤੇਲ'],
   },
   {
     canonical: 'chai patti',
     unit: 'packet',
-    synonyms: ['chai patti', 'chai', 'cha patti', 'cha', 'tea', 'patti', 'taj mahal', 'tata tea', 'red label', 'wagh bakri'],
+    synonyms: ['chai patti', 'chai', 'cha patti', 'cha', 'tea', 'patti', 'taj mahal', 'tata tea', 'red label', 'wagh bakri', 'चाय', 'ਚਾਹ'],
   },
   {
     canonical: 'namak',
     unit: 'packet',
-    synonyms: ['namak', 'salt', 'tata salt', 'sendha namak', 'kala namak', 'loon', 'noon'],
+    synonyms: ['namak', 'salt', 'tata salt', 'sendha namak', 'kala namak', 'loon', 'noon', 'नमक', 'ਲੂਣ'],
   },
   {
     canonical: 'sabun',
     unit: 'piece',
-    synonyms: ['sabun', 'saboon', 'soap', 'lifebuoy', 'dettol', 'lux', 'rin', 'surf', 'surf excel', 'tide', 'wheel'],
+    synonyms: ['sabun', 'saboon', 'soap', 'lifebuoy', 'dettol', 'lux', 'rin', 'surf', 'surf excel', 'tide', 'wheel', 'साबुन', 'ਸਾਬਣ'],
   },
   {
     canonical: 'biscuit',
     unit: 'packet',
-    synonyms: ['biscuit', 'biscuits', 'biskit', 'parle-g', 'parleg', 'parle g', 'good day', 'monaco', 'marie'],
+    synonyms: ['biscuit', 'biscuits', 'biskit', 'parle-g', 'parleg', 'parle g', 'good day', 'monaco', 'marie', 'बिस्कुट', 'बिस्किट', 'ਬਿਸਕੁਟ'],
   },
   {
     canonical: 'haldi',
     unit: 'packet',
-    synonyms: ['haldi', 'turmeric', 'haldi powder', 'masala', 'everest haldi', 'catch haldi'],
+    synonyms: ['haldi', 'turmeric', 'haldi powder', 'masala', 'everest haldi', 'catch haldi', 'हल्दी', 'ਹਲਦੀ'],
   },
   {
     canonical: 'maggi',
     unit: 'packet',
-    synonyms: ['maggi', 'maggie', 'noodles', 'maggi noodles', 'chhoti maggi', '2-minute maggi'],
+    synonyms: ['maggi', 'maggie', 'noodles', 'maggi noodles', 'chhoti maggi', '2-minute maggi', 'मैगी', 'ਮੈਗੀ'],
   },
 ];
 
@@ -77,7 +78,8 @@ export function findMentionedItems(
   text: string,
   dynamicItems: Item[] = []
 ): { canonical: string; matchedSynonym: string; defaultUnit: string; index: number; isCustom?: boolean }[] {
-  const lower = text.toLowerCase();
+  const normalized = transliterateIndicToLatin(text);
+  const lower = normalized.toLowerCase();
   const matched: { canonical: string; matchedSynonym: string; defaultUnit: string; index: number; isCustom?: boolean }[] = [];
 
   // 1. Build combined registry: static items + shopkeeper's dynamic custom inventory

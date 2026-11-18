@@ -1,6 +1,7 @@
 import { ValidatedParseResult } from './types';
 import { extractAmount, extractQuantityAndUnit } from './numbers';
 import { findMentionedItems } from './synonyms';
+import { transliterateIndicToLatin } from './indicNormalizer';
 import { Customer, Item } from '../types/schema';
 
 export interface RuleParserContext {
@@ -16,31 +17,34 @@ export function parseWithRules(
   rawText: string,
   context: RuleParserContext = { customers: [] }
 ): ValidatedParseResult {
-  const text = rawText.trim();
-  const lower = text.toLowerCase();
-
-  // 1. Language Detection
+  // 1. Language Detection from original script & markers
   let detectedLang: 'hi' | 'pa' | 'en' = 'hi';
+  const hasGurmukhi = /[\u0A00-\u0A7F]/.test(rawText);
   const punjabiMarkers = ['nu', ' da ', ' di ', 'vechi', 'vech', 'kite', 'kinna', 'kinni', 'aaho', 'ditta', 'to vadh', 'hovega', 'sat sri akal'];
   const englishMarkers = ['credit', 'payment', 'sale', 'sold', 'received', 'sugar', 'milk', 'stock', 'summary'];
 
-  if (punjabiMarkers.some((m) => lower.includes(m))) {
+  if (hasGurmukhi || punjabiMarkers.some((m) => rawText.toLowerCase().includes(m))) {
     detectedLang = 'pa';
-  } else if (englishMarkers.filter((m) => lower.includes(m)).length >= 2) {
+  } else if (englishMarkers.filter((m) => rawText.toLowerCase().includes(m)).length >= 2) {
     detectedLang = 'en';
   }
 
   // 2. Short / Noise / Silence check
-  if (text.length < 2 || /^(\.|\?|\!|\s)+$/.test(text)) {
+  const rawTrimmed = rawText.trim();
+  if (rawTrimmed.length < 2 || /^(\.|\?|\!|\s)+$/.test(rawTrimmed)) {
     return {
       intent: 'unknown',
       confidence: 0.1,
       language: detectedLang,
-      rawText: text,
+      rawText: rawTrimmed,
       spokenReply: detectedLang === 'pa' ? 'ਆਵਾਜ਼ ਸਾਫ਼ ਨਹੀਂ ਆਈ, ਮੁੜ ਬੋਲੋ' : 'आवाज़ साफ़ नहीं आई, फिर से बोलिए',
       questionToAsk: 'Awaaz saaf nahi aayi, phir se boliye',
     };
   }
+
+  // Normalize Indic script (Devanagari / Gurmukhi) into Latin phonetic tokens for deterministic matching
+  const text = transliterateIndicToLatin(rawTrimmed);
+  const lower = text.toLowerCase();
 
   // Extract amount & quantity early to distinguish command types
   const amount = extractAmount(text);
@@ -65,8 +69,9 @@ export function parseWithRules(
   const isCreditPhrase = /\b(udhaar|udhar|khate\s*mein|khate\s*me|naame|udharaan)\b/i.test(lower);
   const isPaymentPhrase = /\b(diye|diya|jama|lauta\s*diye|de\s*ditta|wapis\s*kite|pay\s*kitta)\b/i.test(lower);
 
-  // Confirmation YES: "Haan" / "Haan likh do" / "Aaho" (only if not an explicit credit entry)
-  if (!isCreditPhrase && !isPaymentPhrase && !amount) {
+  // Confirmation YES: "Haan" / "Haan likh do" / "Aaho" (only if not an explicit credit entry or item/customer present)
+  const hasCustomerMarker = /\b(ko|ne|nu|ke\s*khate)\b/i.test(lower);
+  if (!isCreditPhrase && !isPaymentPhrase && !amount && !firstItem && !hasCustomerMarker) {
     if (/\b(haan|ha|haa|aaho|yes|likh\s*do|likh\s*deo|theek\s*hai|save\s*kar\s*do|kar\s*do|bilkul)\b/i.test(lower) && !/\b(nahi|nahin|na|mat|no)\b/i.test(lower)) {
       return {
         intent: 'confirm_yes',
@@ -177,15 +182,24 @@ export function parseWithRules(
     }
   }
 
-  // Check if first name matches multiple customers (e.g. "Ramesh")
+  // Check if candidate matches any known customer in context
   if (matchedCustomerName) {
-    const firstName = matchedCustomerName.split(' ')[0].toLowerCase();
-    const matchingFirstNames = context.customers.filter((c) =>
-      c.name.toLowerCase().startsWith(firstName)
-    );
-    if (matchingFirstNames.length > 1 && !context.customers.some((c) => c.name.toLowerCase() === matchedCustomerName?.toLowerCase())) {
-      // Keep ambiguous candidate as just the firstName so disambiguator handles it!
-      matchedCustomerName = matchingFirstNames[0].name.split(' ')[0];
+    const candidateLower = matchedCustomerName.toLowerCase();
+    for (const cust of context.customers) {
+      const parts = cust.name.toLowerCase().split(' ');
+      if (parts.includes(candidateLower) || cust.name.toLowerCase().includes(candidateLower)) {
+        const firstName = cust.name.split(' ')[0];
+        const hasMultiple = context.customers.filter((c) =>
+          c.name.toLowerCase().startsWith(firstName.toLowerCase())
+        ).length > 1;
+
+        if (hasMultiple && parts[0] === candidateLower) {
+          matchedCustomerName = firstName;
+        } else {
+          matchedCustomerName = cust.name;
+        }
+        break;
+      }
     }
   }
 
@@ -211,23 +225,43 @@ export function parseWithRules(
 
   // 6. Credit Intent: "Ramesh ko 500 ka udhaar, aata aur chini" / "likh do" / "baaki"
   if (isCreditPhrase || (matchedCustomerName && /\b(likh do|likh deo|likh lo)\b/i.test(lower))) {
-    const conf = (amount || firstItem) ? 0.95 : 0.6;
+    // Calculate total price if amount was not explicitly spoken in currency
+    let finalAmount = amount;
+    if (!finalAmount && mentionedItems.length > 0 && context.items) {
+      let total = 0;
+      for (let i = 0; i < mentionedItems.length; i++) {
+        const m = mentionedItems[i];
+        const it = context.items.find((item) => item.name.toLowerCase() === m.canonical.toLowerCase());
+        const price = it?.selling_price || 40;
+        const prevIdx = i === 0 ? 0 : mentionedItems[i - 1].index + mentionedItems[i - 1].canonical.length;
+        const segment = text.substring(prevIdx, m.index);
+        const itemQty = extractQuantityAndUnit(segment).quantity || (i === 0 ? qtyInfo.quantity : null) || 1;
+        total += itemQty * price;
+      }
+      if (total > 0) finalAmount = total;
+    }
+
+    const conf = (finalAmount || firstItem) ? 0.95 : 0.6;
+    const itemsSummary = mentionedItems.length > 1
+      ? mentionedItems.map((m) => m.canonical).join(', ')
+      : firstItem;
+
     return {
       intent: 'credit',
       customer: matchedCustomerName,
-      amount: amount,
-      item: firstItem,
+      amount: finalAmount,
+      item: itemsSummary,
       quantity: qtyInfo.quantity,
       unit: qtyInfo.unit,
       confidence: conf,
       language: detectedLang,
-      rawText: text,
-      spokenReply: matchedCustomerName && amount
-        ? `${matchedCustomerName}, ${amount} रुपये उधार। लिख दूँ?`
+      rawText: rawText,
+      spokenReply: matchedCustomerName && finalAmount
+        ? `${matchedCustomerName}, ${itemsSummary ? itemsSummary + ' (कुल ₹' + finalAmount + ')' : finalAmount + ' रुपये'} उधार। लिख दूँ?`
         : matchedCustomerName
         ? `${matchedCustomerName} का कितना उधार लिखना है?`
         : 'उधार खाता दर्ज करें?',
-      questionToAsk: !amount ? 'Kitne rupaye ka udhaar likhna hai?' : null,
+      questionToAsk: !finalAmount ? 'Kitne rupaye ka udhaar likhna hai?' : null,
     };
   }
 
