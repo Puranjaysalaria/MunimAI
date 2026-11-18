@@ -16,6 +16,8 @@ import { ProofRecorderModal } from './components/ProofRecorder/ProofRecorderModa
 import { PrivacyModal } from './components/PrivacyModal';
 import { SupplierOrdersModal } from './components/SupplierOrder/SupplierOrdersModal';
 import { DailySummaryModal } from './components/Summary/DailySummaryModal';
+import { RecoveryModal } from './components/Reminders/RecoveryModal';
+import { PWAInstallPrompt } from './components/PWA/PWAInstallPrompt';
 import { useVoiceController } from './hooks/useVoiceController';
 import { Customer, Transaction } from './types/schema';
 import { speechSynthesizer } from './tts/speechSynthesizer';
@@ -40,9 +42,11 @@ export const AppContent: React.FC = () => {
     suppliers,
     transactions,
     lastTransaction,
+    offlinePendingCount,
     addTransaction,
     undoLastTransaction,
     attachProofClip,
+    syncOfflineData,
   } = useShop();
 
   const { language } = useI18n();
@@ -52,6 +56,8 @@ export const AppContent: React.FC = () => {
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isSupplierOrdersOpen, setIsSupplierOrdersOpen] = useState(false);
   const [isDailySummaryOpen, setIsDailySummaryOpen] = useState(false);
+  const [isRecoveryOpen, setIsRecoveryOpen] = useState(false);
+  const [recoveryThreshold, setRecoveryThreshold] = useState(1000);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showUndoToast, setShowUndoToast] = useState(false);
 
@@ -129,6 +135,10 @@ export const AppContent: React.FC = () => {
     onNavigateTab: (tab) => setActiveTab(tab),
     onOpenSupplierOrders: () => setIsSupplierOrdersOpen(true),
     onOpenDailySummary: () => setIsDailySummaryOpen(true),
+    onOpenRecovery: (threshold) => {
+      setRecoveryThreshold(threshold);
+      setIsRecoveryOpen(true);
+    },
   });
 
   if (!isLoggedIn) {
@@ -185,7 +195,12 @@ export const AppContent: React.FC = () => {
   return (
     <div className="h-full flex flex-col bg-background relative overflow-y-auto font-sans">
       {/* Sticky Top Header */}
-      <Header onOpenSettings={() => setIsSettingsOpen(true)} isOnline={isOnline} />
+      <Header
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        isOnline={isOnline}
+        pendingSyncCount={offlinePendingCount}
+        onTriggerSync={syncOfflineData}
+      />
 
       {/* Main Tab Screen Content */}
       <main className="flex-1 overflow-y-auto">
@@ -207,7 +222,10 @@ export const AppContent: React.FC = () => {
         {activeTab === 'ledger' && (
           <Ledger
             onSelectCustomer={handleSelectCustomer}
-            onOpenRecovery={() => voice.processInput('jinka 1000 se zyada baaki hai unko yaad dilao')}
+            onOpenRecovery={() => {
+              setRecoveryThreshold(1000);
+              setIsRecoveryOpen(true);
+            }}
             onPlayProof={handlePlayProofAudio}
             onQuickAction={handleQuickCustomerAction}
             onRecordProofForTransaction={handleOpenProofRecorder}
@@ -299,6 +317,22 @@ export const AppContent: React.FC = () => {
         spokenText={dailySummaryVoiceText}
         language={language}
       />
+
+      {/* Recovery Reminders Modal with UPI Links */}
+      <RecoveryModal
+        isOpen={isRecoveryOpen}
+        onClose={() => setIsRecoveryOpen(false)}
+        customers={customers}
+        shop={shop}
+        thresholdAmount={recoveryThreshold}
+        language={language}
+        onReminderSent={(_draft) => {
+          // Can record to reminder history if needed
+        }}
+      />
+
+      {/* PWA Home Screen Install Prompt Banner */}
+      <PWAInstallPrompt />
 
       {/* Undo Toast Notification */}
       {showUndoToast && lastTransaction && (

@@ -23,6 +23,7 @@ interface UseVoiceControllerProps {
   onNavigateTab: (tab: 'home' | 'ledger' | 'stock' | 'today') => void;
   onOpenSupplierOrders?: () => void;
   onOpenDailySummary?: () => void;
+  onOpenRecovery?: (threshold: number) => void;
 }
 
 export function useVoiceController({
@@ -35,6 +36,7 @@ export function useVoiceController({
   onNavigateTab,
   onOpenSupplierOrders,
   onOpenDailySummary,
+  onOpenRecovery,
 }: UseVoiceControllerProps) {
   const { language, t } = useI18n();
 
@@ -127,7 +129,15 @@ export function useVoiceController({
         if (result.intent === 'recovery') {
           setVoiceState('success');
           onNavigateTab('ledger');
-          speechSynthesizer.speak('1000 से ज्यादा बाकी वाले ग्राहकों की लिस्ट', language);
+          const recoveryThreshold = result.amount || 1000;
+          const recoveryVoice =
+            language === 'pa'
+              ? `₹${recoveryThreshold} ਤੋਂ ਵੱਧ ਬਾਕੀ ਵਾਲੇ ਗਾਹਕਾਂ ਨੂੰ ਯਾਦ-ਪੱਤਰ ਭੇਜਣਾ ਹੈ?`
+              : `₹${recoveryThreshold} से ज़्यादा बाकी वाले ग्राहकों की लिस्ट। तगादा भेजें?`;
+          speechSynthesizer.speak(recoveryVoice, language);
+          if (onOpenRecovery) {
+            onOpenRecovery(recoveryThreshold);
+          }
           setTimeout(() => setVoiceState('idle'), 1500);
           return;
         }
@@ -242,6 +252,7 @@ export function useVoiceController({
       onNavigateTab,
       onOpenSupplierOrders,
       onOpenDailySummary,
+      onOpenRecovery,
     ]
   );
 

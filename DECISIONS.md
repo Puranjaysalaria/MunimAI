@@ -178,4 +178,45 @@ This log records major technical and product decisions made during the developme
   - Computes estimated net profit based on standard ~15% Kirana gross margin minus expenses.
   - Generates natural, continuous speech readout in Hindi, Punjabi, or English, alongside a 4-box financial summary sheet.
 
+---
+
+### DECISION-017: NPCI-Compliant UPI Deep-Links in Debt Recovery
+- **Date**: 2026-11-18
+- **Context**: Kirana customers delay paying udhaar because they need to visit the shop in person with cash. Providing a direct UPI payment link dramatically speeds up cash recovery.
+- **Decision**:
+  - Embed standard NPCI deep links (`upi://pay?pa={vpa}&pn={name}&am={amount}&cu=INR&tn={note}`) into every reminder.
+  - Clicking the link on customer's phone directly launches Google Pay, PhonePe, Paytm, or BHIM with amount and shop VPA pre-filled.
+  - Keep VPA unescaped (`pa=user@bank`) to avoid parsing errors across diverse Indian payment apps.
+
+---
+
+### DECISION-018: Multilingual Polite Reminder Generation in Customer's Preferred Tongue
+- **Date**: 2026-11-18
+- **Context**: Harsh or rude debt reminders destroy neighbourly relations in Indian communities. Reminders must be respectful, polite, and in the customer's native language.
+- **Decision**:
+  - Formulate respectful reminder copy with *"जी"* honorifics tailored to each customer's `preferred_language` (`hi`, `pa`, `en`).
+  - Voice trigger *"Jinka 1000 se zyada baaki hai unko yaad dilao"* filters customers by threshold and displays editable reminder cards.
+  - Reminders send only after explicit shopkeeper voice confirmation (*"Bhej do"*) or 1-tap dispatch.
+
+---
+
+### DECISION-019: Dual-Layer Offline Mutation Queue & Timestamp Reconciliation
+- **Date**: 2026-11-18
+- **Context**: Kirana shops often operate in underground basements or areas with intermittent 3G/4G connectivity. Zero ledger entries may be lost while disconnected.
+- **Decision**:
+  - Implement an IndexedDB store `pendingMutations` using `idb` with an in-memory fallback for headless test runners.
+  - When offline (`!navigator.onLine`), transactions are queued locally with ISO timestamps and marked `synced: false`.
+  - Header displays a quiet cloud status: green check when synced (`सुरक्षित`), amber pulsing badge (`X सिंक बाकी`) when entries wait in queue.
+  - When connection is restored (`window.online`), `syncEngine` drains the mutation queue, reconciles with Supabase, triggers haptic confirmation, and speaks an audio announcement.
+
+---
+
+### DECISION-020: Installable PWA & Offline App Shell
+- **Date**: 2026-11-18
+- **Context**: Shopkeepers want an app on their home screen without depending on Google Play Store updates.
+- **Decision**:
+  - Configure Vite PWA plugin with `generateSW` caching all scripts, stylesheets, and fonts in CacheStorage.
+  - Present a tactile, saffron-accented install banner upon `beforeinstallprompt` (*"मुनीम AI को फोन में इंस्टॉल करें (बिना इंटरनेट भी चलेगा)"*).
+
+
 

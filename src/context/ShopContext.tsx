@@ -7,6 +7,12 @@ import {
   INITIAL_SUPPLIERS,
   generate14DaysTransactions,
 } from '../data/mockData';
+import {
+  queueTransactionOffline,
+  drainOfflineQueue,
+  getOfflinePendingCount,
+  announceSyncSuccess,
+} from '../offline/syncEngine';
 
 interface ShopContextType {
   shop: Shop;
@@ -34,6 +40,7 @@ interface ShopContextType {
   updateShopSettings: (settings: Partial<Shop>) => void;
   findCustomerByName: (query: string) => Customer[];
   findItemByName: (query: string) => Item | undefined;
+  syncOfflineData: () => Promise<number>;
 }
 
 const ShopContext = createContext<ShopContextType | null>(null);
@@ -103,7 +110,27 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
-  const [offlinePendingCount] = useState<number>(0);
+  const [offlinePendingCount, setOfflinePendingCount] = useState<number>(0);
+
+  // Initialize and monitor offline queue count
+  useEffect(() => {
+    getOfflinePendingCount().then((count) => setOfflinePendingCount(count));
+  }, []);
+
+  // Listen for online recovery to automatically sync offline queue
+  useEffect(() => {
+    const handleOnline = async () => {
+      const res = await drainOfflineQueue(shop.id);
+      if (res.syncedCount > 0) {
+        announceSyncSuccess(res.syncedCount, 'hi');
+      }
+      const remaining = await getOfflinePendingCount();
+      setOfflinePendingCount(remaining);
+    };
+
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [shop.id]);
 
   // Sync to local storage
   useEffect(() => {
@@ -235,13 +262,22 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Add Transaction
   const addTransaction = (txData: Omit<Transaction, 'id' | 'shop_id' | 'created_at'>): Transaction => {
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
     const newTx: Transaction = {
       ...txData,
       id: `tx-${Date.now()}`,
       shop_id: shop.id,
       created_at: new Date().toISOString(),
-      synced: true,
+      synced: !isOffline,
     };
+
+    // Queue in IndexedDB if offline
+    if (isOffline) {
+      queueTransactionOffline(newTx, shop.id).then(() => {
+        getOfflinePendingCount().then((count) => setOfflinePendingCount(count));
+      });
+    }
 
     // 1. Update customer balance if credit or payment
     if (newTx.type === 'credit' && newTx.customer_id) {
@@ -309,6 +345,17 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setShop((prev) => ({ ...prev, ...settings }));
   };
 
+  // Trigger manual sync
+  const syncOfflineData = async (): Promise<number> => {
+    const res = await drainOfflineQueue(shop.id);
+    const count = await getOfflinePendingCount();
+    setOfflinePendingCount(count);
+    if (res.syncedCount > 0) {
+      announceSyncSuccess(res.syncedCount, 'hi');
+    }
+    return res.syncedCount;
+  };
+
   return (
     <ShopContext.Provider
       value={{
@@ -337,6 +384,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateShopSettings,
         findCustomerByName,
         findItemByName,
+        syncOfflineData,
       }}
     >
       {children}

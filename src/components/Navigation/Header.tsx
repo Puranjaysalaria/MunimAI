@@ -1,14 +1,21 @@
 import React from 'react';
 import { useShop } from '../../context/ShopContext';
 import { useI18n } from '../../i18n';
-import { Lock, Globe, Store, Wifi, WifiOff } from 'lucide-react';
+import { Lock, Globe, Store, Wifi, WifiOff, Cloud, RefreshCw } from 'lucide-react';
 
 interface HeaderProps {
   onOpenSettings: () => void;
   isOnline?: boolean;
+  pendingSyncCount?: number;
+  onTriggerSync?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenSettings, isOnline = true }) => {
+export const Header: React.FC<HeaderProps> = ({
+  onOpenSettings,
+  isOnline = true,
+  pendingSyncCount = 0,
+  onTriggerSync,
+}) => {
   const { shop, lockApp, hasPin } = useShop();
   const { language, setLanguage, availableLanguages } = useI18n();
 
@@ -21,6 +28,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, isOnline = true 
         <div className="truncate">
           <h1 className="font-bold text-lg leading-tight truncate">{shop.name}</h1>
           <div className="flex items-center space-x-2 text-xs text-emerald-100">
+            {/* Online / Offline status */}
             <span className="flex items-center">
               {isOnline ? (
                 <>
@@ -34,8 +42,27 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSettings, isOnline = true 
                 </>
               )}
             </span>
+
             <span>•</span>
-            <span className="font-mono text-emerald-200">{shop.owner_phone}</span>
+
+            {/* Offline Sync Status Indicator */}
+            {pendingSyncCount > 0 ? (
+              <button
+                onClick={onTriggerSync}
+                className="flex items-center bg-amber-500/20 text-amber-200 px-1.5 py-0.5 rounded text-[11px] font-bold animate-pulse"
+                title="Tap to sync pending transactions"
+              >
+                <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                <span>{pendingSyncCount} सिंक बाकी</span>
+              </button>
+            ) : isOnline ? (
+              <span className="flex items-center text-emerald-200 text-[11px]">
+                <Cloud className="w-3.5 h-3.5 mr-0.5 text-emerald-300" />
+                <span>सुरक्षित</span>
+              </span>
+            ) : (
+              <span className="text-gray-300 text-[11px]">लोकल सेव्ड</span>
+            )}
           </div>
         </div>
       </div>
