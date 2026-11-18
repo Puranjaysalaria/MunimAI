@@ -13,6 +13,7 @@ import {
   getOfflinePendingCount,
   announceSyncSuccess,
 } from '../offline/syncEngine';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 interface ShopContextType {
   shop: Shop;
@@ -40,6 +41,7 @@ interface ShopContextType {
   updateShopSettings: (settings: Partial<Shop>) => void;
   findCustomerByName: (query: string) => Customer[];
   findItemByName: (query: string) => Item | undefined;
+  addCustomer: (cust: Omit<Customer, 'id' | 'shop_id' | 'created_at' | 'updated_at'>) => Promise<Customer>;
   syncOfflineData: () => Promise<number>;
   setUserRole: (role: UserRole) => void;
 }
@@ -116,6 +118,48 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Initialize and monitor offline queue count
   useEffect(() => {
     getOfflinePendingCount().then((count) => setOfflinePendingCount(count));
+  }, []);
+
+  // Fetch live cloud data from Supabase if configured & online
+  useEffect(() => {
+    if (!isSupabaseConfigured() || !navigator.onLine) return;
+
+    const fetchLiveCloudData = async () => {
+      try {
+        const [cRes, iRes, tRes] = await Promise.all([
+          supabase.from('customers').select('*').order('created_at', { ascending: false }),
+          supabase.from('items').select('*'),
+          supabase.from('transactions').select('*').order('created_at', { ascending: false }).limit(60),
+        ]);
+
+        if (cRes.data && cRes.data.length > 0) {
+          setCustomers(cRes.data as Customer[]);
+        }
+        if (iRes.data && iRes.data.length > 0) {
+          setItems(iRes.data as Item[]);
+        }
+        if (tRes.data && tRes.data.length > 0) {
+          const mappedTxs: Transaction[] = tRes.data.map((row: any) => ({
+            id: row.id,
+            shop_id: row.shop_id,
+            type: row.type,
+            amount: Number(row.amount),
+            items: row.items || [],
+            customer_id: row.customer_id,
+            confirmed_by_voice: row.confirmed_by_voice,
+            proof_clip_path: row.proof_clip_path,
+            voice_transcript: row.voice_transcript,
+            created_at: row.created_at,
+            synced: true,
+          }));
+          setTransactions(mappedTxs);
+        }
+      } catch (err) {
+        console.warn('Could not sync initial data with Supabase, using local state:', err);
+      }
+    };
+
+    fetchLiveCloudData();
   }, []);
 
   // Listen for online recovery to automatically sync offline queue
@@ -261,6 +305,45 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
+  // Add Customer (Local + Cloud)
+  const addCustomer = async (custData: Omit<Customer, 'id' | 'shop_id' | 'created_at' | 'updated_at'>): Promise<Customer> => {
+    let cloudId: string | null = null;
+
+    if (isSupabaseConfigured() && navigator.onLine) {
+      try {
+        const { data, error } = await supabase.from('customers').insert({
+          shop_id: shop.id,
+          name: custData.name,
+          phone: custData.phone || null,
+          preferred_language: custData.preferred_language || 'hi',
+          address_note: custData.address_note || null,
+          credit_limit: custData.credit_limit || 5000,
+          balance_owed: custData.balance_owed || 0,
+          trust_score: custData.trust_score || 85,
+        }).select();
+
+        if (error) {
+          console.error('Failed to create customer in cloud:', error);
+        } else if (data && data[0]) {
+          cloudId = data[0].id;
+        }
+      } catch (err) {
+        console.error('Failed to create customer in cloud:', err);
+      }
+    }
+
+    const newCust: Customer = {
+      ...custData,
+      id: cloudId || `cust-${Date.now()}`,
+      shop_id: shop.id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    setCustomers((prev) => [newCust, ...prev.filter(c => c.name.toLowerCase() !== newCust.name.toLowerCase())]);
+    return newCust;
+  };
+
   // Add Transaction
   const addTransaction = (txData: Omit<Transaction, 'id' | 'shop_id' | 'created_at'>): Transaction => {
     const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
@@ -278,6 +361,44 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       queueTransactionOffline(newTx, shop.id).then(() => {
         getOfflinePendingCount().then((count) => setOfflinePendingCount(count));
       });
+    }
+
+    // Save to Supabase Cloud if configured & online
+    if (isSupabaseConfigured() && !isOffline) {
+      const dbTxId = newTx.id.startsWith('tx-') ? undefined : newTx.id;
+      supabase
+        .from('transactions')
+        .insert({
+          id: dbTxId,
+          shop_id: shop.id,
+          type: newTx.type,
+          amount: newTx.amount,
+          items: newTx.items || [],
+          customer_id: newTx.customer_id || null,
+          confirmed_by_voice: Boolean(newTx.confirmed_by_voice),
+          voice_transcript: newTx.voice_transcript || null,
+          proof_clip_path: newTx.proof_clip_path || null,
+          created_at: newTx.created_at,
+        })
+        .then(({ error }) => {
+          if (error) console.error('Failed to persist transaction to Supabase:', error);
+        });
+
+      if (newTx.customer_id) {
+        const cust = customers.find((c) => c.id === newTx.customer_id);
+        const change =
+          newTx.type === 'credit' ? newTx.amount : newTx.type === 'payment' ? -newTx.amount : 0;
+        if (cust && change !== 0) {
+          const updatedBal = Math.max(0, Number(cust.balance_owed) + change);
+          supabase
+            .from('customers')
+            .update({ balance_owed: updatedBal, updated_at: new Date().toISOString() })
+            .eq('id', newTx.customer_id)
+            .then(({ error }) => {
+              if (error) console.error('Failed to update customer balance in Supabase:', error);
+            });
+        }
+      }
     }
 
     // 1. Update customer balance if credit or payment
@@ -340,6 +461,16 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setTransactions((prev) =>
       prev.map((t) => (t.id === transactionId ? { ...t, proof_clip_path: proofClipPath } : t))
     );
+
+    if (isSupabaseConfigured() && navigator.onLine) {
+      supabase
+        .from('transactions')
+        .update({ proof_clip_path: proofClipPath })
+        .eq('id', transactionId)
+        .then(({ error }) => {
+          if (error) console.error('Failed to update proof_clip_path in Supabase:', error);
+        });
+    }
   };
 
   const updateShopSettings = (settings: Partial<Shop>) => {
@@ -383,6 +514,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setShopPin,
         lockApp,
         addTransaction,
+        addCustomer,
         undoLastTransaction,
         updateCustomerBalance,
         updateItemStock,
