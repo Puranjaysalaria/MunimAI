@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #0B6E4F;
+  --primary-dark: #085039;
+  --primary-light: #E8F5E9;
+  --accent: #F5A524;
+  --accent-hover: #E0921B;
+  --bg-app: #FAF7F2;
+  --surface: #FFFFFF;
+  --text-main: #1B1B1B;
+  --text-muted: #5B5B5B;
+  --color-owed: #D64545;
+  --color-received: #1E9E5A;
+  --color-listening: #2563EB;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  background-color: #FAF7F2;
+  color: #1B1B1B;
+  font-family: 'Inter', 'Noto Sans Devanagari', 'Noto Sans Gurmukhi', system-ui, -apple-system, sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  touch-action: manipulation;
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Ensure minimum 64px touch target on interactive elements in primary flows */
+.touch-target-64 {
+  min-height: 64px;
+  min-width: 64px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Typography tokens for readability in bright sunlight */
+.amount-hero {
+  font-size: 2.25rem; /* 36px */
+  line-height: 2.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.amount-card {
+  font-size: 2rem; /* 32px */
+  line-height: 2.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Owed vs Received strict colors */
+.text-owed {
+  color: #D64545 !important;
+}
+
+.bg-owed-soft {
+  background-color: #FEE2E2 !important;
+}
+
+.text-received {
+  color: #1E9E5A !important;
+}
+
+.bg-received-soft {
+  background-color: #DCFCE7 !important;
+}
+
+/* Microphone pulsating animations */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
+  }
+  70% {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 18px rgba(37, 99, 235, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+  }
+}
+
+.animate-pulse-mic {
+  animation: pulse-ring 1.8s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+}
+
+/* Custom scrollbar for mobile web view */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.15);
+  border-radius: 4px;
+}

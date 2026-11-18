@@ -1,0 +1,95 @@
+# Munim AI - Architecture & Design Decisions (DECISIONS.md)
+
+This log records major technical and product decisions made during the development of Munim AI.
+
+---
+
+### DECISION-001: Mobile-First Kirana PWA & UX Paradigm
+- **Date**: 2026-11-18
+- **Context**: Kirana shopkeepers (aged 35–65) work in bright, noisy environments, frequently with only one hand free and oily/flour-covered fingers. Fast, tactile, voice-driven interaction is paramount.
+- **Decision**:
+  - Minimum tap target is **64px** across all key buttons.
+  - Primary mic button sits directly in the bottom-center thumb zone.
+  - Saffron `#F5A524` accent for mic button with high contrast against the `#0B6E4F` header and `#FAF7F2` warm background.
+  - Currency numbers rendered at 32px or higher.
+  - Full PWA support with service worker offline precaching and installability.
+
+---
+
+### DECISION-002: Color Token & Meaning Policy
+- **Date**: 2026-11-18
+- **Context**: Shopkeepers must instantly understand financial state without reading small text.
+- **Decision**:
+  - Primary: `#0B6E4F` (Forest/Kirana Green)
+  - Accent: `#F5A524` (Saffron Gold)
+  - Background: `#FAF7F2` (Warm, non-glare Kirana paper background)
+  - Surface: `#FFFFFF`
+  - Text: `#1B1B1B` (High contrast, WCAG AA compliant)
+  - Muted: `#5B5B5B`
+  - Owed (Udhaar): `#D64545` (Strictly red for money owed by customers)
+  - Received (Jama): `#1E9E5A` (Strictly green for money collected/received)
+  - Listening: `#2563EB` (Blue pulsing state for active microphone)
+
+---
+
+### DECISION-003: Dual-Engine STT Architecture
+- **Date**: 2026-11-18
+- **Context**: Web Speech API is zero-cost, runs on-device, and provides fast live transcripts for `hi-IN` and `en-IN`, but lacks consistency across older devices or noisy environments. Pluggable server STT (Sarvam, Whisper, Google Cloud Speech) handles complex accents and noise.
+- **Decision**:
+  - Implement a common `STTProvider` interface under `src/stt/`.
+  - Default to `browserSpeechProvider` for local dev and offline capability.
+  - Provide `serverSpeechProvider` via Supabase Edge Function `stt-proxy` controlled by `VITE_STT_PROVIDER`.
+  - Auto-fallback to browser STT if server STT times out or fails.
+
+---
+
+### DECISION-004: Dual-Engine Speech Parsing (Edge LLM + Offline Rule-Based)
+- **Date**: 2026-11-18
+- **Context**: Kirana shops frequently have intermittent 4G/3G connectivity. Voice parsing must work instantly both online and offline.
+- **Decision**:
+  - Online path calls Supabase Edge Function `parse-voice` which queries an LLM with strict Zod JSON output `{intent, customer, amount, item, quantity, language, confidence}`.
+  - Offline/fallback path executes an in-browser deterministic rule-based parser (`src/parser/ruleParser.ts`) with a rich synonym table (e.g., chini/cheeni/sugar, doodh/milk, aata/atta/flour) and multilingual number converter (pachaas, 50, paanch sau, 500, dhai sau).
+  - Both engines adhere strictly to: never silently guess amounts or customers. If confidence < 0.7 or fields missing, prompt for clarification.
+
+---
+
+### DECISION-005: Safety & Two-Step Confirmation Rule
+- **Date**: 2026-11-18
+- **Context**: In financial ledgers, accidental saves cause severe trust erosion.
+- **Decision**:
+  - No transaction is ever saved silently or immediately after speech recognition.
+  - A bottom slide-up confirmation card always appears displaying amount (>=32px), customer name, items, and action.
+  - Spoken confirmation reads back amount in words and digits.
+  - Save occurs ONLY upon user pressing "Haan" or speaking "Haan". "Nahi" or "ruko" cancels immediately. "Wapas karo" undoes the last committed transaction.
+
+---
+
+### DECISION-006: Customer Audio Proof & Storage Strategy
+- **Date**: 2026-11-18
+- **Context**: Shopkeepers often face disputes when customers claim they never took udhaar.
+- **Decision**:
+  - Customer proof audio is isolated from shopkeeper speech.
+  - Clear on-screen consent prompt shown before recording: *"Customer se bulwayein: 'Haan, 500 mere naam likh do' "*.
+  - 5-second fixed recording via `MediaRecorder`.
+  - Saved to private Supabase Storage bucket `proof-clips`, accessible via signed URLs with shop-level RLS.
+  - Offline entries queue audio in IndexedDB until internet is restored.
+
+---
+
+### DECISION-007: Multi-Tenant RLS & Offline Synchronization
+- **Date**: 2026-11-18
+- **Context**: Shop data privacy is non-negotiable. Every shop must be strictly isolated.
+- **Decision**:
+  - Every database table (`customers`, `items`, `transactions`, `stock_movements`, `suppliers`, `supplier_orders`, `reminders`) includes `shop_id UUID NOT NULL REFERENCES shops(id)`.
+  - Supabase Postgres Row-Level Security (RLS) policies enforce that authenticated users can only view and mutate records where `shop_id` matches their own registered shop.
+  - Client implements local IndexedDB queue for offline mutations, stamped with ISO timestamp, resolving conflicts by client action sequence and server reconciliation.
+
+---
+
+### DECISION-008: Zero-Friction Demo Mode & Local State First
+- **Date**: 2026-11-18
+- **Context**: Kirana shopkeepers, testers, and reviewers need immediate tactile access without forced cloud setup blockers.
+- **Decision**:
+  - Pre-load demo shop ('Sharma Kirana Store') with the exact 8 specified customers (including Ramesh Sharma at Gali 4 and Ramesh Kumar near Temple), 12 staple grocery items, 14 days of realistic transactions, and 2 suppliers.
+  - 1-tap "Open Demo Shop" button on login screen allows instant hands-on verification of all ledger, stock, and today features.
+  - 4-digit PIN default set to `1234` for rapid lock/unlock testing.
