@@ -1,159 +1,328 @@
 import React, { useState } from 'react';
 import { useShop } from '../context/ShopContext';
 import { useI18n } from '../i18n';
-import { KeyRound, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
+import { KeyRound, Sparkles, ArrowRight, ShieldCheck, Mail, Lock, Store, User, Loader2, Eye, EyeOff } from 'lucide-react';
 
 export const Auth: React.FC = () => {
-  const { loginWithPhone, loginDemo } = useShop();
+  const { loginWithSupabase, signUpWithSupabase, loginDemo } = useShop();
   const { t } = useI18n();
 
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [email, setEmail] = useState('shopkeeper@munimai.com');
+  const [password, setPassword] = useState('MunimStore123!');
+  const [shopName, setShopName] = useState('');
+  const [ownerName, setOwnerName] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handlePhoneSubmit = (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanPhone = phone.trim().replace(/\D/g, '');
-    if (cleanPhone.length < 10) {
-      setError(t.auth.invalidPhone);
+    if (!email || !password) {
+      setError('कृपया ईमेल और पासवर्ड दोनों दर्ज करें');
       return;
     }
+
+    setLoading(true);
     setError(null);
-    setStep('otp');
-    // Pre-fill demo OTP in helper text
+
+    const res = await loginWithSupabase(email, password);
+    setLoading(false);
+
+    if (!res.success) {
+      setError(res.error || 'गलत ईमेल या पासवर्ड। कृपया दोबारा जांचें।');
+    }
   };
 
-  const handleOtpSubmit = (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otp || otp.length < 4) {
-      setError(t.auth.invalidOtp);
+    if (!email || !password || !shopName) {
+      setError('कृपया दुकान का नाम, ईमेल और पासवर्ड दर्ज करें');
       return;
     }
-    const success = loginWithPhone(`+91${phone}`, otp);
-    if (!success) {
-      setError(t.auth.invalidOtp);
+    if (password.length < 6) {
+      setError('पासवर्ड कम से कम 6 अक्षरों का होना चाहिए');
+      return;
     }
+
+    setLoading(true);
+    setError(null);
+
+    const res = await signUpWithSupabase(email, password, shopName, ownerName);
+    setLoading(false);
+
+    if (!res.success) {
+      setError(res.error || 'पंजीकरण विफल। कृपया दोबारा प्रयास करें।');
+    }
+  };
+
+  const handleQuickDemo = async () => {
+    setLoading(true);
+    setError(null);
+    await loginDemo();
+    setLoading(false);
+  };
+
+  const fillDemoCreds = () => {
+    setEmail('shopkeeper@munimai.com');
+    setPassword('MunimStore123!');
+    setError(null);
   };
 
   return (
-    <div className="min-h-full bg-background flex flex-col justify-between p-5 max-w-md mx-auto">
-      {/* Top Hero */}
-      <div className="pt-8 text-center">
-        <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-primary text-white shadow-xl mb-4">
+    <div className="min-h-screen bg-background flex flex-col justify-between p-4 max-w-md mx-auto">
+      {/* Top Header & Branding */}
+      <div className="pt-6 text-center">
+        <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-primary text-white shadow-xl mb-3">
           <span className="text-3xl font-extrabold tracking-tight">मु</span>
         </div>
         <h1 className="text-2xl font-black text-app-text">{t.auth.loginTitle}</h1>
-        <p className="text-app-muted text-sm mt-1">{t.auth.loginSubtitle}</p>
+        <p className="text-app-muted text-sm mt-1">किराना दुकान का लाइव क्लाउड बही-खाता</p>
+
+        {/* Tab Toggle: Sign In vs Sign Up */}
+        <div className="flex bg-gray-200/80 p-1 rounded-xl mt-5 text-sm font-bold">
+          <button
+            type="button"
+            onClick={() => {
+              setMode('signin');
+              setError(null);
+            }}
+            className={`flex-1 py-2.5 rounded-lg transition-all ${
+              mode === 'signin'
+                ? 'bg-white text-primary shadow-sm font-black'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            लॉगिन करें (Sign In)
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode('signup');
+              setError(null);
+            }}
+            className={`flex-1 py-2.5 rounded-lg transition-all ${
+              mode === 'signup'
+                ? 'bg-white text-primary shadow-sm font-black'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            नया खाता (Register)
+          </button>
+        </div>
       </div>
 
-      {/* Main Login Form */}
-      <div className="bg-surface rounded-2xl p-6 shadow-card border border-gray-100 my-6">
-        {step === 'phone' ? (
-          <form onSubmit={handlePhoneSubmit} className="space-y-4">
+      {/* Main Form Container */}
+      <div className="bg-surface rounded-2xl p-6 shadow-card border border-gray-100 my-4">
+        {mode === 'signin' ? (
+          <form onSubmit={handleSignIn} className="space-y-4">
             <div>
-              <label className="block text-sm font-bold text-app-text mb-2">
-                {t.auth.phoneLabel}
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                ईमेल (Email)
               </label>
               <div className="relative flex items-center">
-                <span className="absolute left-4 font-bold text-gray-500 text-base">
-                  +91
-                </span>
+                <Mail className="absolute left-3.5 w-5 h-5 text-gray-400" />
                 <input
-                  type="tel"
-                  maxLength={10}
-                  value={phone}
-                  onChange={(e) => {
-                    setPhone(e.target.value.replace(/\D/g, ''));
-                    setError(null);
-                  }}
-                  placeholder={t.auth.phonePlaceholder}
-                  className="w-full pl-14 pr-4 py-3.5 text-lg font-bold rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-gray-50/50"
-                  autoFocus
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="shopkeeper@munimai.com"
+                  className="w-full pl-11 pr-4 py-3 text-base font-semibold rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-gray-50/50"
+                  required
                 />
               </div>
             </div>
 
-            {error && (
-              <p className="text-owed text-sm font-medium animate-pulse">{error}</p>
-            )}
-
-            <button
-              type="submit"
-              className="touch-target-64 w-full bg-primary hover:bg-primary-dark text-white font-bold text-lg rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center space-x-2"
-            >
-              <span>{t.auth.getOtp}</span>
-              <ArrowRight className="w-5 h-5" />
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleOtpSubmit} className="space-y-4">
             <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="block text-sm font-bold text-app-text">
-                  {t.auth.otpTitle}
-                </label>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                पासवर्ड (Password)
+              </label>
+              <div className="relative flex items-center">
+                <Lock className="absolute left-3.5 w-5 h-5 text-gray-400" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-11 pr-11 py-3 text-base font-semibold rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-gray-50/50"
+                  required
+                />
                 <button
                   type="button"
-                  onClick={() => setStep('phone')}
-                  className="text-xs text-primary font-semibold hover:underline"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 text-gray-400 hover:text-gray-600"
                 >
-                  {t.auth.switchUser}
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              <input
-                type="number"
-                maxLength={4}
-                value={otp}
-                onChange={(e) => {
-                  setOtp(e.target.value.slice(0, 4));
-                  setError(null);
-                }}
-                placeholder="1234"
-                className="w-full text-center tracking-[0.5em] text-2xl font-black py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-gray-50/50"
-                autoFocus
-              />
-              <p className="text-xs text-app-muted mt-2 text-center">
-                डेमो के लिए OTP दर्ज करें: <span className="font-mono font-bold text-primary">1234</span>
-              </p>
+            </div>
+
+            {/* Quick Demo Credential Pill */}
+            <div className="flex items-center justify-between text-xs bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-2.5">
+              <div>
+                <span className="font-bold">डेमो क्रेडेंशियल: </span>
+                <span className="font-mono">shopkeeper@munimai.com</span>
+              </div>
+              <button
+                type="button"
+                onClick={fillDemoCreds}
+                className="text-primary font-bold hover:underline ml-2"
+              >
+                भरें
+              </button>
             </div>
 
             {error && (
-              <p className="text-owed text-sm font-medium text-center">{error}</p>
+              <p className="text-owed text-sm font-bold bg-red-50 border border-red-200 rounded-lg p-2.5 animate-pulse text-center">
+                {error}
+              </p>
             )}
 
             <button
               type="submit"
-              className="touch-target-64 w-full bg-primary hover:bg-primary-dark text-white font-bold text-lg rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center space-x-2"
+              disabled={loading}
+              className="touch-target-64 w-full bg-primary hover:bg-primary-dark text-white font-bold text-lg rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center space-x-2 disabled:opacity-60"
             >
-              <KeyRound className="w-5 h-5 mr-1" />
-              <span>{t.auth.verifyOtp}</span>
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>प्रमाणीकरण हो रहा है...</span>
+                </>
+              ) : (
+                <>
+                  <KeyRound className="w-5 h-5" />
+                  <span>लाइव लॉगिन करें</span>
+                  <ArrowRight className="w-5 h-5 ml-1" />
+                </>
+              )}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleSignUp} className="space-y-3.5">
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                दुकान का नाम (Shop Name)
+              </label>
+              <div className="relative flex items-center">
+                <Store className="absolute left-3.5 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={shopName}
+                  onChange={(e) => setShopName(e.target.value)}
+                  placeholder="उदा. गुप्ता किराना स्टोर"
+                  className="w-full pl-11 pr-4 py-2.5 text-base font-semibold rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-gray-50/50"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                दुकानदार का नाम (Owner Name)
+              </label>
+              <div className="relative flex items-center">
+                <User className="absolute left-3.5 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={ownerName}
+                  onChange={(e) => setOwnerName(e.target.value)}
+                  placeholder="उदा. राजेश गुप्ता"
+                  className="w-full pl-11 pr-4 py-2.5 text-base font-semibold rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-gray-50/50"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                ईमेल (Email)
+              </label>
+              <div className="relative flex items-center">
+                <Mail className="absolute left-3.5 w-5 h-5 text-gray-400" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="owner@example.com"
+                  className="w-full pl-11 pr-4 py-2.5 text-base font-semibold rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-gray-50/50"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                पासवर्ड (Password)
+              </label>
+              <div className="relative flex items-center">
+                <Lock className="absolute left-3.5 w-5 h-5 text-gray-400" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="कम से कम 6 अक्षर"
+                  className="w-full pl-11 pr-11 py-2.5 text-base font-semibold rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-gray-50/50"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <p className="text-owed text-sm font-bold bg-red-50 border border-red-200 rounded-lg p-2.5 text-center">
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="touch-target-64 w-full bg-primary hover:bg-primary-dark text-white font-bold text-lg rounded-xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center space-x-2 disabled:opacity-60"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>खाता बनाया जा रहा है...</span>
+                </>
+              ) : (
+                <>
+                  <Store className="w-5 h-5" />
+                  <span>दुकान का खाता बनाएं</span>
+                  <ArrowRight className="w-5 h-5 ml-1" />
+                </>
+              )}
             </button>
           </form>
         )}
       </div>
 
-      {/* 1-Tap Demo Login Button */}
-      <div className="space-y-3 pb-6">
-        <div className="relative flex py-2 items-center">
+      {/* 1-Tap Instant Live Cloud Login Button */}
+      <div className="space-y-2.5 pb-4">
+        <div className="relative flex py-1 items-center">
           <div className="flex-grow border-t border-gray-300"></div>
-          <span className="flex-shrink mx-4 text-xs font-semibold text-gray-500 uppercase">
-            या तुरंत चलाकर देखें
+          <span className="flex-shrink mx-3 text-xs font-bold text-gray-500 uppercase">
+            या 1-क्लिक में लाइव क्लाउड खोलें
           </span>
           <div className="flex-grow border-t border-gray-300"></div>
         </div>
 
         <button
-          onClick={loginDemo}
-          className="touch-target-64 w-full bg-accent hover:bg-accent-hover text-app-text font-black text-base rounded-2xl shadow-mic transition-all active:scale-[0.98] flex items-center justify-center space-x-2 border-2 border-amber-500/20"
+          onClick={handleQuickDemo}
+          disabled={loading}
+          className="touch-target-64 w-full bg-accent hover:bg-accent-hover text-app-text font-black text-base rounded-2xl shadow-mic transition-all active:scale-[0.98] flex items-center justify-center space-x-2 border-2 border-amber-500/30"
         >
           <Sparkles className="w-5 h-5 text-amber-900" />
-          <span>{t.auth.demoLogin}</span>
+          <span>⚡ शर्मा किराना (लाइव Supabase) तुरंत खोलें</span>
         </button>
 
-        <div className="flex items-center justify-center space-x-1.5 text-xs text-app-muted pt-2">
+        <div className="flex items-center justify-center space-x-1.5 text-xs text-app-muted pt-1">
           <ShieldCheck className="w-4 h-4 text-primary" />
-          <span>सुरक्षित और निजी • आपकी दुकान का डेटा सिर्फ आपके पास</span>
+          <span>Supabase Auth 256-bit एन्क्रिप्शन • RLS डेटा सुरक्षा</span>
         </div>
       </div>
     </div>

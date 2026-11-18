@@ -28,8 +28,10 @@ interface ShopContextType {
   hasPin: boolean;
   offlinePendingCount: number;
   loginWithPhone: (phone: string, otp: string) => boolean;
-  loginDemo: () => void;
-  logout: () => void;
+  loginWithSupabase: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signUpWithSupabase: (email: string, password: string, shopName: string, ownerName: string) => Promise<{ success: boolean; error?: string }>;
+  loginDemo: () => Promise<void> | void;
+  logout: () => Promise<void> | void;
   unlockWithPin: (pin: string) => boolean;
   setShopPin: (pin: string) => void;
   lockApp: () => void;
@@ -81,7 +83,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
-    return localStorage.getItem(`${STORAGE_KEY_PREFIX}auth_active`) === 'true' || true;
+    return localStorage.getItem(`${STORAGE_KEY_PREFIX}auth_active`) === 'true';
   });
 
   const [isLocked, setIsLocked] = useState<boolean>(false);
@@ -213,9 +215,112 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return false;
   };
 
-  const loginDemo = () => {
+  // Real-time Supabase Auth Login
+  const loginWithSupabase = async (
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      if (data?.session) {
+        setIsLoggedIn(true);
+        setIsLocked(false);
+        localStorage.setItem(`${STORAGE_KEY_PREFIX}auth_active`, 'true');
+
+        // Fetch live user & shop profile
+        const { data: userProfile } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+
+        if (userProfile) {
+          setUser(userProfile as User);
+          localStorage.setItem(`${STORAGE_KEY_PREFIX}user`, JSON.stringify(userProfile));
+        }
+
+        const { data: shopProfile } = await supabase
+          .from('shops')
+          .select('*')
+          .eq('id', userProfile?.shop_id || DEMO_SHOP_ID)
+          .single();
+
+        if (shopProfile) {
+          setShop(shopProfile as Shop);
+          localStorage.setItem(`${STORAGE_KEY_PREFIX}shop`, JSON.stringify(shopProfile));
+        }
+
+        return { success: true };
+      }
+
+      return { success: false, error: 'लॉगिन नहीं हो सका' };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'लॉगिन विफल' };
+    }
+  };
+
+  // Real-time Supabase Auth Sign Up
+  const signUpWithSupabase = async (
+    email: string,
+    password: string,
+    shopName: string,
+    ownerName: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+        options: {
+          data: { shop_name: shopName, owner_name: ownerName },
+        },
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      if (data?.user) {
+        const newShopId = crypto.randomUUID();
+        await supabase.from('shops').insert({
+          id: newShopId,
+          name: shopName || 'मेरी किराना दुकान',
+          owner_phone: '+919999999999',
+        });
+
+        await supabase.from('users').insert({
+          id: data.user.id,
+          shop_id: newShopId,
+          name: ownerName || 'दुकानदार',
+          phone: '+919999999999',
+          role: 'owner',
+        });
+
+        return await loginWithSupabase(email, password);
+      }
+
+      return { success: false, error: 'पंजीकरण पूरा नहीं हो सका' };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'पंजीकरण विफल' };
+    }
+  };
+
+  const loginDemo = async () => {
+    // Authenticate with real live Supabase cloud account!
+    if (isSupabaseConfigured() && navigator.onLine) {
+      const res = await loginWithSupabase('shopkeeper@munimai.com', 'MunimStore123!');
+      if (res.success) return;
+    }
+
     const demoUser: User = {
-      id: '00000000-0000-0000-0000-000000000002',
+      id: 'd7367b1a-b1fc-4835-b3b6-ccdba3f14598',
       shop_id: DEMO_SHOP_ID,
       phone: '+919876543210',
       name: 'Madan Lal Sharma',
@@ -228,7 +333,14 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(`${STORAGE_KEY_PREFIX}user`, JSON.stringify(demoUser));
   };
 
-  const logout = () => {
+  const logout = async () => {
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.auth.signOut();
+      } catch (e) {
+        console.warn('Sign out error:', e);
+      }
+    }
     setIsLoggedIn(false);
     setIsLocked(false);
     localStorage.removeItem(`${STORAGE_KEY_PREFIX}auth_active`);
@@ -508,6 +620,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         hasPin: Boolean(shop.pin_hash),
         offlinePendingCount,
         loginWithPhone,
+        loginWithSupabase,
+        signUpWithSupabase,
         loginDemo,
         logout,
         unlockWithPin,
