@@ -261,10 +261,12 @@ export const Home: React.FC<HomeProps> = ({
     </motion.div>
   );
 
+  const isListeningNow = isListening || voiceState === 'listening';
+
   const VoiceCenterpiece = (
     <div className="relative rounded-[32px] p-6 bg-gradient-to-b from-white via-white to-gray-50/80 border border-emerald-900/10 shadow-float text-center overflow-hidden">
       {/* Atmospheric ambient glow */}
-      {isListening ? (
+      {isListeningNow ? (
         <div className="absolute inset-0 bg-gradient-to-b from-blue-100/50 via-indigo-50/30 to-transparent pointer-events-none transition-opacity duration-500" />
       ) : (
         <div className="absolute inset-0 bg-gradient-to-b from-amber-50/30 via-transparent to-transparent pointer-events-none" />
@@ -277,7 +279,7 @@ export const Home: React.FC<HomeProps> = ({
           className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full text-xs font-black mb-3 border shadow-xs"
           style={{
             backgroundColor:
-              voiceState === 'listening'
+              isListeningNow
                 ? 'rgba(239, 246, 255, 0.95)'
                 : voiceState === 'thinking'
                 ? 'rgba(254, 243, 199, 0.95)'
@@ -285,7 +287,7 @@ export const Home: React.FC<HomeProps> = ({
                 ? 'rgba(209, 250, 229, 0.95)'
                 : 'rgba(243, 244, 246, 0.95)',
             borderColor:
-              voiceState === 'listening'
+              isListeningNow
                 ? 'rgba(147, 197, 253, 0.7)'
                 : voiceState === 'thinking'
                 ? 'rgba(252, 211, 77, 0.7)'
@@ -294,7 +296,7 @@ export const Home: React.FC<HomeProps> = ({
                 : 'rgba(229, 231, 235, 0.8)',
           }}
         >
-          {voiceState === 'listening' ? (
+          {isListeningNow ? (
             <span className="text-blue-600 flex items-center">
               <Volume2 className="w-3.5 h-3.5 mr-1.5 animate-pulse" />
               {t.voice.listening}
@@ -318,70 +320,60 @@ export const Home: React.FC<HomeProps> = ({
         </motion.div>
 
         {/* Living Floating Microphone Orb with Bubble Ripples & Levitation */}
-        <div className="relative my-6 flex items-center justify-center">
+        <div className="relative my-4 flex items-center justify-center">
           {/* Ground Reflection Shadow (expands & contracts inversely with vertical levitation) */}
           <div
-            className={`animate-mic-shadow absolute -bottom-3 w-28 h-4 rounded-full blur-sm pointer-events-none ${
-              isListening ? 'bg-blue-600/40' : 'bg-amber-950/25'
+            className={`animate-mic-shadow absolute -bottom-2 w-24 h-3.5 rounded-full blur-xs pointer-events-none ${
+              isListeningNow ? 'bg-blue-600/35' : 'bg-amber-950/20'
             }`}
           />
 
           {/* Floating Levitation Rig */}
-          <div className="animate-mic-float relative flex items-center justify-center w-36 h-36">
-            {isListening ? (
+          <div className="animate-mic-float relative flex items-center justify-center w-32 h-32">
+            {isListeningNow ? (
               <>
                 {/* Listening Acoustic Glow Aura */}
-                <div className="absolute inset-2 rounded-full bg-gradient-to-tr from-blue-500/40 via-cyan-400/40 to-indigo-600/30 blur-lg pointer-events-none animate-pulse" />
+                <div className="absolute inset-1 rounded-full bg-gradient-to-tr from-blue-500/35 via-cyan-400/35 to-indigo-600/25 blur-md pointer-events-none animate-pulse" />
 
-                {/* Acoustic Bubble Ripple 1 */}
-                <div className="animate-mic-bubble-1 absolute w-28 h-28 rounded-full border-2 border-cyan-400 bg-cyan-400/20 shadow-lg pointer-events-none" />
+                {/* Acoustic Bubble Ripple 1 (Tight & compact, never wide) */}
+                <div className="animate-mic-bubble-1 absolute w-28 h-28 rounded-full border-2 border-cyan-400/80 bg-cyan-400/15 shadow-sm pointer-events-none" />
 
                 {/* Acoustic Bubble Ripple 2 */}
-                <div className="animate-mic-bubble-2 absolute w-28 h-28 rounded-full border-2 border-blue-400 bg-blue-500/15 shadow-md pointer-events-none" />
-
-                {/* Acoustic Bubble Ripple 3 */}
-                <div className="animate-mic-bubble-3 absolute w-28 h-28 rounded-full border border-indigo-400 bg-indigo-500/10 pointer-events-none" />
+                <div className="animate-mic-bubble-2 absolute w-28 h-28 rounded-full border border-blue-400/60 bg-blue-500/10 pointer-events-none" />
               </>
             ) : (
               <>
                 {/* Idle Golden Breathing Aura */}
-                <div className="absolute inset-2 rounded-full bg-gradient-to-tr from-amber-400/40 via-yellow-400/40 to-amber-500/30 blur-lg pointer-events-none animate-pulse" />
+                <div className="absolute inset-1 rounded-full bg-gradient-to-tr from-amber-400/35 via-yellow-400/35 to-amber-500/25 blur-md pointer-events-none animate-pulse" />
 
-                {/* Concentric Radiating Bubble Ring 1 */}
-                <div className="animate-mic-bubble-1 absolute w-28 h-28 rounded-full border-2 border-amber-400 bg-amber-400/20 shadow-md pointer-events-none" />
+                {/* Concentric Radiating Bubble Ring 1 (Compact & snug, max 1.26x) */}
+                <div className="animate-mic-bubble-1 absolute w-28 h-28 rounded-full border-2 border-amber-400/50 bg-amber-400/10 shadow-xs pointer-events-none" />
 
-                {/* Concentric Radiating Bubble Ring 2 */}
-                <div className="animate-mic-bubble-2 absolute w-28 h-28 rounded-full border-2 border-amber-500/80 bg-amber-300/15 shadow-sm pointer-events-none" />
-
-                {/* Concentric Radiating Bubble Ring 3 */}
-                <div className="animate-mic-bubble-3 absolute w-28 h-28 rounded-full border border-yellow-300/80 bg-yellow-400/10 pointer-events-none" />
-
-                {/* Floating Micro Sparkle Bubbles */}
-                <span className="animate-mic-sparkle-1 absolute top-1 right-2 w-3.5 h-3.5 rounded-full bg-amber-300 shadow-xs pointer-events-none border border-white" />
-                <span className="animate-mic-sparkle-2 absolute bottom-2 left-2 w-3 h-3 rounded-full bg-yellow-400 shadow-xs pointer-events-none border border-white" />
+                {/* Concentric Radiating Bubble Ring 2 (max 1.38x) */}
+                <div className="animate-mic-bubble-2 absolute w-28 h-28 rounded-full border border-amber-300/40 bg-amber-300/5 pointer-events-none" />
               </>
             )}
 
             {/* Central Hero Button */}
             <motion.button
-              whileHover={{ scale: 1.08 }}
+              whileHover={{ scale: 1.06 }}
               whileTap={{ scale: 0.92 }}
               onClick={handleMicClick}
               className={`w-28 h-28 rounded-full flex items-center justify-center transition-all duration-300 relative z-10 border-4 border-white select-none ${
-                isListening
+                isListeningNow
                   ? 'bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 text-white shadow-listening ring-4 ring-blue-300/70 animate-pulse'
                   : 'bg-gradient-to-tr from-amber-500 via-amber-400 to-yellow-300 text-slate-950 shadow-mic-hero'
               }`}
               style={{
-                boxShadow: isListening
-                  ? '0 0 50px rgba(59, 130, 246, 0.65), inset 0 2px 6px rgba(255, 255, 255, 0.6)'
-                  : '0 16px 40px -4px rgba(245, 158, 11, 0.55), inset 0 2px 6px rgba(255, 255, 255, 0.7)',
+                boxShadow: isListeningNow
+                  ? '0 0 45px rgba(59, 130, 246, 0.6), inset 0 2px 6px rgba(255, 255, 255, 0.6)'
+                  : '0 14px 35px -4px rgba(245, 158, 11, 0.5), inset 0 2px 6px rgba(255, 255, 255, 0.7)',
               }}
               aria-label={t.voice.tapToSpeak}
             >
               <Mic
                 className={`w-12 h-12 transition-all ${
-                  isListening
+                  isListeningNow
                     ? 'scale-110 text-white stroke-[2.6]'
                     : 'text-slate-950 stroke-[2.5]'
                 }`}
@@ -390,8 +382,8 @@ export const Home: React.FC<HomeProps> = ({
           </div>
         </div>
 
-        {/* Live Soundwave Frequency Bars */}
-        <LiveWaveform isListening={isListening} />
+        {/* Live Soundwave Frequency Bars (ALWAYS visible when listening) */}
+        <LiveWaveform isListening={isListeningNow} />
 
         {/* Live Transcript / Feedback Banner */}
         <div className="mt-2 min-h-[50px] flex items-center justify-center w-full px-1">

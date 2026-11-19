@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 
 interface LiveWaveformProps {
   isListening: boolean;
@@ -8,25 +7,19 @@ interface LiveWaveformProps {
 export const LiveWaveform: React.FC<LiveWaveformProps> = ({ isListening }) => {
   if (!isListening) return null;
 
-  const barCount = 12;
+  const barHeights = [10, 18, 14, 26, 20, 28, 22, 24, 16, 22, 14, 10];
 
   return (
     <div className="flex items-center justify-center space-x-1.5 h-10 py-1 my-2">
-      {Array.from({ length: barCount }).map((_, idx) => (
-        <motion.span
+      {barHeights.map((maxH, idx) => (
+        <span
           key={idx}
-          className="w-1.5 rounded-full bg-gradient-to-t from-blue-600 via-indigo-500 to-cyan-400 shadow-xs"
-          animate={{
-            height: ['8px', `${14 + ((idx * 7) % 22) + Math.random() * 8}px`, '8px'],
-            opacity: [0.6, 1, 0.6],
+          style={{
+            height: `${maxH}px`,
+            animation: 'live-soundbar 0.75s ease-in-out infinite alternate',
+            animationDelay: `${(idx * 0.08).toFixed(2)}s`,
           }}
-          transition={{
-            duration: 0.6 + (idx % 3) * 0.15,
-            repeat: Infinity,
-            repeatType: 'reverse',
-            ease: 'easeInOut',
-            delay: idx * 0.06,
-          }}
+          className="w-1.5 rounded-full bg-gradient-to-t from-blue-600 via-indigo-500 to-cyan-400 shadow-xs inline-block origin-bottom will-change-transform"
         />
       ))}
     </div>

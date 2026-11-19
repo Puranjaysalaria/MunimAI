@@ -54,9 +54,12 @@ export function useVoiceController({
   // Stop listening
   const stopListening = useCallback(() => {
     if (sttProviderRef.current) {
-      sttProviderRef.current.stopListening();
+      try {
+        sttProviderRef.current.stopListening();
+      } catch {}
     }
     setIsListening(false);
+    setVoiceState((cur) => (cur === 'listening' ? 'idle' : cur));
     triggerHaptic('stop');
   }, []);
 
@@ -276,8 +279,13 @@ export function useVoiceController({
     ]
   );
 
-  // Start voice listening
+  // Start voice listening (or toggle off if already listening)
   const startListening = useCallback(() => {
+    if (isListening || voiceState === 'listening') {
+      stopListening();
+      return;
+    }
+
     triggerHaptic('start');
     playAudioCue('start');
     setErrorMessage(null);
@@ -323,11 +331,17 @@ export function useVoiceController({
           }
         },
         onStateChange: (state) => {
-          if (state === 'idle') setIsListening(false);
+          if (state === 'idle') {
+            setIsListening(false);
+            setVoiceState((cur) => (cur === 'listening' ? 'idle' : cur));
+          } else if (state === 'listening') {
+            setIsListening(true);
+            setVoiceState('listening');
+          }
         },
       }
     );
-  }, [language, stopListening, processInput, t]);
+  }, [language, isListening, voiceState, stopListening, processInput, t]);
 
   // Confirm and save the pending transaction
   const handleConfirmSave = useCallback(() => {
