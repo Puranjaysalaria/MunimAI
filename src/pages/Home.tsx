@@ -31,7 +31,7 @@ interface HomeProps {
   liveTranscript: string;
   errorMessage: string | null;
   onRetryVoice: () => void;
-  onSelectCustomerSuggestion: (name: string) => void;
+  onSelectCustomerSuggestion: (customerId: string) => void;
   onOpenSupplierOrders?: () => void;
 }
 
@@ -517,7 +517,7 @@ export const Home: React.FC<HomeProps> = ({
             onClick={() => {
               triggerHaptic('start');
               playAudioCue('start');
-              onSelectCustomerSuggestion(cust.name);
+              onSelectCustomerSuggestion(cust.id);
             }}
             className="flex-shrink-0 px-3.5 py-2.5 bg-white hover:bg-emerald-50/40 border border-gray-200 rounded-2xl text-xs font-bold text-slate-800 shadow-xs flex items-center space-x-2.5 card-hover-elevate"
           >
@@ -572,7 +572,15 @@ export const Home: React.FC<HomeProps> = ({
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.05, duration: 0.25 }}
-                className="py-3 flex items-center justify-between group hover:bg-gray-50/60 rounded-xl px-1 transition-colors"
+                onClick={() => {
+                  if (customer) {
+                    triggerHaptic('light');
+                    onSelectCustomerSuggestion(customer.id);
+                  }
+                }}
+                className={`py-3 flex items-center justify-between group hover:bg-gray-50/60 rounded-xl px-1 transition-colors ${
+                  customer ? 'cursor-pointer' : ''
+                }`}
               >
                 <div className="flex items-center space-x-3 overflow-hidden">
                   {customer ? (

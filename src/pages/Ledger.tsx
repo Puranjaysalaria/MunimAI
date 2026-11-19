@@ -31,7 +31,8 @@ import { triggerHaptic, playAudioCue } from '../lib/sound';
 import { CustomerAvatar } from '../components/CustomerAvatar';
 
 interface LedgerProps {
-  onSelectCustomer: (customer: Customer) => void;
+  onSelectCustomer?: (customer: Customer) => void;
+  selectedCustomerId?: string | null;
   onOpenRecovery: () => void;
   onPlayProof: (clipPath: string) => void;
   onQuickAction: (customer: Customer, action: 'credit' | 'payment') => void;
@@ -39,6 +40,8 @@ interface LedgerProps {
 }
 
 export const Ledger: React.FC<LedgerProps> = ({
+  onSelectCustomer,
+  selectedCustomerId,
   onOpenRecovery,
   onPlayProof,
   onQuickAction,
@@ -49,8 +52,32 @@ export const Ledger: React.FC<LedgerProps> = ({
 
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'owed' | 'settled'>('all');
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(() => {
+    if (selectedCustomerId) {
+      return (
+        customers.find(
+          (c) =>
+            c.id === selectedCustomerId ||
+            c.name.toLowerCase() === selectedCustomerId.toLowerCase()
+        ) || null
+      );
+    }
+    return null;
+  });
   const [playingTxId, setPlayingTxId] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (selectedCustomerId) {
+      const found = customers.find(
+        (c) =>
+          c.id === selectedCustomerId ||
+          c.name.toLowerCase() === selectedCustomerId.toLowerCase()
+      );
+      if (found) {
+        setSelectedCustomer(found);
+      }
+    }
+  }, [selectedCustomerId, customers]);
 
   const filteredCustomers = customers.filter((c) => {
     const matchesSearch =
@@ -444,6 +471,7 @@ export const Ledger: React.FC<LedgerProps> = ({
                     onClick={() => {
                       triggerHaptic('light');
                       setSelectedCustomer(cust);
+                      onSelectCustomer?.(cust);
                     }}
                   >
                     <div className="flex items-start justify-between">

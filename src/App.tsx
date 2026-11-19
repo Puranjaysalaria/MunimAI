@@ -61,6 +61,7 @@ export const AppContent: React.FC = () => {
   const [recoveryThreshold, setRecoveryThreshold] = useState(1000);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showUndoToast, setShowUndoToast] = useState(false);
+  const [selectedLedgerCustomerId, setSelectedLedgerCustomerId] = useState<string | null>(null);
 
   // Customer Proof Recording States
   const [proofTargetTx, setProofTargetTx] = useState<Transaction | null>(null);
@@ -150,7 +151,8 @@ export const AppContent: React.FC = () => {
     return <PinLock />;
   }
 
-  const handleSelectCustomer = (_customer: Customer) => {
+  const handleSelectCustomer = (customer: Customer) => {
+    setSelectedLedgerCustomerId(customer.id);
     setActiveTab('ledger');
   };
 
@@ -230,9 +232,10 @@ export const AppContent: React.FC = () => {
                 liveTranscript={voice.liveTranscript}
                 errorMessage={voice.errorMessage}
                 onRetryVoice={voice.startListening}
-                onSelectCustomerSuggestion={(name) =>
-                  voice.processInput(`${name} ko 500 ka udhaar`)
-                }
+                onSelectCustomerSuggestion={(customerId) => {
+                  setSelectedLedgerCustomerId(customerId);
+                  setActiveTab('ledger');
+                }}
                 onOpenSupplierOrders={() => setIsSupplierOrdersOpen(true)}
               />
             </motion.div>
@@ -247,6 +250,7 @@ export const AppContent: React.FC = () => {
               transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             >
               <Ledger
+                selectedCustomerId={selectedLedgerCustomerId}
                 onSelectCustomer={handleSelectCustomer}
                 onOpenRecovery={() => {
                   setRecoveryThreshold(1000);
