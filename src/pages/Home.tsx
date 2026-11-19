@@ -317,75 +317,167 @@ export const Home: React.FC<HomeProps> = ({
           )}
         </motion.div>
 
-        {/* Living Microphone Orb with Staggered Soundwave Rings */}
-        <div className="relative my-4 flex items-center justify-center">
-          {isListening ? (
-            <>
-              <motion.div
-                className="absolute inset-0 rounded-full border-2 border-blue-400 pointer-events-none"
-                initial={{ scale: 1, opacity: 0.9 }}
-                animate={{ scale: 1.65, opacity: 0 }}
-                transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }}
-              />
-              <motion.div
-                className="absolute inset-0 rounded-full border-2 border-indigo-400 pointer-events-none"
-                initial={{ scale: 1, opacity: 0.9 }}
-                animate={{ scale: 2.1, opacity: 0 }}
-                transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut', delay: 0.35 }}
-              />
-              <motion.div
-                className="absolute inset-0 rounded-full border border-cyan-400 pointer-events-none"
-                initial={{ scale: 1, opacity: 0.8 }}
-                animate={{ scale: 2.6, opacity: 0 }}
-                transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut', delay: 0.7 }}
-              />
-            </>
-          ) : (
-            <motion.div
-              animate={{
-                scale: [1, 1.14, 1],
-                opacity: [0.35, 0.65, 0.35],
-              }}
-              transition={{
-                duration: 2.8,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              }}
-              className="absolute -inset-4 rounded-full bg-gradient-to-r from-amber-400/30 via-yellow-400/30 to-amber-500/30 blur-lg pointer-events-none"
-            />
-          )}
-
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.9 }}
-            animate={!isListening ? { y: [0, -3, 0] } : {}}
+        {/* Living Floating Microphone Orb with Bubble Ripples & Levitation */}
+        <div className="relative my-5 flex items-center justify-center">
+          {/* Ground Reflection Shadow (expands & contracts inversely with vertical levitation) */}
+          <motion.div
+            animate={{
+              scale: isListening ? [1, 1.15, 1] : [1, 0.75, 1],
+              opacity: isListening ? [0.45, 0.7, 0.45] : [0.35, 0.16, 0.35],
+            }}
             transition={{
-              y: { duration: 3, repeat: Infinity, ease: 'easeInOut' },
-              type: 'spring',
-              stiffness: 400,
-              damping: 20,
+              duration: isListening ? 1.6 : 3.2,
+              repeat: Infinity,
+              ease: 'easeInOut',
             }}
-            onClick={handleMicClick}
-            className={`w-28 h-28 rounded-full flex items-center justify-center transition-all duration-300 relative z-10 border-4 border-white select-none ${
-              isListening
-                ? 'bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 text-white shadow-listening ring-4 ring-blue-300/60'
-                : 'bg-gradient-to-tr from-amber-500 via-amber-400 to-yellow-300 text-slate-950 shadow-mic-hero'
+            className={`absolute -bottom-3 w-28 h-5 rounded-full blur-md pointer-events-none ${
+              isListening ? 'bg-blue-600/40' : 'bg-amber-950/20'
             }`}
-            style={{
-              boxShadow: isListening
-                ? '0 0 50px rgba(59, 130, 246, 0.6), inset 0 2px 6px rgba(255, 255, 255, 0.5)'
-                : '0 16px 40px -4px rgba(245, 158, 11, 0.5), inset 0 2px 6px rgba(255, 255, 255, 0.6)',
+          />
+
+          {/* Floating Levitation Rig */}
+          <motion.div
+            animate={{
+              y: isListening ? [0, -4, 0] : [0, -10, 0],
             }}
-            aria-label={t.voice.tapToSpeak}
+            transition={{
+              duration: isListening ? 1.6 : 3.2,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+            className="relative flex items-center justify-center w-36 h-36"
           >
-            <Mic
-              className={`w-12 h-12 transition-all ${
+            {isListening ? (
+              <>
+                {/* Listening Acoustic Glow Aura */}
+                <motion.div
+                  animate={{
+                    scale: [0.95, 1.25, 0.95],
+                    opacity: [0.5, 0.85, 0.5],
+                  }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                  className="absolute inset-2 rounded-full bg-gradient-to-tr from-blue-500/40 via-cyan-400/40 to-indigo-600/30 blur-lg pointer-events-none"
+                />
+
+                {/* Acoustic Bubble Ripple 1 */}
+                <motion.div
+                  className="absolute inset-4 rounded-full border-2 border-cyan-400/80 bg-cyan-400/15 pointer-events-none"
+                  initial={{ scale: 0.95, opacity: 0.85 }}
+                  animate={{ scale: 1.55, opacity: 0 }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
+                />
+
+                {/* Acoustic Bubble Ripple 2 */}
+                <motion.div
+                  className="absolute inset-4 rounded-full border-2 border-blue-400/80 bg-blue-500/15 pointer-events-none"
+                  initial={{ scale: 0.95, opacity: 0.8 }}
+                  animate={{ scale: 1.95, opacity: 0 }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut', delay: 0.45 }}
+                />
+
+                {/* Acoustic Bubble Ripple 3 */}
+                <motion.div
+                  className="absolute inset-4 rounded-full border border-indigo-400/70 bg-indigo-500/10 pointer-events-none"
+                  initial={{ scale: 0.95, opacity: 0.7 }}
+                  animate={{ scale: 2.35, opacity: 0 }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut', delay: 0.9 }}
+                />
+              </>
+            ) : (
+              <>
+                {/* Idle Golden Breathing Aura */}
+                <motion.div
+                  animate={{
+                    scale: [0.95, 1.18, 0.95],
+                    opacity: [0.45, 0.8, 0.45],
+                  }}
+                  transition={{
+                    duration: 2.8,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                  }}
+                  className="absolute inset-2 rounded-full bg-gradient-to-tr from-amber-400/40 via-yellow-400/40 to-amber-500/30 blur-lg pointer-events-none"
+                />
+
+                {/* Concentric Radiating Bubble Ring 1 */}
+                <motion.div
+                  animate={{
+                    scale: [0.92, 1.48],
+                    opacity: [0.7, 0],
+                  }}
+                  transition={{
+                    duration: 2.6,
+                    repeat: Infinity,
+                    ease: 'easeOut',
+                  }}
+                  className="absolute inset-4 rounded-full border-2 border-amber-400/60 bg-amber-400/10 pointer-events-none"
+                />
+
+                {/* Concentric Radiating Bubble Ring 2 */}
+                <motion.div
+                  animate={{
+                    scale: [0.92, 1.78],
+                    opacity: [0.55, 0],
+                  }}
+                  transition={{
+                    duration: 2.6,
+                    repeat: Infinity,
+                    ease: 'easeOut',
+                    delay: 1.3,
+                  }}
+                  className="absolute inset-4 rounded-full border border-yellow-400/50 bg-yellow-300/10 pointer-events-none"
+                />
+
+                {/* Floating Micro Sparkle Bubbles */}
+                <motion.span
+                  animate={{
+                    y: [-2, -12, -2],
+                    x: [-2, 3, -2],
+                    opacity: [0.3, 0.9, 0.3],
+                    scale: [0.8, 1.25, 0.8],
+                  }}
+                  transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+                  className="absolute top-1 right-2 w-3 h-3 rounded-full bg-amber-300/80 shadow-xs pointer-events-none border border-white"
+                />
+                <motion.span
+                  animate={{
+                    y: [2, -10, 2],
+                    x: [2, -3, 2],
+                    opacity: [0.2, 0.85, 0.2],
+                    scale: [0.7, 1.15, 0.7],
+                  }}
+                  transition={{ duration: 4.2, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+                  className="absolute bottom-2 left-2 w-2.5 h-2.5 rounded-full bg-yellow-400/80 shadow-xs pointer-events-none border border-white"
+                />
+              </>
+            )}
+
+            {/* Central Hero Button */}
+            <motion.button
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.92 }}
+              onClick={handleMicClick}
+              className={`w-28 h-28 rounded-full flex items-center justify-center transition-all duration-300 relative z-10 border-4 border-white select-none ${
                 isListening
-                  ? 'scale-110 text-white animate-pulse stroke-[2.6]'
-                  : 'text-slate-950 stroke-[2.5]'
+                  ? 'bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 text-white shadow-listening ring-4 ring-blue-300/70 animate-pulse'
+                  : 'bg-gradient-to-tr from-amber-500 via-amber-400 to-yellow-300 text-slate-950 shadow-mic-hero'
               }`}
-            />
-          </motion.button>
+              style={{
+                boxShadow: isListening
+                  ? '0 0 50px rgba(59, 130, 246, 0.65), inset 0 2px 6px rgba(255, 255, 255, 0.6)'
+                  : '0 16px 40px -4px rgba(245, 158, 11, 0.55), inset 0 2px 6px rgba(255, 255, 255, 0.7)',
+              }}
+              aria-label={t.voice.tapToSpeak}
+            >
+              <Mic
+                className={`w-12 h-12 transition-all ${
+                  isListening
+                    ? 'scale-110 text-white stroke-[2.6]'
+                    : 'text-slate-950 stroke-[2.5]'
+                }`}
+              />
+            </motion.button>
+          </motion.div>
         </div>
 
         {/* Live Soundwave Frequency Bars */}
