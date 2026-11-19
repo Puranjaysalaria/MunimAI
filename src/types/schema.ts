@@ -1,7 +1,23 @@
 export type TransactionType = 'sale' | 'credit' | 'payment' | 'expense';
-export type CustomerLanguage = 'hi' | 'pa' | 'en' | 'mr' | 'bn' | 'gu' | 'ta';
+export type CustomerLanguage = 'hi' | 'pa' | 'en' | 'mr' | 'bn' | 'gu' | 'ta' | 'te' | 'kn' | 'ml';
 export type ItemUnit = 'kilo' | 'gram' | 'litre' | 'packet' | 'piece' | 'dabba' | 'bori';
 export type UserRole = 'owner' | 'staff';
+
+export type ReminderTone = 'polite' | 'standard' | 'firm';
+export type ReminderSchedule = 'manual' | 'weekly_sunday' | 'biweekly' | 'monthly_1st' | 'overdue_15d';
+export type ReminderChannel = 'whatsapp' | 'sms' | 'whatsapp_first_sms_fallback';
+
+export interface ReminderSettings {
+  default_threshold: number;         // e.g. 500, 1000, 2000, 5000
+  message_tone: ReminderTone;        // 'polite' | 'standard' | 'firm'
+  send_channel: ReminderChannel;     // 'whatsapp' | 'sms' | 'whatsapp_first_sms_fallback'
+  include_upi_link: boolean;         // attach upi://pay deep link
+  schedule: ReminderSchedule;        // in-app review notification cadence (never auto-sends)
+  custom_note?: string;              // Custom note added to message
+  auto_filter_high_trust: boolean;   // Exclude customers with trust score >= 90%
+  quiet_hours_start: string;         // default "21:00" (9 PM)
+  quiet_hours_end: string;           // default "08:00" (8 AM)
+}
 
 export interface Shop {
   id: string;
@@ -14,6 +30,7 @@ export interface Shop {
     credit_warning_limit?: number;
     voice_confirm?: boolean;
     sound_enabled?: boolean;
+    reminder_settings?: ReminderSettings;
   };
   created_at?: string;
 }
@@ -36,7 +53,10 @@ export interface Customer {
   address_note?: string;
   credit_limit: number;
   balance_owed: number;
-  trust_score: number; // 0 - 100
+  trust_score?: number; // 0 - 100
+  do_not_remind?: boolean;
+  reminder_tone_override?: ReminderTone | null;
+  last_reminded_at?: string | null;
   created_at?: string;
   updated_at?: string;
 }
