@@ -13,6 +13,7 @@ export const ParsedIntentEnum = z.enum([
   'confirm_yes',
   'confirm_no',
   'undo',
+  'reminder_settings',
   'unknown',
 ]);
 

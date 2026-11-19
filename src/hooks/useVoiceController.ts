@@ -24,6 +24,7 @@ interface UseVoiceControllerProps {
   onOpenSupplierOrders?: () => void;
   onOpenDailySummary?: () => void;
   onOpenRecovery?: (threshold: number) => void;
+  onOpenReminderSettings?: () => void;
 }
 
 export function useVoiceController({
@@ -37,6 +38,7 @@ export function useVoiceController({
   onOpenSupplierOrders,
   onOpenDailySummary,
   onOpenRecovery,
+  onOpenReminderSettings,
 }: UseVoiceControllerProps) {
   const { language, t } = useI18n();
 
@@ -139,6 +141,22 @@ export function useVoiceController({
           speechSynthesizer.speak(orderVoice, language);
           if (onOpenSupplierOrders) {
             onOpenSupplierOrders();
+          }
+          setTimeout(() => setVoiceState('idle'), 1500);
+          return;
+        }
+
+        if (result.intent === 'reminder_settings') {
+          setVoiceState('success');
+          const replyVoice =
+            language === 'en'
+              ? 'Opening reminder settings.'
+              : language === 'pa'
+              ? 'ਯਾਦ-ਪੱਤਰ ਸੈਟਿੰਗਾਂ ਖੋਲ੍ਹੀਆਂ ਜਾ ਰਹੀਆਂ ਹਨ।'
+              : 'तगादा सेटिंग्स खोली जा रही हैं।';
+          speechSynthesizer.speak(replyVoice, language);
+          if (onOpenReminderSettings) {
+            onOpenReminderSettings();
           }
           setTimeout(() => setVoiceState('idle'), 1500);
           return;

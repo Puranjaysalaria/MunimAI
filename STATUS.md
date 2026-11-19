@@ -36,9 +36,12 @@
     - VIP high-trust regular badge (⭐ VIP 95)
     - Channel selector: "WhatsApp first, SMS fallback" (never sends twice)
   - ShopContext persistence & live Supabase sync via `updateCustomer` and `updateShopSettings`
-- [ ] **Step 5: Voice Intent & Parser**
-  - Voice triggers in `ruleParser.ts`: "Reminder settings kholo", etc.
-  - Action handler in `useVoiceController.ts`
+- [x] **Step 5: Voice Intent & Parser**
+  - Added `reminder_settings` intent to `ParsedIntent` and `ParsedIntentEnum`
+  - Integrated Hindi ("तगादा सेटिंग्स खोलो"), Punjabi ("ਯਾਦ-ਪੱਤਰ ਸੈਟਿੰਗਾਂ"), and English ("reminder settings") voice triggers
+  - Added Indic normalizer phrase mappings for reminder settings
+  - Wired intent handler in `useVoiceController.ts` and `App.tsx`
+  - Added unit tests in `tests/parser.test.ts` (109 tests total passing)
 - [ ] **Step 6: Translations (i18n)**
   - Localization across all 10 language files
 - [ ] **Step 7: Supabase Migration**

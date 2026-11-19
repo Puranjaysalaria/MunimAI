@@ -467,5 +467,20 @@ describe('Speech Parser - 30+ Multilingual Sentences Across All Intents', () => 
       const noRes = await parseSpeech('ਨਹੀਂ', testContext);
       expect(noRes.intent).toBe('confirm_no');
     });
+
+    it('54. parses English reminder settings voice intent: "reminder settings"', async () => {
+      const res = await parseSpeech('reminder settings', testContext);
+      expect(res.intent).toBe('reminder_settings');
+    });
+
+    it('55. parses Hindi reminder settings voice intent: "तगादा सेटिंग्स खोलो"', async () => {
+      const res = await parseSpeech('तगादा सेटिंग्स खोलो', testContext);
+      expect(res.intent).toBe('reminder_settings');
+    });
+
+    it('56. parses Punjabi reminder settings voice intent: "ਯਾਦ-ਪੱਤਰ ਸੈਟਿੰਗਾਂ"', async () => {
+      const res = await parseSpeech('ਯਾਦ-ਪੱਤਰ ਸੈਟਿੰਗਾਂ', testContext);
+      expect(res.intent).toBe('reminder_settings');
+    });
   });
 });

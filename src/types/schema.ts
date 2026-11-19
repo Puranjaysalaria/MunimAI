@@ -177,6 +177,7 @@ export type ParsedIntent =
   | 'confirm_yes'
   | 'confirm_no'
   | 'undo'
+  | 'reminder_settings'
   | 'unknown';
 
 export interface ParseResult {

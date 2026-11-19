@@ -145,6 +145,7 @@ export const AppContent: React.FC = () => {
       setRecoveryThreshold(threshold);
       setIsRecoveryOpen(true);
     },
+    onOpenReminderSettings: () => setIsReminderSettingsOpen(true),
   });
 
   if (!isLoggedIn) {

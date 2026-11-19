@@ -179,6 +179,27 @@ export function parseWithRules(
     };
   }
 
+  // Reminder Settings Intent: "Reminder settings" / "Tagada settings" / "तगादा सेटिंग्स" / "ਯਾਦ-ਪੱਤਰ ਸੈਟਿੰਗਾਂ"
+  if (
+    /\b(reminder\s*settings?|tagada\s*settings?)\b/i.test(lower) ||
+    (/\b(settings?)\b/i.test(lower) && /\b(reminder|tagada|udhaar|baaki)\b/i.test(lower)) ||
+    /(तगादा|रिमाइंडर|उधारी)\s*सेटिंग/i.test(rawTrimmed) ||
+    /ਯਾਦ[- ]?ਪੱਤਰ\s*ਸੈਟਿੰਗ/i.test(rawTrimmed)
+  ) {
+    return {
+      intent: 'reminder_settings',
+      confidence: 0.98,
+      language: detectedLang,
+      rawText: text,
+      spokenReply:
+        detectedLang === 'en'
+          ? 'Opening reminder settings'
+          : detectedLang === 'pa'
+          ? 'ਯਾਦ-ਪੱਤਰ ਸੈਟਿੰਗਾਂ ਖੋਲ੍ਹੀਆਂ ਜਾ ਰਹੀਆਂ ਹਨ'
+          : 'तगादा सेटिंग्स खोली जा रही हैं',
+    };
+  }
+
   // Recovery Intent: "Jinka 1000 se zyada baaki hai, unko yaad dilao"
   if (/\b(yaad dilao|tagada|remind|reminders|paise mangwao|yaad karao|wapis mangwao|to vadh)\b/i.test(lower)) {
     const recoveryAmount = amount || 1000;
