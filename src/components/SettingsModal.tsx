@@ -2,15 +2,16 @@ import React, { useState } from 'react';
 import { useShop } from '../context/ShopContext';
 import { useI18n } from '../i18n';
 import { LanguageCode } from '../i18n/types';
-import { X, Globe, Lock, Shield, LogOut, Check, Store, UserCheck } from 'lucide-react';
+import { X, Globe, Lock, Shield, LogOut, Check, Store, UserCheck, Bell, ChevronRight } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenPrivacy?: () => void;
+  onOpenReminderSettings?: () => void;
 }
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPrivacy }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenPrivacy, onOpenReminderSettings }) => {
   const { shop, user, updateShopSettings, setShopPin, setUserRole, logout } = useShop();
   const { language, setLanguage, availableLanguages, t } = useI18n();
 
@@ -168,6 +169,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900">
             <span className="font-bold">ℹ️ {t.settings.staffRoleNotice}</span>
           </div>
+
+          {/* Payment Reminders Settings */}
+          {onOpenReminderSettings && (
+            <div
+              onClick={onOpenReminderSettings}
+              className="bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-xl p-3 text-xs text-app-muted flex items-center justify-between cursor-pointer active:scale-[0.98] transition-all"
+            >
+              <div className="flex items-center space-x-2.5">
+                <div className="p-2 rounded-lg bg-primary text-white">
+                  <Bell className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="font-bold text-app-text text-sm">
+                    {language === 'en'
+                      ? 'Payment Reminder Settings'
+                      : language === 'pa'
+                      ? 'ਉਧਾਰੀ ਯਾਦ-ਪੱਤਰ ਸੈਟਿੰਗਾਂ'
+                      : 'उधारी तगादा सेटिंग्स'}
+                  </p>
+                  <p className="mt-0.5 text-xs text-app-muted">
+                    {language === 'en'
+                      ? 'Tone, threshold, safe dispatch & quiet hours'
+                      : language === 'pa'
+                      ? 'ਲਹਿਜ਼ਾ, ਸੀਮਾ, ਸੁਰੱਖਿਅਤ ਸਮਾਂ'
+                      : 'लहज़ा (विनम्र/सामान्य/दृढ़), सीमा और शांत समय'}
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-gray-400" />
+            </div>
+          )}
 
           {/* Privacy Note */}
           <div

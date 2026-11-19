@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Customer, Shop } from '../../types/schema';
-import { DraftReminder, buildDraftReminders } from '../../lib/reminderService';
+import { Customer, ReminderTone, Shop, DEFAULT_REMINDER_SETTINGS } from '../../types/schema';
+import { DraftReminder, buildDraftReminders, isQuietHours } from '../../lib/reminderService';
 import { getLocalizedCustomerName } from '../../lib/nameTranslation';
 import { formatINR } from '../../lib/utils';
 import { triggerHaptic, playAudioCue } from '../../lib/sound';
@@ -17,6 +17,10 @@ import {
   CreditCard,
   ChevronDown,
   ChevronUp,
+  Sliders,
+  Clock,
+  BellOff,
+  RotateCw,
 } from 'lucide-react';
 
 interface RecoveryModalProps {
@@ -27,6 +31,8 @@ interface RecoveryModalProps {
   thresholdAmount?: number;
   language: LanguageCode;
   onReminderSent?: (reminder: DraftReminder) => void;
+  onOpenSettings?: () => void;
+  onUpdateCustomer?: (customerId: string, updates: Partial<Customer>) => void;
 }
 
 export const RecoveryModal: React.FC<RecoveryModalProps> = ({
@@ -34,19 +40,50 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
   onClose,
   customers,
   shop,
-  thresholdAmount = 1000,
+  thresholdAmount,
   language,
   onReminderSent,
+  onOpenSettings,
+  onUpdateCustomer,
 }) => {
   const { t } = useI18n();
   const [sentMap, setSentMap] = useState<Record<string, boolean>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  const reminderSettings = {
+    ...DEFAULT_REMINDER_SETTINGS,
+    ...(shop.settings?.reminder_settings || {}),
+  };
+
+  const effectiveThreshold =
+    thresholdAmount !== undefined ? thresholdAmount : reminderSettings.default_threshold;
+
+  const now = new Date();
+  const inQuietHours = isQuietHours(
+    now,
+    reminderSettings.quiet_hours_start,
+    reminderSettings.quiet_hours_end
+  );
+
   const draftReminders = React.useMemo(() => {
-    return buildDraftReminders(customers, shop, thresholdAmount);
-  }, [customers, shop, thresholdAmount]);
+    return buildDraftReminders(customers, shop, effectiveThreshold, undefined, now);
+  }, [customers, shop, effectiveThreshold]);
 
   if (!isOpen) return null;
+
+  const markCustomerReminded = (draft: DraftReminder) => {
+    setSentMap((prev) => ({ ...prev, [draft.customer.id]: true }));
+    const nowIso = new Date().toISOString();
+    if (onUpdateCustomer) {
+      onUpdateCustomer(draft.customer.id, { last_reminded_at: nowIso });
+    }
+    if (onReminderSent) {
+      onReminderSent({
+        ...draft,
+        isSentToday: true,
+      });
+    }
+  };
 
   // Single customer send via WhatsApp
   const handleSendWhatsApp = (draft: DraftReminder) => {
@@ -54,44 +91,67 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
     const phone = draft.customer.phone?.replace(/[^0-9]/g, '') || '';
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(draft.messageText)}`;
     window.open(url, '_blank');
-    setSentMap((prev) => ({ ...prev, [draft.customer.id]: true }));
-    if (onReminderSent) onReminderSent(draft);
+    markCustomerReminded(draft);
   };
 
-  // Single customer send via SMS
+  // Single customer send via SMS (fallback or direct)
   const handleSendSMS = (draft: DraftReminder) => {
     triggerHaptic('start');
     const phone = draft.customer.phone?.replace(/[^0-9]/g, '') || '';
     const smsUrl = `sms:${phone}?body=${encodeURIComponent(draft.messageText)}`;
     window.location.href = smsUrl;
-    setSentMap((prev) => ({ ...prev, [draft.customer.id]: true }));
-    if (onReminderSent) onReminderSent(draft);
+    markCustomerReminded(draft);
   };
 
-  // Send to all (batch trigger)
+  // Toggle per-customer "Do Not Remind" flag
+  const handleToggleDoNotRemind = (draft: DraftReminder) => {
+    triggerHaptic('start');
+    const updatedVal = !draft.customer.do_not_remind;
+    if (onUpdateCustomer) {
+      onUpdateCustomer(draft.customer.id, { do_not_remind: updatedVal });
+    }
+  };
+
+  // Cycle tone override: polite -> standard -> firm -> default (null)
+  const handleCycleTone = (draft: DraftReminder) => {
+    triggerHaptic('start');
+    const current = draft.customer.reminder_tone_override;
+    let next: ReminderTone | null = null;
+    if (!current) next = 'polite';
+    else if (current === 'polite') next = 'standard';
+    else if (current === 'standard') next = 'firm';
+    else next = null;
+
+    if (onUpdateCustomer) {
+      onUpdateCustomer(draft.customer.id, { reminder_tone_override: next });
+    }
+  };
+
+  // Send to all (batch trigger - only eligible and not sent today)
   const handleSendAll = () => {
     triggerHaptic('success');
     playAudioCue('success');
 
-    const newSentMap = { ...sentMap };
-    draftReminders.forEach((d) => {
-      newSentMap[d.customer.id] = true;
-      if (onReminderSent) onReminderSent(d);
+    const actionable = draftReminders.filter(
+      (d) => !sentMap[d.customer.id] && !d.isSentToday && !d.isDoNotRemind
+    );
+
+    actionable.forEach((d) => {
+      markCustomerReminded(d);
     });
-    setSentMap(newSentMap);
 
     // Speak confirmation
     const confirmVoice =
       language === 'en'
-        ? `Reminders sent to all ${draftReminders.length} customers.`
+        ? `Reminders prepared for ${actionable.length} customers.`
         : language === 'pa'
-        ? `ਕੁੱਲ ${draftReminders.length} ਗਾਹਕਾਂ ਨੂੰ ਯਾਦ-ਪੱਤਰ ਭੇਜ ਦਿੱਤਾ ਗਿਆ ਹੈ`
-        : `कुल ${draftReminders.length} ग्राहकों को तगादा मैसेज भेज दिया गया है`;
+        ? `ਕੁੱਲ ${actionable.length} ਗਾਹਕਾਂ ਲਈ ਯਾਦ-ਪੱਤਰ ਤਿਆਰ ਕੀਤੇ ਗਏ`
+        : `कुल ${actionable.length} ग्राहकों के लिए तगादा मैसेज तैयार किए गए`;
     speechSynthesizer.speak(confirmVoice, language);
 
-    // If on first customer, open WhatsApp for quick dispatch
-    if (draftReminders.length > 0) {
-      handleSendWhatsApp(draftReminders[0]);
+    // If there is an actionable customer, open the first one in WhatsApp
+    if (actionable.length > 0) {
+      handleSendWhatsApp(actionable[0]);
     }
   };
 
@@ -100,9 +160,9 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-surface w-full max-w-md sm:max-w-xl rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl max-h-[90vh] sm:max-h-[85vh] flex flex-col animate-slide-up">
+      <div className="bg-surface w-full max-w-md sm:max-w-xl rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col animate-slide-up">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+        <div className="flex items-center justify-between pb-3 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center space-x-2">
             <div className="p-2 rounded-xl bg-red-100 text-owed">
               <Bell className="w-5 h-5" />
@@ -113,23 +173,58 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
               </h2>
               <p className="text-xs text-app-muted">
                 {t.reminders.eligibleCountSuffix
-                  .replace('{amount}', String(thresholdAmount))
+                  .replace('{amount}', String(effectiveThreshold))
                   .replace('{count}', String(draftReminders.length))}
               </p>
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="touch-target-64 p-2 text-gray-400 hover:text-gray-700 active:scale-95"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center space-x-1">
+            {onOpenSettings && (
+              <button
+                onClick={onOpenSettings}
+                className="touch-target-64 p-2 text-gray-500 hover:text-primary hover:bg-gray-100 rounded-xl transition-all active:scale-95"
+                title="Reminder Settings"
+                aria-label="Reminder Settings"
+              >
+                <Sliders className="w-5 h-5" />
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="touch-target-64 p-2 text-gray-400 hover:text-gray-700 active:scale-95"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
+        {/* Quiet Hours Warning Banner */}
+        {inQuietHours && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 my-2 flex items-start space-x-2 text-xs text-amber-900 flex-shrink-0">
+            <Clock className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">
+                {language === 'en'
+                  ? `Quiet Hours Active (${reminderSettings.quiet_hours_start} - ${reminderSettings.quiet_hours_end})`
+                  : language === 'pa'
+                  ? `ਸ਼ਾਂਤ ਸਮਾਂ ਚੱਲ ਰਿਹਾ ਹੈ (${reminderSettings.quiet_hours_start} - ${reminderSettings.quiet_hours_end})`
+                  : `शांत समय सुरक्षा सक्रिय है (${reminderSettings.quiet_hours_start} से ${reminderSettings.quiet_hours_end})`}
+              </p>
+              <p className="mt-0.5 text-amber-800 leading-snug">
+                {language === 'en'
+                  ? 'Late night / early morning reminders are restricted. Dispatches require explicit shopkeeper confirmation.'
+                  : language === 'pa'
+                  ? "ਰਾਤ ਵੇਲੇ ਜਾਂ ਸਵੇਰੇ ਗਾਹਕਾਂ ਨੂੰ ਪਰੇਸ਼ਾਨੀ ਤੋਂ ਬਚਣ ਲਈ ਸਿਰਫ਼ ਜ਼ਰੂਰੀ ਹੋਣ 'ਤੇ ਹੀ ਭੇਜੋ।"
+                  : 'ग्राहकों की असुविधा से बचने के लिए देर रात/अलसुबह तगादा रोका जाता है। केवल अत्यंत आवश्यक होने पर भेजें।'}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Hero Badge */}
-        <div className="bg-red-50/60 border border-red-200 rounded-2xl p-3 my-3 flex items-center justify-between">
+        <div className="bg-red-50/60 border border-red-200 rounded-2xl p-3 my-2 flex items-center justify-between flex-shrink-0">
           <div>
             <span className="text-[10px] uppercase font-bold text-owed tracking-wider">
               {t.reminders.totalRecoverable}
@@ -146,36 +241,93 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
         </div>
 
         {/* Customer Reminders List */}
-        <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+        <div className="flex-1 overflow-y-auto space-y-3 pr-1 py-1">
           {draftReminders.length === 0 ? (
             <div className="text-center py-12 text-app-muted text-xs">
               {t.reminders.allSettled}
             </div>
           ) : (
             draftReminders.map((draft) => {
-              const isSent = sentMap[draft.customer.id];
+              const isSent = Boolean(sentMap[draft.customer.id] || draft.isSentToday);
               const isExpanded = expandedId === draft.customer.id;
+              const isBlocked = Boolean(draft.isDoNotRemind);
 
               return (
                 <div
                   key={draft.customer.id}
                   className={`bg-surface border rounded-2xl p-3.5 shadow-xs transition-all ${
-                    isSent ? 'border-emerald-200 bg-emerald-50/20' : 'border-gray-200'
+                    isBlocked
+                      ? 'border-gray-200 bg-gray-50/70 opacity-75'
+                      : isSent
+                      ? 'border-emerald-200 bg-emerald-50/20'
+                      : 'border-gray-200'
                   }`}
                 >
+                  {/* Top Customer Info Row */}
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="flex items-center space-x-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <h4 className="font-bold text-base text-app-text">
                           {getLocalizedCustomerName(draft.customer.name, language)}
                         </h4>
-                        <span className="text-[10px] uppercase px-1.5 py-0.2 rounded font-mono font-bold bg-gray-100 text-gray-600">
+                        <span className="text-[10px] uppercase px-1.5 py-0.5 rounded font-mono font-bold bg-gray-100 text-gray-600">
                           {draft.language}
                         </span>
+
+                        {/* Tone Override / Current Tone Badge */}
+                        <button
+                          type="button"
+                          onClick={() => handleCycleTone(draft)}
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center transition-all ${
+                            draft.customer.reminder_tone_override
+                              ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                          title="Click to cycle tone override"
+                        >
+                          <RotateCw className="w-2.5 h-2.5 mr-1" />
+                          {draft.tone === 'firm'
+                            ? 'Firm (दृढ़)'
+                            : draft.tone === 'standard'
+                            ? 'Standard'
+                            : 'Polite'}
+                          {draft.customer.reminder_tone_override && ' • Set'}
+                        </button>
+
+                        {/* VIP High-Trust Badge */}
+                        {draft.customer.trust_score !== undefined &&
+                          draft.customer.trust_score !== null &&
+                          draft.customer.trust_score >= 90 && (
+                            <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded-full">
+                              ⭐ VIP {draft.customer.trust_score}
+                            </span>
+                          )}
+
+                        {/* Daily Cap Sent Today Badge */}
+                        {draft.isSentToday && (
+                          <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded-full flex items-center">
+                            <CheckCircle className="w-2.5 h-2.5 mr-0.5" />
+                            {language === 'en' ? 'Sent Today' : language === 'pa' ? 'ਅੱਜ ਭੇਜਿਆ' : 'आज भेजा गया'}
+                          </span>
+                        )}
+
+                        {/* Do Not Remind Badge */}
+                        {isBlocked && (
+                          <span className="text-[10px] bg-red-100 text-red-800 font-bold px-1.5 py-0.5 rounded-full flex items-center">
+                            <BellOff className="w-2.5 h-2.5 mr-0.5" />
+                            {language === 'en' ? "Don't Remind" : language === 'pa' ? 'ਤਗਾਦਾ ਬੰਦ' : 'तगादा बंद'}
+                          </span>
+                        )}
                       </div>
-                      <p className="text-xs text-app-muted flex items-center mt-0.5">
+
+                      <p className="text-xs text-app-muted flex items-center mt-1">
                         <Phone className="w-3 h-3 mr-1 text-gray-400" />
-                        {draft.customer.phone || (language === 'en' ? 'No phone' : language === 'pa' ? 'ਫ਼ੋਨ ਨੰਬਰ ਨਹੀਂ ਹੈ' : 'फोन नंबर नहीं है')}
+                        {draft.customer.phone ||
+                          (language === 'en'
+                            ? 'No phone'
+                            : language === 'pa'
+                            ? 'ਫ਼ੋਨ ਨੰਬਰ ਨਹੀਂ ਹੈ'
+                            : 'फोन नंबर नहीं है')}
                         {draft.customer.address_note && ` • ${draft.customer.address_note}`}
                       </p>
                     </div>
@@ -187,32 +339,46 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                     </div>
                   </div>
 
-                  {/* UPI Link indicator */}
+                  {/* UPI Link indicator & Expand message */}
                   <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
                     <span className="text-[11px] text-app-muted flex items-center">
                       <CreditCard className="w-3 h-3 mr-1 text-primary" />
-                      {t.reminders.upiIncluded}
+                      {draft.upiLink ? t.reminders.upiIncluded : (language === 'en' ? 'Without UPI Link' : 'बिना UPI लिंक')}
                     </span>
 
-                    <button
-                      onClick={() => setExpandedId(isExpanded ? null : draft.customer.id)}
-                      className="text-primary font-bold text-xs flex items-center space-x-0.5"
-                    >
-                      <span>
-                        {isExpanded
-                          ? language === 'en'
-                            ? 'Hide Message'
-                            : 'संदेश छुपाएं'
-                          : language === 'en'
-                          ? 'View Message'
-                          : 'संदेश देखें'}
-                      </span>
-                      {isExpanded ? (
-                        <ChevronUp className="w-3.5 h-3.5" />
-                      ) : (
-                        <ChevronDown className="w-3.5 h-3.5" />
-                      )}
-                    </button>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleDoNotRemind(draft)}
+                        className={`text-[11px] font-bold ${
+                          isBlocked ? 'text-emerald-700 hover:underline' : 'text-gray-400 hover:text-owed'
+                        }`}
+                      >
+                        {isBlocked
+                          ? (language === 'en' ? 'Resume Reminders' : 'तगादा शुरू करें')
+                          : (language === 'en' ? 'Pause Reminders' : 'तगादा रोकें')}
+                      </button>
+
+                      <button
+                        onClick={() => setExpandedId(isExpanded ? null : draft.customer.id)}
+                        className="text-primary font-bold text-xs flex items-center space-x-0.5"
+                      >
+                        <span>
+                          {isExpanded
+                            ? language === 'en'
+                              ? 'Hide'
+                              : 'छुपाएं'
+                            : language === 'en'
+                            ? 'View'
+                            : 'देखें'}
+                        </span>
+                        {isExpanded ? (
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        ) : (
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
                   </div>
 
                   {/* Expanded Message Preview */}
@@ -222,36 +388,54 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                     </div>
                   )}
 
-                  {/* Quick Send Action Buttons */}
+                  {/* Quick Send Action Buttons (WhatsApp first, SMS fallback) */}
                   <div className="mt-3 flex items-center space-x-2">
-                    <button
-                      onClick={() => handleSendWhatsApp(draft)}
-                      className={`touch-target-64 flex-1 py-2 px-3 rounded-xl text-xs font-black shadow-xs active:scale-95 flex items-center justify-center space-x-1.5 ${
-                        isSent
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                      }`}
-                    >
-                      {isSent ? (
-                        <>
-                          <CheckCircle className="w-4 h-4 text-emerald-700" />
-                          <span>{t.reminders.sentLabel}</span>
-                        </>
-                      ) : (
-                        <>
-                          <MessageCircle className="w-4 h-4" />
-                          <span>{t.reminders.sendWhatsApp}</span>
-                        </>
-                      )}
-                    </button>
+                    {/* Primary Button: WhatsApp */}
+                    {reminderSettings.send_channel !== 'sms' && (
+                      <button
+                        disabled={isBlocked}
+                        onClick={() => handleSendWhatsApp(draft)}
+                        className={`touch-target-64 flex-1 py-2 px-3 rounded-xl text-xs font-black shadow-xs active:scale-95 flex items-center justify-center space-x-1.5 ${
+                          isBlocked
+                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                            : isSent
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                        }`}
+                      >
+                        {isSent ? (
+                          <>
+                            <CheckCircle className="w-4 h-4 text-emerald-700" />
+                            <span>{t.reminders.sentLabel} (Resend)</span>
+                          </>
+                        ) : (
+                          <>
+                            <MessageCircle className="w-4 h-4" />
+                            <span>{t.reminders.sendWhatsApp}</span>
+                          </>
+                        )}
+                      </button>
+                    )}
 
-                    <button
-                      onClick={() => handleSendSMS(draft)}
-                      className="touch-target-64 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-xs active:scale-95 flex items-center justify-center"
-                      title="SMS"
-                    >
-                      <Share2 className="w-4 h-4" />
-                    </button>
+                    {/* Secondary Fallback Button: SMS (Never sends twice) */}
+                    {(reminderSettings.send_channel === 'whatsapp_first_sms_fallback' ||
+                      reminderSettings.send_channel === 'sms') && (
+                      <button
+                        disabled={isBlocked}
+                        onClick={() => handleSendSMS(draft)}
+                        className={`touch-target-64 py-2 px-3 rounded-xl font-bold text-xs active:scale-95 flex items-center justify-center space-x-1 ${
+                          reminderSettings.send_channel === 'sms'
+                            ? 'flex-1 bg-primary text-white hover:bg-primary-dark shadow-xs'
+                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                        } ${isBlocked ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        title="SMS Fallback"
+                      >
+                        <Share2 className="w-4 h-4" />
+                        {reminderSettings.send_channel === 'sms' && (
+                          <span>{language === 'en' ? 'Send SMS' : 'SMS भेजें'}</span>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -261,7 +445,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
 
         {/* Bottom Actions */}
         {draftReminders.length > 0 && (
-          <div className="pt-3 border-t border-gray-100 mt-2 space-y-2">
+          <div className="pt-3 border-t border-gray-100 mt-2 space-y-2 flex-shrink-0">
             <button
               onClick={handleSendAll}
               className="touch-target-64 w-full py-3 bg-accent hover:bg-accent-hover text-app-text font-black text-sm rounded-2xl shadow-md active:scale-95 flex items-center justify-center space-x-2"
@@ -271,10 +455,10 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
             </button>
             <p className="text-[11px] text-center text-app-muted">
               {language === 'en'
-                ? 'Or speak: "Send all reminders"'
+                ? 'Schedules never auto-send • Tap to send individually or in batch'
                 : language === 'pa'
-                ? 'ਬੋਲੋ: "ਸਭ ਨੂੰ ਭੇਜ ਦਿਓ"'
-                : 'बोलें: "सबको तगादा भेज दो"'}
+                ? 'ਕਦੇ ਵੀ ਆਪਣੇ ਆਪ ਨਹੀਂ ਭੇਜਿਆ ਜਾਂਦਾ • ਇਕੱਲੇ ਜਾਂ ਇਕੱਠੇ ਭੇਜਣ ਲਈ ਟੈਪ ਕਰੋ'
+                : 'ऑटो-सेंड कभी नहीं होता • व्यक्तिगत या समूह में भेजने के लिए टैप करें'}
             </p>
           </div>
         )}

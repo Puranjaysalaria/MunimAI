@@ -44,6 +44,7 @@ interface ShopContextType {
   findCustomerByName: (query: string) => Customer[];
   findItemByName: (query: string) => Item | undefined;
   addCustomer: (cust: Omit<Customer, 'id' | 'shop_id' | 'created_at' | 'updated_at'>) => Promise<Customer>;
+  updateCustomer: (customerId: string, updates: Partial<Customer>) => void;
   syncOfflineData: () => Promise<number>;
   setUserRole: (role: UserRole) => void;
 }
@@ -586,7 +587,55 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateShopSettings = (settings: Partial<Shop>) => {
-    setShop((prev) => ({ ...prev, ...settings }));
+    setShop((prev) => {
+      const updated: Shop = {
+        ...prev,
+        ...settings,
+        settings: {
+          ...(prev.settings || {}),
+          ...(settings.settings || {}),
+        },
+      };
+      return updated;
+    });
+
+    if (isSupabaseConfigured() && navigator.onLine) {
+      supabase
+        .from('shops')
+        .update({
+          name: settings.name || shop.name,
+          upi_id: settings.upi_id !== undefined ? settings.upi_id : shop.upi_id,
+          settings: {
+            ...(shop.settings || {}),
+            ...(settings.settings || {}),
+          },
+        })
+        .eq('id', shop.id)
+        .then(({ error }) => {
+          if (error) console.error('Failed to update shop settings in Supabase:', error);
+        });
+    }
+  };
+
+  const updateCustomer = (customerId: string, updates: Partial<Customer>) => {
+    setCustomers((prev) =>
+      prev.map((c) => {
+        if (c.id === customerId) {
+          return { ...c, ...updates, updated_at: new Date().toISOString() };
+        }
+        return c;
+      })
+    );
+
+    if (isSupabaseConfigured() && navigator.onLine) {
+      supabase
+        .from('customers')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', customerId)
+        .then(({ error }) => {
+          if (error) console.error('Failed to update customer in Supabase:', error);
+        });
+    }
   };
 
   // Trigger manual sync
@@ -634,6 +683,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateItemStock,
         attachProofClip,
         updateShopSettings,
+        updateCustomer,
         findCustomerByName,
         findItemByName,
         syncOfflineData,

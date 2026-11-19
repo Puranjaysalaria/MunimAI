@@ -25,11 +25,17 @@
   - VIP / High-trust exemption toggle (trust score >= 90; unrated customers never exempt)
   - UPI link toggle with display of existing shop UPI ID (no duplicate field)
   - Clear text stating schedules only create in-app review prompts and never auto-send
-- [ ] **Step 4: Integration into Modals & Context**
-  - Settings gear icon in `RecoveryModal.tsx` header
-  - Section in `SettingsModal.tsx`
-  - Safety rules in `RecoveryModal.tsx` (daily cap, quiet hours warning, VIP/do-not-remind badges)
-  - State persistence in `ShopContext.tsx`
+- [x] **Step 4: Integration into Modals & Context**
+  - Settings gear icon in `RecoveryModal.tsx` header opening `ReminderSettingsModal`
+  - Payment Reminders entry row in `SettingsModal.tsx`
+  - Safety rules in `RecoveryModal.tsx`:
+    - Daily cap badge & status ("Sent Today / आज भेजा गया")
+    - Quiet hours active warning banner (21:00 - 08:00)
+    - Per-customer tone override cycling directly on card
+    - Per-customer "Don't Remind / तगादा रोकें" toggle
+    - VIP high-trust regular badge (⭐ VIP 95)
+    - Channel selector: "WhatsApp first, SMS fallback" (never sends twice)
+  - ShopContext persistence & live Supabase sync via `updateCustomer` and `updateShopSettings`
 - [ ] **Step 5: Voice Intent & Parser**
   - Voice triggers in `ruleParser.ts`: "Reminder settings kholo", etc.
   - Action handler in `useVoiceController.ts`

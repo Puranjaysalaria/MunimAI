@@ -18,6 +18,7 @@ import { PrivacyModal } from './components/PrivacyModal';
 import { SupplierOrdersModal } from './components/SupplierOrder/SupplierOrdersModal';
 import { DailySummaryModal } from './components/Summary/DailySummaryModal';
 import { RecoveryModal } from './components/Reminders/RecoveryModal';
+import { ReminderSettingsModal } from './components/Reminders/ReminderSettingsModal';
 import { PWAInstallPrompt } from './components/PWA/PWAInstallPrompt';
 import { useVoiceController } from './hooks/useVoiceController';
 import { Customer, Transaction } from './types/schema';
@@ -48,12 +49,15 @@ export const AppContent: React.FC = () => {
     undoLastTransaction,
     attachProofClip,
     syncOfflineData,
+    updateCustomer,
+    updateShopSettings,
   } = useShop();
 
   const { language, t } = useI18n();
 
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isReminderSettingsOpen, setIsReminderSettingsOpen] = useState(false);
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isSupplierOrdersOpen, setIsSupplierOrdersOpen] = useState(false);
   const [isDailySummaryOpen, setIsDailySummaryOpen] = useState(false);
@@ -391,9 +395,26 @@ export const AppContent: React.FC = () => {
         shop={shop}
         thresholdAmount={recoveryThreshold}
         language={language}
+        onOpenSettings={() => setIsReminderSettingsOpen(true)}
+        onUpdateCustomer={(id, updates) => updateCustomer(id, updates)}
         onReminderSent={(_draft) => {
-          // Can record to reminder history if needed
+          // Record reminder sent
         }}
+      />
+
+      {/* Reminder Settings Modal */}
+      <ReminderSettingsModal
+        isOpen={isReminderSettingsOpen}
+        onClose={() => setIsReminderSettingsOpen(false)}
+        shop={shop}
+        onSave={(newSettings) =>
+          updateShopSettings({
+            settings: {
+              ...(shop.settings || {}),
+              reminder_settings: newSettings,
+            },
+          })
+        }
       />
 
       {/* PWA Home Screen Install Prompt Banner */}
@@ -421,6 +442,10 @@ export const AppContent: React.FC = () => {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         onOpenPrivacy={() => setIsPrivacyOpen(true)}
+        onOpenReminderSettings={() => {
+          setIsSettingsOpen(false);
+          setIsReminderSettingsOpen(true);
+        }}
       />
     </div>
   );
