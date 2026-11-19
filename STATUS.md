@@ -42,7 +42,9 @@
   - Added Indic normalizer phrase mappings for reminder settings
   - Wired intent handler in `useVoiceController.ts` and `App.tsx`
   - Added unit tests in `tests/parser.test.ts` (109 tests total passing)
-- [ ] **Step 6: Translations (i18n)**
-  - Localization across all 10 language files
+- [x] **Step 6: Translations (i18n)**
+  - Localized across all 10 language files: Hindi (`hi`), English (`en`), Punjabi (`pa`), Gujarati (`gu`), Marathi (`mr`), Bengali (`bn`), Tamil (`ta`), Telugu (`te`), Kannada (`kn`), Malayalam (`ml`)
+  - Added keys for reminder settings modal, sent today badge, do not remind badge, and quiet hours alert
+  - Listed 7 languages needing native review (`gu`, `mr`, `bn`, `ta`, `te`, `kn`, `ml`)
 - [ ] **Step 7: Supabase Migration**
   - SQL migration script for schema updates

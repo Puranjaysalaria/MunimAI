@@ -182,18 +182,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                 </div>
                 <div>
                   <p className="font-bold text-app-text text-sm">
-                    {language === 'en'
-                      ? 'Payment Reminder Settings'
-                      : language === 'pa'
-                      ? 'ਉਧਾਰੀ ਯਾਦ-ਪੱਤਰ ਸੈਟਿੰਗਾਂ'
-                      : 'उधारी तगादा सेटिंग्स'}
+                    {t.settings.reminderSettingsRow || 'Payment Reminder Settings'}
                   </p>
                   <p className="mt-0.5 text-xs text-app-muted">
-                    {language === 'en'
-                      ? 'Tone, threshold, safe dispatch & quiet hours'
-                      : language === 'pa'
-                      ? 'ਲਹਿਜ਼ਾ, ਸੀਮਾ, ਸੁਰੱਖਿਅਤ ਸਮਾਂ'
-                      : 'लहज़ा (विनम्र/सामान्य/दृढ़), सीमा और शांत समय'}
+                    {t.settings.reminderSettingsSub || 'Tone, threshold, safe dispatch & quiet hours'}
                   </p>
                 </div>
               </div>

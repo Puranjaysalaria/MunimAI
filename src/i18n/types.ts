@@ -272,6 +272,14 @@ export interface Translations {
     sentLabel: string;
     sendWhatsApp: string;
     allSettled: string;
+    settingsTitle?: string;
+    sentToday?: string;
+    doNotRemind?: string;
+    toneFirmLabel?: string;
+    tonePoliteLabel?: string;
+    toneStandardLabel?: string;
+    quietHoursActive?: string;
+    noAutoSendNotice?: string;
   };
   settings: {
     title: string;
@@ -288,6 +296,8 @@ export interface Translations {
     upiHelpText: string;
     appLockPin: string;
     userRole: string;
+    reminderSettingsRow?: string;
+    reminderSettingsSub?: string;
     ownerRole: string;
     staffRole: string;
     staffModeActive: string;

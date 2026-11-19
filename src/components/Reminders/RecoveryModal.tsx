@@ -307,7 +307,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                         {draft.isSentToday && (
                           <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded-full flex items-center">
                             <CheckCircle className="w-2.5 h-2.5 mr-0.5" />
-                            {language === 'en' ? 'Sent Today' : language === 'pa' ? 'ਅੱਜ ਭੇਜਿਆ' : 'आज भेजा गया'}
+                            {t.reminders.sentToday || 'Sent Today'}
                           </span>
                         )}
 
@@ -315,7 +315,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                         {isBlocked && (
                           <span className="text-[10px] bg-red-100 text-red-800 font-bold px-1.5 py-0.5 rounded-full flex items-center">
                             <BellOff className="w-2.5 h-2.5 mr-0.5" />
-                            {language === 'en' ? "Don't Remind" : language === 'pa' ? 'ਤਗਾਦਾ ਬੰਦ' : 'तगादा बंद'}
+                            {t.reminders.doNotRemind || "Don't Remind"}
                           </span>
                         )}
                       </div>
