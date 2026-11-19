@@ -83,8 +83,8 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
 
   const totalCount = draftReminders.length;
 
-  // Recoverable amount is calculated over pending/unsent eligible debts
-  const totalOwed = actionableReminders.reduce((sum, d) => sum + Number(d.amount), 0);
+  // Total recoverable amount remains steady across eligible customers; it only decreases when payment is recorded by owner
+  const totalOwed = draftReminders.reduce((sum, d) => sum + Number(d.amount), 0);
 
   const markCustomerReminded = (draft: DraftReminder) => {
     setSentMap((prev) => ({ ...prev, [draft.customer.id]: true }));
@@ -100,18 +100,44 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
     }
   };
 
-  // Single customer send via WhatsApp
-  const handleSendWhatsApp = (draft: DraftReminder) => {
+  // Single customer send via WhatsApp (with voice confirmation)
+  const handleSendWhatsApp = (draft: DraftReminder, fromQueue: boolean = false) => {
     triggerHaptic('start');
+    playAudioCue('success');
+
+    const customerLocalized = getLocalizedCustomerName(draft.customer.name, language);
+
+    // Provide voice confirmation feedback when triggered individually
+    if (!fromQueue) {
+      const confirmVoice =
+        language === 'en'
+          ? `Opening WhatsApp reminder for ${customerLocalized}.`
+          : language === 'pa'
+          ? `${customerLocalized} ਲਈ WhatsApp ਯਾਦ-ਪੱਤਰ ਖੋਲ੍ਹਿਆ ਜਾ ਰਿਹਾ ਹੈ।`
+          : `${customerLocalized} के लिए WhatsApp तगादा खोला जा रहा है।`;
+      speechSynthesizer.speak(confirmVoice, language);
+    }
+
     const phone = draft.customer.phone?.replace(/[^0-9]/g, '') || '';
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(draft.messageText)}`;
     window.open(url, '_blank');
     markCustomerReminded(draft);
   };
 
-  // Single customer send via SMS (fallback or direct)
+  // Single customer send via SMS (fallback or direct, with voice confirmation)
   const handleSendSMS = (draft: DraftReminder) => {
     triggerHaptic('start');
+    playAudioCue('success');
+
+    const customerLocalized = getLocalizedCustomerName(draft.customer.name, language);
+    const confirmVoice =
+      language === 'en'
+        ? `Opening SMS reminder for ${customerLocalized}.`
+        : language === 'pa'
+        ? `${customerLocalized} ਲਈ SMS ਯਾਦ-ਪੱਤਰ ਖੋਲ੍ਹਿਆ ਜਾ ਰਿਹਾ ਹੈ।`
+        : `${customerLocalized} के लिए SMS तगादा खोला जा रहा है।`;
+    speechSynthesizer.speak(confirmVoice, language);
+
     const phone = draft.customer.phone?.replace(/[^0-9]/g, '') || '';
     const smsUrl = `sms:${phone}?body=${encodeURIComponent(draft.messageText)}`;
     window.location.href = smsUrl;
@@ -150,23 +176,24 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
     playAudioCue('success');
 
     const nextTarget = actionableReminders[0];
-    handleSendWhatsApp(nextTarget);
+    const customerLocalized = getLocalizedCustomerName(nextTarget.customer.name, language);
 
     const remainingAfterThis = actionableReminders.length - 1;
     const confirmVoice =
       remainingAfterThis > 0
         ? language === 'en'
-          ? `Opening WhatsApp for ${nextTarget.customer.name}. ${remainingAfterThis} remaining in queue.`
+          ? `Opening WhatsApp for ${customerLocalized}. ${remainingAfterThis} remaining in queue.`
           : language === 'pa'
-          ? `${nextTarget.customer.name} ਲਈ WhatsApp ਖੋਲ੍ਹਿਆ ਗਿਆ। ${remainingAfterThis} ਬਾਕੀ ਹਨ।`
-          : `${nextTarget.customer.name} के लिए WhatsApp खोला गया। ${remainingAfterThis} बाकी हैं।`
+          ? `${customerLocalized} ਲਈ WhatsApp ਖੋਲ੍ਹਿਆ ਗਿਆ। ${remainingAfterThis} ਬਾਕੀ ਹਨ।`
+          : `${customerLocalized} के लिए WhatsApp खोला गया। कतार में ${remainingAfterThis} बाकी हैं।`
         : language === 'en'
-        ? `Opening WhatsApp for ${nextTarget.customer.name}. All reminders complete.`
+        ? `Opening WhatsApp for ${customerLocalized}. All reminders complete.`
         : language === 'pa'
-        ? `${nextTarget.customer.name} ਲਈ WhatsApp ਖੋਲ੍ਹਿਆ ਗਿਆ। ਸਾਰੇ ਤਿਆਰ ਹਨ।`
-        : `${nextTarget.customer.name} के लिए WhatsApp खोला गया। सभी तगादे पूरे हुए।`;
+        ? `${customerLocalized} ਲਈ WhatsApp ਖੋਲ੍ਹਿਆ ਗਿਆ। ਸਾਰੇ ਤਿਆਰ ਹਨ।`
+        : `${customerLocalized} के लिए WhatsApp खोला गया। सभी तगादे पूरे हुए।`;
 
     speechSynthesizer.speak(confirmVoice, language);
+    handleSendWhatsApp(nextTarget, true);
   };
 
   const nextUpCustomer = actionableReminders[0];
@@ -240,13 +267,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
         <div className="bg-red-50/60 border border-red-200 rounded-2xl p-3 my-2 flex items-center justify-between flex-shrink-0">
           <div>
             <span className="text-[10px] uppercase font-bold text-owed tracking-wider">
-              {actionableReminders.length > 0
-                ? t.reminders.totalRecoverable
-                : language === 'en'
-                ? 'All Reminders Dispatched Today'
-                : language === 'pa'
-                ? 'ਸਾਰੇ ਯਾਦ-ਪੱਤਰ ਅੱਜ ਭੇਜੇ ਜਾ ਚੁੱਕੇ ਹਨ'
-                : 'आज के सभी तगादे भेजे जा चुके हैं'}
+              {t.reminders.totalRecoverable}
             </span>
             <p className="text-2xl font-black text-owed mt-0.5">
               {formatINR(totalOwed)}
