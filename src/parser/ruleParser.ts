@@ -7,6 +7,7 @@ import { Customer, Item } from '../types/schema';
 export interface RuleParserContext {
   customers: Customer[];
   items?: Item[];
+  preferredLanguage?: string;
 }
 
 /**
@@ -18,13 +19,18 @@ export function parseWithRules(
   context: RuleParserContext = { customers: [] }
 ): ValidatedParseResult {
   // 1. Language Detection from original script & markers
-  let detectedLang: 'hi' | 'pa' | 'en' = 'hi';
+  let detectedLang: 'hi' | 'pa' | 'en' =
+    context.preferredLanguage === 'pa' || context.preferredLanguage === 'en'
+      ? (context.preferredLanguage as 'pa' | 'en')
+      : 'hi';
   const hasGurmukhi = /[\u0A00-\u0A7F]/.test(rawText);
   const punjabiMarkers = ['nu', ' da ', ' di ', 'vechi', 'vech', 'kite', 'kinna', 'kinni', 'aaho', 'ditta', 'to vadh', 'hovega', 'sat sri akal'];
   const englishMarkers = ['credit', 'payment', 'sale', 'sold', 'received', 'sugar', 'milk', 'stock', 'summary'];
 
   if (hasGurmukhi || punjabiMarkers.some((m) => rawText.toLowerCase().includes(m))) {
     detectedLang = 'pa';
+  } else if (context.preferredLanguage === 'en') {
+    detectedLang = 'en';
   } else if (englishMarkers.filter((m) => rawText.toLowerCase().includes(m)).length >= 2) {
     detectedLang = 'en';
   }
@@ -37,7 +43,12 @@ export function parseWithRules(
       confidence: 0.1,
       language: detectedLang,
       rawText: rawTrimmed,
-      spokenReply: detectedLang === 'pa' ? 'ਆਵਾਜ਼ ਸਾਫ਼ ਨਹੀਂ ਆਈ, ਮੁੜ ਬੋਲੋ' : 'आवाज़ साफ़ नहीं आई, फिर से बोलिए',
+      spokenReply:
+        detectedLang === 'en'
+          ? 'Voice was not clear, please speak again'
+          : detectedLang === 'pa'
+          ? 'ਆਵਾਜ਼ ਸਾਫ਼ ਨਹੀਂ ਆਈ, ਮੁੜ ਬੋਲੋ'
+          : 'आवाज़ साफ़ नहीं आई, फिर से बोलिए',
       questionToAsk: 'Awaaz saaf nahi aayi, phir se boliye',
     };
   }
@@ -61,7 +72,12 @@ export function parseWithRules(
       confidence: 0.98,
       language: detectedLang,
       rawText: text,
-      spokenReply: detectedLang === 'pa' ? 'ਪਿਛਲਾ ਸੌਦਾ ਰੱਦ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ' : 'पिछला लेन-देन वापस किया जा रहा है',
+      spokenReply:
+        detectedLang === 'en'
+          ? 'Undoing last transaction'
+          : detectedLang === 'pa'
+          ? 'ਪਿਛਲਾ ਸੌਦਾ ਰੱਦ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ'
+          : 'पिछला लेन-देन वापस किया जा रहा है',
     };
   }
 
@@ -78,7 +94,12 @@ export function parseWithRules(
         confidence: 0.98,
         language: detectedLang,
         rawText: text,
-        spokenReply: detectedLang === 'pa' ? 'ਹਾਂ, ਸੌਦਾ ਲਿਖ ਦਿੱਤਾ ਗਿਆ ਹੈ' : 'हाँ, खाता सुरक्षित कर दिया गया है',
+        spokenReply:
+          detectedLang === 'en'
+            ? 'Yes, transaction recorded'
+            : detectedLang === 'pa'
+            ? 'ਹਾਂ, ਸੌਦਾ ਲਿਖ ਦਿੱਤਾ ਗਿਆ ਹੈ'
+            : 'हाँ, खाता सुरक्षित कर दिया गया है',
       };
     }
   }
@@ -90,7 +111,12 @@ export function parseWithRules(
       confidence: 0.98,
       language: detectedLang,
       rawText: text,
-      spokenReply: detectedLang === 'pa' ? 'ਰੱਦ ਕਰ ਦਿੱਤਾ ਗਿਆ ਹੈ' : 'रद्द कर दिया गया है',
+      spokenReply:
+        detectedLang === 'en'
+          ? 'Cancelled'
+          : detectedLang === 'pa'
+          ? 'ਰੱਦ ਕਰ ਦਿੱਤਾ ਗਿਆ ਹੈ'
+          : 'रद्द कर दिया गया है',
     };
   }
 
@@ -101,7 +127,12 @@ export function parseWithRules(
       confidence: 0.95,
       language: detectedLang,
       rawText: text,
-      spokenReply: detectedLang === 'pa' ? 'ਗਾਹਕ ਦੀ ਆਵਾਜ਼ ਰਿਕਾਰਡ ਕਰੋ' : 'ग्राहक की आवाज़ रिकॉर्ड करें',
+      spokenReply:
+        detectedLang === 'en'
+          ? 'Record customer voice proof'
+          : detectedLang === 'pa'
+          ? 'ਗਾਹਕ ਦੀ ਆਵਾਜ਼ ਰਿਕਾਰਡ ਕਰੋ'
+          : 'ग्राहक की आवाज़ रिकॉर्ड करें',
     };
   }
 
@@ -112,7 +143,12 @@ export function parseWithRules(
       confidence: 0.95,
       language: detectedLang,
       rawText: text,
-      spokenReply: detectedLang === 'pa' ? 'ਅੱਜ ਦਾ ਕੁੱਲ ਹਿਸਾਬ ਦਿਖਾਇਆ ਜਾ ਰਿਹਾ ਹੈ' : 'आज की कमाई और हिसाब दिखाया जा रहा है',
+      spokenReply:
+        detectedLang === 'en'
+          ? "Showing today's business summary"
+          : detectedLang === 'pa'
+          ? 'ਅੱਜ ਦਾ ਕੁੱਲ ਹਿਸਾਬ ਦਿਖਾਇਆ ਜਾ ਰਿਹਾ ਹੈ'
+          : 'आज की कमाई और हिसाब दिखाया जा रहा है',
     };
   }
 
@@ -123,7 +159,12 @@ export function parseWithRules(
       confidence: 0.95,
       language: detectedLang,
       rawText: text,
-      spokenReply: detectedLang === 'pa' ? 'ਸਪਲਾਇਰ ਆਰਡਰ ਸੂਚੀ ਤਿਆਰ ਹੈ' : 'सप्लायर के लिए सामान की लिस्ट तैयार है',
+      spokenReply:
+        detectedLang === 'en'
+          ? 'Supplier order list is ready'
+          : detectedLang === 'pa'
+          ? 'ਸਪਲਾਇਰ ਆਰਡਰ ਸੂਚੀ ਤਿਆਰ ਹੈ'
+          : 'सप्लायर के लिए सामान की लिस्ट तैयार है',
     };
   }
 
@@ -137,7 +178,9 @@ export function parseWithRules(
       language: detectedLang,
       rawText: text,
       spokenReply:
-        detectedLang === 'pa'
+        detectedLang === 'en'
+          ? `Remind customers owing more than ₹${recoveryAmount}?`
+          : detectedLang === 'pa'
           ? `${recoveryAmount} ਤੋਂ ਵੱਧ ਵਾਲੇ ਗਾਹਕਾਂ ਨੂੰ ਯਾਦ-ਪੱਤਰ ਭੇਜਣਾ ਹੈ?`
           : `${recoveryAmount} से ज़्यादा बाकी वाले ग्राहकों को याद दिलाएं?`,
     };
@@ -152,9 +195,12 @@ export function parseWithRules(
       confidence: 0.92,
       language: detectedLang,
       rawText: text,
-      spokenReply: itemName
-        ? `${itemName} का स्टॉक चेक किया जा रहा है`
-        : 'स्टॉक की जानकारी',
+      spokenReply:
+        detectedLang === 'en'
+          ? (itemName ? `Checking stock for ${itemName}` : 'Checking inventory stock')
+          : detectedLang === 'pa'
+          ? (itemName ? `${itemName} ਦਾ ਸਟਾਕ ਚੈੱਕ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ` : 'ਸਟਾਕ ਦੀ ਜਾਣਕਾਰੀ')
+          : (itemName ? `${itemName} का स्टॉक चेक किया जा रहा है` : 'स्टॉक की जानकारी'),
     };
   }
 
@@ -217,7 +263,13 @@ export function parseWithRules(
       language: detectedLang,
       rawText: text,
       spokenReply: amount && matchedCustomerName
-        ? `${matchedCustomerName} से ${amount} रुपये जमा लिख दूँ?`
+        ? detectedLang === 'en'
+          ? `Record ₹${amount} payment from ${matchedCustomerName}?`
+          : detectedLang === 'pa'
+          ? `${matchedCustomerName} ਤੋਂ ${amount} ਰੁਪਏ ਜਮ੍ਹਾ ਲਿਖ ਦਿਆਂ?`
+          : `${matchedCustomerName} से ${amount} रुपये जमा लिख दूँ?`
+        : detectedLang === 'en'
+        ? 'Record received payment?'
         : 'जमा रकम दर्ज करें?',
       questionToAsk: !amount ? 'Kitne rupaye jama kiye?' : null,
     };
@@ -257,9 +309,17 @@ export function parseWithRules(
       language: detectedLang,
       rawText: rawText,
       spokenReply: matchedCustomerName && finalAmount
-        ? `${matchedCustomerName}, ${itemsSummary ? itemsSummary + ' (कुल ₹' + finalAmount + ')' : finalAmount + ' रुपये'} उधार। लिख दूँ?`
+        ? detectedLang === 'en'
+          ? `${matchedCustomerName}, ₹${finalAmount} credit udhaar. Record it?`
+          : detectedLang === 'pa'
+          ? `${matchedCustomerName}, ${itemsSummary ? itemsSummary + ' (ਕੁੱਲ ₹' + finalAmount + ')' : finalAmount + ' ਰੁਪਏ'} ਉਧਾਰ। ਲਿਖ ਦਿਆਂ?`
+          : `${matchedCustomerName}, ${itemsSummary ? itemsSummary + ' (कुल ₹' + finalAmount + ')' : finalAmount + ' रुपये'} उधार। लिख दूँ?`
         : matchedCustomerName
-        ? `${matchedCustomerName} का कितना उधार लिखना है?`
+        ? detectedLang === 'en'
+          ? `How much credit for ${matchedCustomerName}?`
+          : `${matchedCustomerName} का कितना उधार लिखना है?`
+        : detectedLang === 'en'
+        ? 'Record udhaar transaction?'
         : 'उधार खाता दर्ज करें?',
       questionToAsk: !finalAmount ? 'Kitne rupaye ka udhaar likhna hai?' : null,
     };
@@ -268,7 +328,13 @@ export function parseWithRules(
   // 7. Sale Intent: "Aaj 5 kilo chini bechi" / "becha" / "vechi" / "bika"
   if (/\b(bechi|becha|bika|biki|vechi|vech|sale|cash sale|becho)\b/i.test(lower) || (firstItem && qtyInfo.quantity)) {
     const conf = (amount || (firstItem && qtyInfo.quantity)) ? 0.95 : 0.7;
-    const spokenAmount = amount ? `${amount} रुपये` : '';
+    const spokenAmount = amount
+      ? detectedLang === 'en'
+        ? `₹${amount}`
+        : detectedLang === 'pa'
+        ? `${amount} ਰੁਪਏ`
+        : `${amount} रुपये`
+      : '';
     const spokenItem = firstItem ? `${qtyInfo.quantity ? qtyInfo.quantity + ' ' : ''}${qtyInfo.unit || ''} ${firstItem}` : '';
 
     return {
@@ -281,7 +347,12 @@ export function parseWithRules(
       confidence: conf,
       language: detectedLang,
       rawText: text,
-      spokenReply: `${spokenItem} ${spokenAmount} नकद बिक्री। लिख दूँ?`.trim(),
+      spokenReply:
+        detectedLang === 'en'
+          ? `${spokenItem} ₹${amount || 50} cash sale. Record it?`.trim()
+          : detectedLang === 'pa'
+          ? `${spokenItem} ${spokenAmount} ਨਕਦ ਵਿਕਰੀ। ਲਿਖ ਦਿਆਂ?`.trim()
+          : `${spokenItem} ${spokenAmount} नकद बिक्री। लिख दूँ?`.trim(),
     };
   }
 
@@ -297,7 +368,12 @@ export function parseWithRules(
       confidence: 0.85,
       language: detectedLang,
       rawText: text,
-      spokenReply: `${matchedCustomerName}, ${amount} रुपये उधार लिख दूँ?`,
+      spokenReply:
+        detectedLang === 'en'
+          ? `${matchedCustomerName}, record ₹${amount} credit?`
+          : detectedLang === 'pa'
+          ? `${matchedCustomerName}, ${amount} ਰੁਪਏ ਉਧਾਰ ਲਿਖ ਦਿਆਂ?`
+          : `${matchedCustomerName}, ${amount} रुपये उधार लिख दूँ?`,
     };
   }
 
@@ -307,7 +383,12 @@ export function parseWithRules(
     confidence: 0.5,
     language: detectedLang,
     rawText: text,
-    spokenReply: detectedLang === 'pa' ? 'ਆਵਾਜ਼ ਸਾਫ਼ ਨਹੀਂ ਆਈ, ਫਿਰ ਤੋਂ ਬੋਲੋ' : 'आवाज़ साफ़ नहीं आई, फिर से बोलिए',
+    spokenReply:
+      detectedLang === 'en'
+        ? 'Voice was not clear, please speak again'
+        : detectedLang === 'pa'
+        ? 'ਆਵਾਜ਼ ਸਾਫ਼ ਨਹੀਂ ਆਈ, ਫਿਰ ਤੋਂ ਬੋਲੋ'
+        : 'आवाज़ साफ़ नहीं आई, फिर से बोलिए',
     questionToAsk: 'Awaaz saaf nahi aayi, phir se boliye',
   };
 }

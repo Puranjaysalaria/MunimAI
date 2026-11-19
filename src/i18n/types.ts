@@ -47,6 +47,7 @@ export interface Translations {
     noActivity: string;
     voiceAssistantReady: string;
     voiceAssistantListening: string;
+    speakClearlyAgain: string;
   };
   auth: {
     loginTitle: string;
@@ -92,6 +93,11 @@ export interface Translations {
     offlineSyncHighlight: string;
     offlineSyncSub: string;
     dedicatedFootnote: string;
+    errEmailPasswordRequired: string;
+    errInvalidCredentials: string;
+    errRegisterRequired: string;
+    errPasswordMinLength: string;
+    errRegisterFailed: string;
   };
   voice: {
     tapToSpeak: string;
@@ -145,6 +151,7 @@ export interface Translations {
     debit: string;
     credit: string;
     audioProof: string;
+    deleteProofConfirm: string;
   };
   stock: {
     title: string;
@@ -170,6 +177,14 @@ export interface Translations {
     perDay: string;
     daysLeftCount: string;
     orderBtn: string;
+    supplierOrderList: string;
+    forecastSubtitle: string;
+    totalEstimatedCost: string;
+    costPrefix: string;
+    stockPrefix: string;
+    sendWhatsApp: string;
+    confirmOrder: string;
+    allStockSufficient: string;
   };
   today: {
     title: string;
@@ -211,11 +226,17 @@ export interface Translations {
     haanButton: string;
     nahiButton: string;
     undoButton: string;
+    balancePreview: string;
+    newTotalUdhaar: string;
+    creditLimitWarning: string;
+    listeningStatus: string;
+    saved: string;
   };
   disambiguation: {
     title: string;
     subtitle: string;
     selectPrompt: string;
+    voiceHint: string;
   };
   proofModal: {
     title: string;
@@ -226,6 +247,18 @@ export interface Translations {
     playback: string;
     save: string;
     retry: string;
+    bannerTitle: string;
+    bannerSubtitle: string;
+    record5SecBtn: string;
+    consentBoxTitle: string;
+    startRecordBtn: string;
+    stopBtn: string;
+    audioClipLabel: string;
+    testListen: string;
+    skipBtn: string;
+    savingNotice: string;
+    savingSubNotice: string;
+    privateSecureNotice: string;
   };
   reminders: {
     title: string;
@@ -234,6 +267,11 @@ export interface Translations {
     sendViaSms: string;
     sendAllButton: string;
     upiIncluded: string;
+    eligibleCountSuffix: string;
+    totalRecoverable: string;
+    sentLabel: string;
+    sendWhatsApp: string;
+    allSettled: string;
   };
   settings: {
     title: string;
@@ -245,5 +283,41 @@ export interface Translations {
     logout: string;
     appVersion: string;
     staffRoleNotice: string;
+    shopNameLabel: string;
+    upiIdLabel: string;
+    upiHelpText: string;
+    appLockPin: string;
+    userRole: string;
+    ownerRole: string;
+    staffRole: string;
+    staffModeActive: string;
+    viewPrivacyPolicy: string;
+    privacySub: string;
+    saveSettings: string;
+    savedNotice: string;
+  };
+  summary: {
+    dailyNetProfit: string;
+    listen: string;
+    marginSub: string;
+    speakAgain: string;
+    share: string;
+  };
+  pwa: {
+    installApp: string;
+    worksOffline: string;
+    installBtn: string;
+  };
+  privacyModal: {
+    title: string;
+    section1Title: string;
+    section1Desc: string;
+    section2Title: string;
+    section2Desc: string;
+    section3Title: string;
+    section3Desc: string;
+    section4Title: string;
+    section4Desc: string;
+    understood: string;
   };
 }

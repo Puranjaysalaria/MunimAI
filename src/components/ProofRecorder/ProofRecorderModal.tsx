@@ -34,7 +34,7 @@ export const ProofRecorderModal: React.FC<ProofRecorderModalProps> = ({
   onSaveProof,
   onClose,
 }) => {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
 
   const [state, setState] = useState<'ready' | 'recording' | 'review' | 'saving'>('ready');
   const [secondsRemaining, setSecondsRemaining] = useState(5);
@@ -118,7 +118,13 @@ export const ProofRecorderModal: React.FC<ProofRecorderModalProps> = ({
       }, 1000);
     } catch {
       triggerHaptic('error');
-      alert('माइक्रोफोन चालू नहीं हो सका। कृपया अनुमति दें।');
+      alert(
+        language === 'en'
+          ? 'Could not access microphone. Please grant permission in browser settings.'
+          : language === 'pa'
+          ? 'ਮਾਈਕ੍ਰੋਫੋਨ ਚਾਲੂ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਇਜਾਜ਼ਤ ਦਿਓ।'
+          : 'माइक्रोफोन चालू नहीं हो सका। कृपया अनुमति दें।'
+      );
     }
   };
 
@@ -157,7 +163,13 @@ export const ProofRecorderModal: React.FC<ProofRecorderModalProps> = ({
       triggerHaptic('success');
       onClose();
     } catch {
-      alert('सबूत सुरक्षित करने में त्रुटि।');
+      alert(
+        language === 'en'
+          ? 'Error saving audio proof.'
+          : language === 'pa'
+          ? 'ਸਬੂਤ ਸੇਵ ਕਰਨ ਵਿੱਚ ਸਮੱਸਿਆ ਆਈ।'
+          : 'सबूत सुरक्षित करने में त्रुटि।'
+      );
       setState('review');
     }
   };
@@ -165,7 +177,7 @@ export const ProofRecorderModal: React.FC<ProofRecorderModalProps> = ({
   if (!isOpen || !transaction) return null;
 
   const targetAmount = transaction.amount;
-  const targetCustomerName = customer?.name || 'ग्राहक';
+  const targetCustomerName = customer?.name || t.confirmCard.customerLabel;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-xs select-none">
@@ -179,7 +191,7 @@ export const ProofRecorderModal: React.FC<ProofRecorderModalProps> = ({
             <div>
               <h2 className="text-base font-black text-app-text">{t.proofModal.title}</h2>
               <p className="text-xs text-app-muted">
-                {targetCustomerName} • {formatINR(targetAmount)} उधार
+                {targetCustomerName} • {formatINR(targetAmount)} ({t.today.udhaarShare})
               </p>
             </div>
           </div>
@@ -201,10 +213,10 @@ export const ProofRecorderModal: React.FC<ProofRecorderModalProps> = ({
             <ShieldAlert className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" />
             <div>
               <p className="text-xs font-bold text-amber-950 uppercase tracking-wider">
-                ग्राहक की स्पष्ट सहमति (Consent Notice)
+                {t.proofModal.consentBoxTitle}
               </p>
               <p className="text-sm font-black text-amber-900 mt-1 italic">
-                "हाँ, {formatINR(targetAmount)} मेरे नाम लिख दो।"
+                {t.proofModal.consentNotice.replace('500', formatINR(targetAmount))}
               </p>
             </div>
           </div>
@@ -222,7 +234,7 @@ export const ProofRecorderModal: React.FC<ProofRecorderModalProps> = ({
               className="touch-target-64 w-full bg-amber-500 hover:bg-amber-600 text-zinc-950 font-black text-lg rounded-2xl shadow-md transition-all active:scale-95 flex items-center justify-center space-x-2 border-2 border-amber-600"
             >
               <Mic className="w-6 h-6 text-zinc-950 animate-pulse" />
-              <span>ग्राहक से रिकॉर्ड करवाएं (5 सेकंड)</span>
+              <span>{t.proofModal.startRecordBtn}</span>
             </button>
           </div>
         )}
@@ -242,7 +254,7 @@ export const ProofRecorderModal: React.FC<ProofRecorderModalProps> = ({
                 {t.proofModal.recording}
               </p>
               <p className="text-xs text-app-muted mt-1">
-                ग्राहक को बोलने दें: "हाँ, {formatINR(targetAmount)} मेरे नाम लिख दो"
+                {t.proofModal.instruction}
               </p>
             </div>
 
@@ -263,7 +275,7 @@ export const ProofRecorderModal: React.FC<ProofRecorderModalProps> = ({
               className="text-xs font-bold text-gray-500 hover:text-gray-800 flex items-center justify-center mx-auto space-x-1 pt-2"
             >
               <Square className="w-3.5 h-3.5 fill-current" />
-              <span>रोकें</span>
+              <span>{t.proofModal.stopBtn}</span>
             </button>
           </div>
         )}
@@ -284,9 +296,9 @@ export const ProofRecorderModal: React.FC<ProofRecorderModalProps> = ({
                   )}
                 </button>
                 <div>
-                  <p className="text-xs font-bold text-app-text">5 सेकंड की ऑडियो क्लिप</p>
+                  <p className="text-xs font-bold text-app-text">{t.proofModal.audioClipLabel}</p>
                   <p className="text-[11px] text-app-muted">
-                    {isPlaying ? 'सुन रहे हैं...' : 'बजाकर जांचें'}
+                    {isPlaying ? t.confirmCard.listeningStatus : t.proofModal.testListen}
                   </p>
                 </div>
               </div>
@@ -313,7 +325,7 @@ export const ProofRecorderModal: React.FC<ProofRecorderModalProps> = ({
                 }}
                 className="touch-target-64 border border-gray-300 font-bold text-app-muted rounded-xl hover:bg-gray-100 active:scale-95"
               >
-                छोड़ें (Skip)
+                {t.proofModal.skipBtn}
               </button>
 
               <button
@@ -331,14 +343,14 @@ export const ProofRecorderModal: React.FC<ProofRecorderModalProps> = ({
         {state === 'saving' && (
           <div className="text-center py-8 space-y-3">
             <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-sm font-bold text-app-text">सबूत सुरक्षित किया जा रहा है...</p>
-            <p className="text-xs text-app-muted">प्राइवेट स्टोरेज और ऑफलाइन डेटाबेस में सेव हो रहा है</p>
+            <p className="text-sm font-bold text-app-text">{t.proofModal.savingNotice}</p>
+            <p className="text-xs text-app-muted">{t.proofModal.savingSubNotice}</p>
           </div>
         )}
 
         <div className="flex items-center justify-center space-x-1 text-[11px] text-gray-400 mt-2">
           <Lock className="w-3 h-3 text-emerald-600" />
-          <span>निजी और सुरक्षित • केवल दुकान मालिक सुन सकता है</span>
+          <span>{t.proofModal.privateSecureNotice}</span>
         </div>
       </div>
     </div>

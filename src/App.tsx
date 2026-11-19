@@ -50,7 +50,7 @@ export const AppContent: React.FC = () => {
     syncOfflineData,
   } = useShop();
 
-  const { language } = useI18n();
+  const { language, t } = useI18n();
 
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -182,14 +182,20 @@ export const AppContent: React.FC = () => {
   const handlePlayProofAudio = async (clipPath: string) => {
     triggerHaptic('start');
     const localUrl = await getPlayableProofUrl('', clipPath);
+    const sampleProofText =
+      language === 'en'
+        ? 'Yes, write 500 rupees to my udhaar account'
+        : language === 'pa'
+        ? 'ਹਾਂ, 500 ਰੁਪਏ ਮੇਰੇ ਨਾਮ ਲਿਖ ਦਿਓ'
+        : 'हाँ, 500 रुपये मेरे नाम लिख दो';
     if (localUrl) {
       const audio = new Audio(localUrl);
       audio.play().catch(() => {
         // Fallback simulated voice proof
-        speechSynthesizer.speak('हाँ, 500 रुपये मेरे नाम लिख दो', language);
+        speechSynthesizer.speak(sampleProofText, language);
       });
     } else {
-      speechSynthesizer.speak('हाँ, 500 रुपये मेरे नाम लिख दो', language);
+      speechSynthesizer.speak(sampleProofText, language);
     }
   };
 
@@ -305,12 +311,12 @@ export const AppContent: React.FC = () => {
                   <Mic className="w-5 h-5 text-slate-950 animate-pulse stroke-[2.4]" />
                 </div>
                 <div className="text-left">
-                  <span className="text-sm block leading-tight">ग्राहक से बुलवाएं (आवाज़ का सबूत)</span>
-                  <span className="text-[11px] text-amber-950/80 font-bold">झगड़े और मुकरने से बचें</span>
+                  <span className="text-sm block leading-tight">{t.proofModal.bannerTitle}</span>
+                  <span className="text-[11px] text-amber-950/80 font-bold">{t.proofModal.bannerSubtitle}</span>
                 </div>
               </div>
               <span className="text-xs bg-slate-950 text-white font-black px-2.5 py-1.5 rounded-xl shadow-xs">
-                5 सेकंड रिकॉर्ड
+                {t.proofModal.record5SecBtn}
               </span>
             </motion.button>
           </motion.div>

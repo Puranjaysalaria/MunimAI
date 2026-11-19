@@ -3,7 +3,7 @@ import { SupplierOrderDraft } from '../../lib/stockAnalytics';
 import { formatINR } from '../../lib/utils';
 import { triggerHaptic, playAudioCue } from '../../lib/sound';
 import { speechSynthesizer } from '../../tts/speechSynthesizer';
-import { LanguageCode } from '../../i18n';
+import { LanguageCode, useI18n } from '../../i18n';
 import {
   X,
   Truck,
@@ -32,6 +32,7 @@ export const SupplierOrdersModal: React.FC<SupplierOrdersModalProps> = ({
   language,
   onConfirmOrder,
 }) => {
+  const { t } = useI18n();
   const [drafts, setDrafts] = useState<SupplierOrderDraft[]>(initialDrafts);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>(
     initialDrafts[0]?.supplier.id || ''
@@ -82,18 +83,30 @@ export const SupplierOrdersModal: React.FC<SupplierOrdersModalProps> = ({
 
   // Format message for WhatsApp / SMS
   const generateOrderMessage = (draft: SupplierOrderDraft): string => {
-    const today = new Date().toLocaleDateString('hi-IN', {
+    const today = new Date().toLocaleDateString(language === 'en' ? 'en-IN' : 'hi-IN', {
       day: 'numeric',
       month: 'short',
     });
-    const header = `📦 *${shopName} - नया आर्डर (${today})*\nसप्लायर: ${draft.supplier.name}\n-----------------------------\n`;
+    const isEn = language === 'en';
+    const isPa = language === 'pa';
+    const header = isEn
+      ? `📦 *${shopName} - New Order (${today})*\nSupplier: ${draft.supplier.name}\n-----------------------------\n`
+      : isPa
+      ? `📦 *${shopName} - ਨਵਾਂ ਆਰਡਰ (${today})*\nਸਪਲਾਇਰ: ${draft.supplier.name}\n-----------------------------\n`
+      : `📦 *${shopName} - नया आर्डर (${today})*\nसप्लायर: ${draft.supplier.name}\n-----------------------------\n`;
+
     const itemsList = draft.items
       .map(
         (it, idx) =>
           `${idx + 1}. ${it.item.name}: *${it.suggestedQty} ${it.unit}* (@ ₹${it.unitCost} = ₹${it.totalCost})`
       )
       .join('\n');
-    const footer = `\n-----------------------------\n*कुल अनुमानित रकम: ${formatINR(draft.totalEstimatedCost)}*\n\nकृपया सामान जल्द से जल्द भेजें। धन्यवाद!`;
+
+    const footer = isEn
+      ? `\n-----------------------------\n*Total Estimated Amount: ${formatINR(draft.totalEstimatedCost)}*\n\nPlease dispatch goods as soon as possible. Thank you!`
+      : isPa
+      ? `\n-----------------------------\n*ਕੁੱਲ ਅੰਦਾਜ਼ਨ ਰਕਮ: ${formatINR(draft.totalEstimatedCost)}*\n\nਕਿਰਪਾ ਕਰਕੇ ਸਾਮਾਨ ਜਲਦੀ ਤੋਂ ਜਲਦੀ ਭੇਜੋ। ਧੰਨਵਾਦ!`
+      : `\n-----------------------------\n*कुल अनुमानित रकम: ${formatINR(draft.totalEstimatedCost)}*\n\nकृपया सामान जल्द से जल्द भेजें। धन्यवाद!`;
 
     return header + itemsList + footer;
   };
@@ -130,6 +143,8 @@ export const SupplierOrdersModal: React.FC<SupplierOrdersModalProps> = ({
     const voiceMsg =
       language === 'pa'
         ? `${draft.supplier.name} ਦਾ ਆਰਡਰ ਸੇਵ ਕਰ ਲਿਆ ਗਿਆ ਹੈ`
+        : language === 'en'
+        ? `Order for ${draft.supplier.name} worth ₹${draft.totalEstimatedCost} has been recorded.`
         : `${draft.supplier.name} का ₹${draft.totalEstimatedCost} का आर्डर दर्ज कर लिया गया है`;
     speechSynthesizer.speak(voiceMsg, language);
   };
@@ -145,10 +160,10 @@ export const SupplierOrdersModal: React.FC<SupplierOrdersModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-black text-app-text">
-                सप्लायर आर्डर लिस्ट
+                {t.stock.supplierOrderList}
               </h2>
               <p className="text-xs text-app-muted">
-                14 दिन की खपत के अनुसार अगले 7 दिन का माल
+                {t.stock.forecastSubtitle}
               </p>
             </div>
           </div>
@@ -211,7 +226,7 @@ export const SupplierOrdersModal: React.FC<SupplierOrdersModalProps> = ({
                 </p>
               </div>
               <div className="text-right">
-                <span className="text-[10px] text-app-muted">कुल अनुमान</span>
+                <span className="text-[10px] text-app-muted">{t.stock.totalEstimatedCost}</span>
                 <p className="text-base font-black text-primary">
                   {formatINR(currentDraft.totalEstimatedCost)}
                 </p>
@@ -222,7 +237,7 @@ export const SupplierOrdersModal: React.FC<SupplierOrdersModalProps> = ({
             <div className="space-y-2.5">
               {currentDraft.items.length === 0 ? (
                 <div className="text-center py-8 text-app-muted text-xs">
-                  इस सप्लायर का सभी सामान पर्याप्त मात्रा में उपलब्ध है।
+                  {t.stock.allStockSufficient}
                 </div>
               ) : (
                 currentDraft.items.map((it) => (
@@ -235,7 +250,7 @@ export const SupplierOrdersModal: React.FC<SupplierOrdersModalProps> = ({
                         {it.item.name}
                       </h4>
                       <p className="text-xs text-app-muted">
-                        लागत: {formatINR(it.unitCost)} /{it.unit} • स्टॉक: {it.item.current_stock}
+                        {t.stock.costPrefix}: {formatINR(it.unitCost)} /{it.unit} • {t.stock.stockPrefix}: {it.item.current_stock}
                       </p>
                     </div>
 
@@ -283,13 +298,13 @@ export const SupplierOrdersModal: React.FC<SupplierOrdersModalProps> = ({
                 className="touch-target-64 flex-1 py-3 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-2xl shadow-md active:scale-95 flex items-center justify-center space-x-2"
               >
                 <MessageCircle className="w-4 h-4" />
-                <span>WhatsApp पर भेजें</span>
+                <span>{t.stock.sendWhatsApp}</span>
               </button>
 
               <button
                 onClick={() => handleShareSMS(currentDraft)}
                 className="touch-target-64 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs rounded-2xl active:scale-95 flex items-center justify-center space-x-1"
-                title="SMS से भेजें"
+                title="SMS"
               >
                 <Share2 className="w-4 h-4" />
               </button>
@@ -300,7 +315,7 @@ export const SupplierOrdersModal: React.FC<SupplierOrdersModalProps> = ({
               className="touch-target-64 w-full py-2.5 bg-primary/10 hover:bg-primary/20 text-primary font-bold text-xs rounded-xl active:scale-95 flex items-center justify-center space-x-1.5"
             >
               <CheckCircle className="w-4 h-4" />
-              <span>आर्डर सिस्टम में सुरक्षित करें (Confirm)</span>
+              <span>{t.stock.confirmOrder}</span>
             </button>
           </div>
         )}

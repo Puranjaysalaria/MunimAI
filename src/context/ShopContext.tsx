@@ -203,7 +203,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: `usr-${Date.now()}`,
         shop_id: shop.id,
         phone,
-        name: 'दुकानदार',
+        name: 'Shop Owner',
         role: 'owner',
       };
       setUser(newUser);
@@ -261,9 +261,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: true };
       }
 
-      return { success: false, error: 'लॉगिन नहीं हो सका' };
+      return { success: false, error: 'Login failed' };
     } catch (err: any) {
-      return { success: false, error: err?.message || 'लॉगिन विफल' };
+      return { success: false, error: err?.message || 'Login failed' };
     }
   };
 
@@ -291,14 +291,14 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const newShopId = crypto.randomUUID();
         await supabase.from('shops').insert({
           id: newShopId,
-          name: shopName || 'मेरी किराना दुकान',
+          name: shopName || 'Kirana Store',
           owner_phone: '+919999999999',
         });
 
         await supabase.from('users').insert({
           id: data.user.id,
           shop_id: newShopId,
-          name: ownerName || 'दुकानदार',
+          name: ownerName || 'Shop Owner',
           phone: '+919999999999',
           role: 'owner',
         });
@@ -306,9 +306,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return await loginWithSupabase(email, password);
       }
 
-      return { success: false, error: 'पंजीकरण पूरा नहीं हो सका' };
+      return { success: false, error: 'Registration failed' };
     } catch (err: any) {
-      return { success: false, error: err?.message || 'पंजीकरण विफल' };
+      return { success: false, error: err?.message || 'Registration failed' };
     }
   };
 
@@ -537,7 +537,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Undo Last Transaction ("Wapas karo")
   const undoLastTransaction = (): { success: boolean; message: string } => {
     if (!lastTransaction) {
-      return { success: false, message: 'कोई हालिया लेन-देन नहीं मिला' };
+      return { success: false, message: 'No recent transaction to undo' };
     }
 
     const txToUndo = lastTransaction;
@@ -564,7 +564,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return {
       success: true,
-      message: `₹${txToUndo.amount} का लेन-देन वापस (Undo) कर दिया गया है`,
+      message: `Transaction of ₹${txToUndo.amount} undone successfully`,
     };
   };
 

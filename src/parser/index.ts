@@ -17,6 +17,7 @@ export async function parseSpeech(
     customers: Customer[];
     items: Item[];
     isOnline?: boolean;
+    language?: string;
   }
 ): Promise<ParseResult> {
   let result: ValidatedParseResult;
@@ -25,6 +26,7 @@ export async function parseSpeech(
   result = parseWithRules(rawText, {
     customers: context.customers,
     items: context.items,
+    preferredLanguage: context.language,
   });
 
   // Validate with Zod schema
@@ -58,16 +60,30 @@ export async function parseSpeech(
         // Disambiguation needed!
         ambiguousCustomers = partialMatches;
         matchedCustomer = null;
-        questionToAsk = `Kaunsa ${cleanResult.customer}?`;
-        spokenReply = `कौनसा ${cleanResult.customer}? ${partialMatches
-          .map((c) => `${c.name} (${c.address_note || ''})`)
-          .join(' या ')}`;
+        questionToAsk =
+          context.language === 'en'
+            ? `Which ${cleanResult.customer}?`
+            : `Kaunsa ${cleanResult.customer}?`;
+        spokenReply =
+          context.language === 'en'
+            ? `Which ${cleanResult.customer}? ${partialMatches.map((c) => `${c.name} (${c.address_note || ''})`).join(' or ')}`
+            : context.language === 'pa'
+            ? `ਕਿਹੜਾ ${cleanResult.customer}? ${partialMatches.map((c) => `${c.name} (${c.address_note || ''})`).join(' ਜਾਂ ')}`
+            : `कौनसा ${cleanResult.customer}? ${partialMatches.map((c) => `${c.name} (${c.address_note || ''})`).join(' या ')}`;
       } else if (partialMatches.length === 1) {
         matchedCustomer = partialMatches[0];
       } else {
         // Unknown customer check
-        questionToAsk = `Naya customer ${cleanResult.customer} hai? Naam save karoon?`;
-        spokenReply = `नया ग्राहक ${cleanResult.customer} है? नाम जोड़ूँ?`;
+        questionToAsk =
+          context.language === 'en'
+            ? `Is ${cleanResult.customer} a new customer? Save name?`
+            : `Naya customer ${cleanResult.customer} hai? Naam save karoon?`;
+        spokenReply =
+          context.language === 'en'
+            ? `Is ${cleanResult.customer} a new customer? Save name?`
+            : context.language === 'pa'
+            ? `ਨਵਾਂ ਗਾਹਕ ${cleanResult.customer} ਹੈ? ਨਾਮ ਜੋੜਾਂ?`
+            : `नया ग्राहक ${cleanResult.customer} है? नाम जोड़ूँ?`;
       }
     }
   }

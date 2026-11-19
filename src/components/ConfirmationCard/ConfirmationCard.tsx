@@ -61,23 +61,36 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
 
   // Spoken sentence formulated for natural speech
   const spokenPrompt = pending
-    ? pending.spokenReply ||
-      (isCredit && pending.customerName
-        ? `${pending.customerName}, ${amountInWords} (${pending.amount}) रुपये उधार। लिख दूँ?`
+    ? language === 'en'
+      ? isCredit && pending.customerName
+        ? `${pending.customerName}, ${amountInWords} (₹${pending.amount}) credit udhaar. Should I record it?`
         : isPayment && pending.customerName
-        ? `${pending.customerName} से ${amountInWords} (${pending.amount}) रुपये जमा लिख दूँ?`
+        ? `Record ${amountInWords} (₹${pending.amount}) payment from ${pending.customerName}?`
         : isSale && pending.itemName
-        ? `${pending.quantity ? pending.quantity + ' ' : ''}${pending.unit || ''} ${pending.itemName}, ${amountInWords} रुपये नकद बिक्री। लिख दूँ?`
-        : `रुपये ${pending.amount} का लेन-देन। लिख दूँ?`)
+        ? `Record ${pending.quantity ? pending.quantity + ' ' : ''}${pending.unit || ''} ${pending.itemName}, ${amountInWords} cash sale?`
+        : `Record ₹${pending.amount} transaction?`
+      : language === 'pa'
+      ? isCredit && pending.customerName
+        ? `${pending.customerName}, ${amountInWords} (${pending.amount}) ਰੁਪਏ ਉਧਾਰ। ਲਿਖ ਦਿਆਂ?`
+        : isPayment && pending.customerName
+        ? `${pending.customerName} ਤੋਂ ${amountInWords} (${pending.amount}) ਰੁਪਏ ਜਮ੍ਹਾ ਲਿਖ ਦਿਆਂ?`
+        : isSale && pending.itemName
+        ? `${pending.quantity ? pending.quantity + ' ' : ''}${pending.unit || ''} ${pending.itemName}, ${amountInWords} ਨਕਦ ਵਿਕਰੀ। ਲਿਖ ਦਿਆਂ?`
+        : `₹${pending.amount} ਦਾ ਲੈਣ-ਦੇਣ ਲਿਖ ਦਿਆਂ?`
+      : pending.spokenReply ||
+        (isCredit && pending.customerName
+          ? `${pending.customerName}, ${amountInWords} (${pending.amount}) रुपये उधार। लिख दूँ?`
+          : isPayment && pending.customerName
+          ? `${pending.customerName} से ${amountInWords} (${pending.amount}) रुपये जमा लिख दूँ?`
+          : isSale && pending.itemName
+          ? `${pending.quantity ? pending.quantity + ' ' : ''}${pending.unit || ''} ${pending.itemName}, ${amountInWords} रुपये नकद बिक्री। लिख दूँ?`
+          : `रुपये ${pending.amount} का लेन-देन। लिख दूँ?`)
     : '';
 
   // Speak out loud on mount so shopkeeper hears it
   useEffect(() => {
     if (pending && spokenPrompt) {
-      speechSynthesizer.speak(
-        spokenPrompt,
-        language === 'pa' ? 'pa' : language === 'en' ? 'en' : 'hi'
-      );
+      speechSynthesizer.speak(spokenPrompt, language);
     }
   }, [pending, spokenPrompt, language]);
 
@@ -247,7 +260,7 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
               {pending.customer && (isCredit || isPayment) && (
                 <div className="p-3.5 rounded-2xl bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200/80 flex items-center justify-between text-xs">
                   <span className="font-bold text-slate-600">
-                    {isPayment ? 'बकाया हिसाब (Balance):' : 'नया कुल उधार:'}
+                    {isPayment ? t.confirmCard.balancePreview : t.confirmCard.newTotalUdhaar}
                   </span>
                   <div className="flex items-center space-x-2">
                     <span className="text-slate-400 line-through font-bold">
@@ -279,9 +292,9 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                   <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center space-x-2.5 shadow-xs">
                     <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
                     <span className="font-semibold leading-snug">
-                      चेतावनी: ग्राहक की कुल उधारी ₹
-                      {Number(pending.customer.balance_owed) + pending.amount} हो जाएगी
-                      (तय सीमा ₹{pending.customer.credit_limit})
+                      {t.confirmCard.creditLimitWarning
+                        .replace('{projected}', String(Number(pending.customer.balance_owed) + pending.amount))
+                        .replace('{limit}', String(pending.customer.credit_limit))}
                     </span>
                   </div>
                 )}
@@ -294,7 +307,7 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                 <span>{t.confirmCard.speechPrompt}</span>
                 {isListeningForReply && (
                   <span className="text-blue-600 font-black ml-1 animate-pulse">
-                    (सुन रहे हैं...)
+                    {t.confirmCard.listeningStatus}
                   </span>
                 )}
               </p>

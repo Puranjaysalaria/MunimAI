@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { triggerHaptic } from '../../lib/sound';
+import { useI18n } from '../../i18n';
 import { Download, X, Smartphone, CheckCircle } from 'lucide-react';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -8,6 +9,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export const PWAInstallPrompt: React.FC = () => {
+  const { t } = useI18n();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showBanner, setShowBanner] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -77,12 +79,12 @@ export const PWAInstallPrompt: React.FC = () => {
           <div>
             <div className="flex items-center space-x-1">
               <h3 className="font-bold text-sm text-white leading-tight">
-                मुनीम AI ऐप इंस्टॉल करें
+                {t.pwa.installApp}
               </h3>
               <CheckCircle className="w-3.5 h-3.5 text-accent" />
             </div>
             <p className="text-[11px] text-emerald-100">
-              होम स्क्रीन पर जोड़ें • बिना इंटरनेट भी चलेगा
+              {t.pwa.worksOffline}
             </p>
           </div>
         </div>
@@ -93,7 +95,7 @@ export const PWAInstallPrompt: React.FC = () => {
             className="touch-target-64 px-3.5 py-2 bg-accent hover:bg-accent-hover text-app-text font-black text-xs rounded-xl shadow-md active:scale-95 flex items-center space-x-1"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>इंस्टॉल</span>
+            <span>{t.pwa.installBtn}</span>
           </button>
 
           <button

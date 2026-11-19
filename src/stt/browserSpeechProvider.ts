@@ -56,10 +56,17 @@ export class BrowserSpeechProvider implements STTProvider {
       onStateChange: (state: STTState) => void;
     }
   ): Promise<void> {
+    const lang = options.language || 'hi';
+
     if (!this.isSupported) {
       callbacks.onError({
         code: 'not-allowed',
-        message: 'इस ब्राउज़र में आवाज़ पहचानने की सुविधा उपलब्ध नहीं है।',
+        message:
+          lang === 'en'
+            ? 'Speech recognition is not supported in this browser.'
+            : lang === 'pa'
+            ? 'ਇਸ ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਆਵਾਜ਼ ਪਛਾਣਨ ਦੀ ਸਹੂਲਤ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।'
+            : 'इस ब्राउज़र में आवाज़ पहचानने की सुविधा उपलब्ध नहीं है।',
       });
       return;
     }
@@ -113,20 +120,42 @@ export class BrowserSpeechProvider implements STTProvider {
 
       this.recognition.onerror = (event: any) => {
         let code: STTError['code'] = 'unknown';
-        let msg = 'आवाज़ पहचानने में त्रुटि हुई।';
+        const isEn = lang === 'en';
+        const isPa = lang === 'pa';
+        let msg = isEn
+          ? 'Speech recognition error occurred.'
+          : isPa
+          ? 'ਆਵਾਜ਼ ਪਛਾਣਨ ਵਿੱਚ ਸਮੱਸਿਆ ਆਈ।'
+          : 'आवाज़ पहचानने में त्रुटि हुई।';
 
         if (event.error === 'not-allowed') {
           code = 'not-allowed';
-          msg = 'माइक की अनुमति नहीं मिली। कृपया ब्राउज़र सेटिंग में अनुमति दें।';
+          msg = isEn
+            ? 'Microphone permission denied. Please allow microphone access.'
+            : isPa
+            ? 'ਮਾਈਕ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਮਿਲੀ। ਕਿਰਪਾ ਕਰਕੇ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਇਜਾਜ਼ਤ ਦਿਓ।'
+            : 'माइक की अनुमति नहीं मिली। कृपया ब्राउज़र सेटिंग में अनुमति दें।';
         } else if (event.error === 'no-speech') {
           code = 'no-speech';
-          msg = 'कोई आवाज़ सुनाई नहीं दी।';
+          msg = isEn
+            ? 'No speech detected. Please speak again.'
+            : isPa
+            ? 'ਕੋਈ ਆਵਾਜ਼ ਸੁਣਾਈ ਨਹੀਂ ਦਿੱਤੀ।'
+            : 'कोई आवाज़ सुनाई नहीं दी।';
         } else if (event.error === 'audio-capture') {
           code = 'audio-capture';
-          msg = 'माइक से आवाज़ नहीं आ रही है।';
+          msg = isEn
+            ? 'No audio signal from microphone.'
+            : isPa
+            ? 'ਮਾਈਕ੍ਰੋਫੋਨ ਤੋਂ ਆਵਾਜ਼ ਨਹੀਂ ਆ ਰਹੀ।'
+            : 'माइक से आवाज़ नहीं आ रही है।';
         } else if (event.error === 'network') {
           code = 'network';
-          msg = 'नेटवर्क समस्या। कृपया इंटरनेट जांचें।';
+          msg = isEn
+            ? 'Network error. Please check your internet.'
+            : isPa
+            ? 'ਨੈੱਟਵਰਕ ਸਮੱਸਿਆ। ਇੰਟਰਨੈੱਟ ਚੈੱਕ ਕਰੋ।'
+            : 'नेटवर्क समस्या। कृपया इंटरनेट जांचें।';
         }
 
         this.state = 'error';

@@ -71,6 +71,7 @@ export function useVoiceController({
           customers,
           items,
           isOnline,
+          language,
         });
 
         // 1. Control Intents
@@ -78,7 +79,14 @@ export function useVoiceController({
           if (pendingConfirmation) {
             handleConfirmSave();
           } else {
-            speechSynthesizer.speak('हाँ, बताइए क्या लिखना है?', language);
+            speechSynthesizer.speak(
+              language === 'en'
+                ? 'Yes, what should I record?'
+                : language === 'pa'
+                ? 'ਹਾਂ ਜੀ, ਕੀ ਲਿਖਣਾ ਹੈ?'
+                : 'हाँ, बताइए क्या लिखना है?',
+              language
+            );
             setVoiceState('idle');
           }
           return;
@@ -115,7 +123,9 @@ export function useVoiceController({
           setVoiceState('success');
           onNavigateTab('stock');
           const orderVoice =
-            language === 'pa'
+            language === 'en'
+              ? 'Supplier order list prepared based on 14-day consumption.'
+              : language === 'pa'
               ? 'ਸਪਲਾਇਰ ਆਰਡਰ ਸੂਚੀ ਤਿਆਰ ਹੈ। 14 ਦਿਨਾਂ ਦੀ ਵਿਕਰੀ ਅਨੁਸਾਰ ਆਰਡਰ ਬਣਾਇਆ ਗਿਆ ਹੈ।'
               : 'सप्लायर आर्डर लिस्ट तैयार है। 14 दिनों की बिक्री के अनुसार आर्डर बनाया गया है।';
           speechSynthesizer.speak(orderVoice, language);
@@ -131,7 +141,9 @@ export function useVoiceController({
           onNavigateTab('ledger');
           const recoveryThreshold = result.amount || 1000;
           const recoveryVoice =
-            language === 'pa'
+            language === 'en'
+              ? `Customers owing over ₹${recoveryThreshold}. Send reminders?`
+              : language === 'pa'
               ? `₹${recoveryThreshold} ਤੋਂ ਵੱਧ ਬਾਕੀ ਵਾਲੇ ਗਾਹਕਾਂ ਨੂੰ ਯਾਦ-ਪੱਤਰ ਭੇਜਣਾ ਹੈ?`
               : `₹${recoveryThreshold} से ज़्यादा बाकी वाले ग्राहकों की लिस्ट। तगादा भेजें?`;
           speechSynthesizer.speak(recoveryVoice, language);
@@ -166,7 +178,9 @@ export function useVoiceController({
           } else {
             const lowCount = analyses.filter((a) => a.isLowStock).length;
             const genericReply =
-              language === 'pa'
+              language === 'en'
+                ? `Inventory opened. Total ${lowCount} items running low.`
+                : language === 'pa'
                 ? `ਸਟਾਕ ਖੋਲ੍ਹਿਆ ਗਿਆ ਹੈ। ਕੁੱਲ ${lowCount} ਚੀਜ਼ਾਂ ਘੱਟ ਹਨ।`
                 : `स्टॉक खोला गया है। कुल ${lowCount} सामान का स्टॉक कम है।`;
             speechSynthesizer.speak(genericReply, language);
@@ -201,7 +215,13 @@ export function useVoiceController({
             rawText: text,
             spokenReply: result.spokenReply,
           });
-          speechSynthesizer.speak(result.spokenReply || 'कौनसा ग्राहक?', language);
+          const disambiguationPrompt =
+            language === 'en'
+              ? 'Which customer?'
+              : language === 'pa'
+              ? 'ਕਿਹੜਾ ਗਾਹਕ?'
+              : 'कौनसा ग्राहक?';
+          speechSynthesizer.speak(result.spokenReply || disambiguationPrompt, language);
           setVoiceState('idle');
           return;
         }
@@ -337,7 +357,9 @@ export function useVoiceController({
     });
 
     const successVoice =
-      language === 'pa'
+      language === 'en'
+        ? `Transaction of ₹${pendingConfirmation.amount} recorded.`
+        : language === 'pa'
         ? 'ਹਾਂ ਜੀ, ਸੌਦਾ ਲਿਖ ਦਿੱਤਾ ਗਿਆ ਹੈ'
         : `हाँ, ₹${pendingConfirmation.amount} का लेन-देन लिख दिया गया है`;
 
@@ -360,7 +382,13 @@ export function useVoiceController({
     setDisambiguationCustomers([]);
     setVoiceState('idle');
     setLiveTranscript('');
-    speechSynthesizer.speak('रद्द कर दिया गया है', language);
+    const cancelVoice =
+      language === 'en'
+        ? 'Cancelled'
+        : language === 'pa'
+        ? 'ਰੱਦ ਕਰ ਦਿੱਤਾ ਗਿਆ ਹੈ'
+        : 'रद्द कर दिया गया है';
+    speechSynthesizer.speak(cancelVoice, language);
   }, [language]);
 
   // Resolve disambiguation selection

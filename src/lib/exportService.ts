@@ -74,13 +74,17 @@ export function exportLedgerToCSV(
 export function printCustomerStatement(
   customer: Customer,
   transactions: Transaction[],
-  shop: Shop
+  shop: Shop,
+  language: string = 'en'
 ): void {
   const customerTxs = transactions.filter((t) => t.customer_id === customer.id);
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
 
-  const todayStr = new Date().toLocaleDateString('hi-IN', {
+  const isEn = language === 'en';
+  const isPa = language === 'pa';
+
+  const todayStr = new Date().toLocaleDateString(isEn ? 'en-IN' : 'hi-IN', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -90,8 +94,20 @@ export function printCustomerStatement(
     .map(
       (tx) => `
       <tr style="border-bottom: 1px solid #e5e7eb;">
-        <td style="padding: 8px;">${new Date(tx.created_at).toLocaleDateString('hi-IN')}</td>
-        <td style="padding: 8px;">${tx.type === 'credit' ? 'उधार' : 'जमा (भुगतान)'}</td>
+        <td style="padding: 8px;">${new Date(tx.created_at).toLocaleDateString(isEn ? 'en-IN' : 'hi-IN')}</td>
+        <td style="padding: 8px;">${
+          tx.type === 'credit'
+            ? isEn
+              ? 'Credit (Udhaar)'
+              : isPa
+              ? 'ਉਧਾਰ'
+              : 'उधार'
+            : isEn
+            ? 'Payment (Jama)'
+            : isPa
+            ? 'ਜਮ੍ਹਾ'
+            : 'जमा (भुगतान)'
+        }</td>
         <td style="padding: 8px;">${tx.items?.map((it) => `${it.name} (${it.quantity})`).join(', ') || '-'}</td>
         <td style="padding: 8px; text-align: right; font-weight: bold; color: ${tx.type === 'credit' ? '#D64545' : '#1E9E5A'};">
           ${tx.type === 'credit' ? '+' : '-'}${formatINR(tx.amount)}
@@ -104,7 +120,7 @@ export function printCustomerStatement(
     <!DOCTYPE html>
     <html>
       <head>
-        <title>बही-खाता रसीद - ${customer.name}</title>
+        <title>${isEn ? 'Ledger Statement' : 'बही-खाता रसीद'} - ${customer.name}</title>
         <style>
           body { font-family: sans-serif; padding: 24px; color: #1f2937; max-width: 600px; margin: auto; }
           .header { text-align: center; border-bottom: 2px solid #0B6E4F; padding-bottom: 12px; margin-bottom: 16px; }
@@ -120,26 +136,26 @@ export function printCustomerStatement(
       <body>
         <div class="header">
           <h1 class="shop-title">${shop.name}</h1>
-          <div class="meta">फोन: ${shop.owner_phone} • तारीख: ${todayStr}</div>
+          <div class="meta">${isEn ? 'Phone' : 'फोन'}: ${shop.owner_phone} • ${isEn ? 'Date' : 'तारीख'}: ${todayStr}</div>
         </div>
 
         <div class="customer-box">
           <div>
-            <strong>ग्राहक: ${customer.name}</strong><br />
-            <small>${customer.address_note || 'पता दर्ज नहीं है'}</small>
+            <strong>${isEn ? 'Customer' : 'ग्राहक'}: ${customer.name}</strong><br />
+            <small>${customer.address_note || (isEn ? 'No address' : 'पता दर्ज नहीं है')}</small>
           </div>
           <div>
-            <small>फोन: ${customer.phone || '-'}</small>
+            <small>${isEn ? 'Phone' : 'फोन'}: ${customer.phone || '-'}</small>
           </div>
         </div>
 
         <table>
           <thead>
             <tr>
-              <th>तारीख</th>
-              <th>विवरण</th>
-              <th>सामान</th>
-              <th style="text-align: right;">रकम</th>
+              <th>${isEn ? 'Date' : 'तारीख'}</th>
+              <th>${isEn ? 'Type' : 'विवरण'}</th>
+              <th>${isEn ? 'Items' : 'सामान'}</th>
+              <th style="text-align: right;">${isEn ? 'Amount' : 'रकम'}</th>
             </tr>
           </thead>
           <tbody>
@@ -148,7 +164,7 @@ export function printCustomerStatement(
         </table>
 
         <div class="total-box">
-          <span style="font-size: 14px; font-weight: bold;">कुल बकाया उधार:</span>
+          <span style="font-size: 14px; font-weight: bold;">${isEn ? 'Total Balance Owed:' : 'कुल बकाया उधार:'}</span>
           <div class="total-amount">${formatINR(customer.balance_owed)}</div>
         </div>
 

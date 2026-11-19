@@ -110,7 +110,7 @@ export const DisambiguationModal: React.FC<DisambiguationModalProps> = ({
                   <span className="text-sm font-black text-owed block">
                     {formatINR(cust.balance_owed)}
                   </span>
-                  <span className="text-[10px] text-slate-400 font-semibold">उधार बाकी</span>
+                  <span className="text-[10px] text-slate-400 font-semibold">{t.ledger.customerBalanceOwed}</span>
                 </div>
               </motion.button>
             ))}
@@ -119,7 +119,7 @@ export const DisambiguationModal: React.FC<DisambiguationModalProps> = ({
           {/* Spoken voice prompt hint */}
           <p className="text-xs text-center text-slate-500 mt-5 font-semibold flex items-center justify-center">
             <Sparkles className="w-3.5 h-3.5 mr-1 text-accent" />
-            <span>आप बोल भी सकते हैं: "पहला वाला" या "शर्मा जी"</span>
+            <span>{t.disambiguation.voiceHint}</span>
           </p>
         </motion.div>
       </div>

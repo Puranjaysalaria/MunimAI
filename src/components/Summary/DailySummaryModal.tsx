@@ -3,7 +3,7 @@ import { DailySummaryMetrics } from '../../lib/stockAnalytics';
 import { formatINR } from '../../lib/utils';
 import { triggerHaptic } from '../../lib/sound';
 import { speechSynthesizer } from '../../tts/speechSynthesizer';
-import { LanguageCode } from '../../i18n';
+import { LanguageCode, useI18n } from '../../i18n';
 import {
   X,
   Volume2,
@@ -30,6 +30,8 @@ export const DailySummaryModal: React.FC<DailySummaryModalProps> = ({
   spokenText,
   language,
 }) => {
+  const { t } = useI18n();
+
   if (!isOpen) return null;
 
   const handleSpeak = () => {
@@ -39,22 +41,30 @@ export const DailySummaryModal: React.FC<DailySummaryModalProps> = ({
 
   const handleShare = () => {
     triggerHaptic('start');
-    const today = new Date().toLocaleDateString('hi-IN', {
+    const today = new Date().toLocaleDateString(language === 'en' ? 'en-IN' : 'hi-IN', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
     });
-    const shareText = `📊 *मुनीम AI - आज का हिसाब (${today})*\n\n` +
-      `💰 कुल नकद बिक्री: ${formatINR(summary.totalSales)}\n` +
-      `🔴 नया उधार दिया: ${formatINR(summary.creditGiven)}\n` +
-      `🟢 पुराना उधार मिला: ${formatINR(summary.cashCollected)}\n` +
-      `🧾 दुकान का खर्च: ${formatINR(summary.expenses)}\n` +
-      `✨ *अनुमानित मुनाफ़ा: ${formatINR(summary.estimatedProfit)}*\n\n` +
-      `कुल सौदे: ${summary.transactionCount}`;
+    const isEn = language === 'en';
+    const isPa = language === 'pa';
+    const title = isEn
+      ? `📊 *Munim AI - Daily Business Report (${today})*`
+      : isPa
+      ? `📊 *ਮੁਨੀਮ AI - ਅੱਜ ਦਾ ਹਿਸਾਬ (${today})*`
+      : `📊 *मुनीम AI - आज का हिसाब (${today})*`;
+
+    const shareText = `${title}\n\n` +
+      `💰 ${t.today.cashSaleLabel}: ${formatINR(summary.totalSales)}\n` +
+      `🔴 ${t.today.creditGiven}: ${formatINR(summary.creditGiven)}\n` +
+      `🟢 ${t.today.cashCollected}: ${formatINR(summary.cashCollected)}\n` +
+      `🧾 ${t.today.shopExpenseLabel}: ${formatINR(summary.expenses)}\n` +
+      `✨ *${t.summary.dailyNetProfit}: ${formatINR(summary.estimatedProfit)}*\n\n` +
+      `${t.today.totalDeals}: ${summary.transactionCount}`;
 
     if (navigator.share) {
       navigator.share({
-        title: 'आज का दैनिक हिसाब',
+        title: t.today.title,
         text: shareText,
       }).catch(() => {});
     } else {
@@ -73,10 +83,10 @@ export const DailySummaryModal: React.FC<DailySummaryModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-black text-app-text">
-                आज का पूरा हिसाब
+                {t.today.title}
               </h2>
               <p className="text-xs text-app-muted">
-                {summary.transactionCount} लेन-देन दर्ज हुए
+                {summary.transactionCount} {t.today.totalDeals}
               </p>
             </div>
           </div>
@@ -94,21 +104,21 @@ export const DailySummaryModal: React.FC<DailySummaryModalProps> = ({
         <div className="bg-primary text-white rounded-2xl p-4 shadow-card">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-emerald-200 uppercase tracking-wider">
-              दैनिक शुद्ध मुनाफ़ा
+              {t.summary.dailyNetProfit}
             </span>
             <button
               onClick={handleSpeak}
               className="px-2.5 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-bold flex items-center space-x-1 active:scale-95"
             >
               <Volume2 className="w-3.5 h-3.5 text-accent" />
-              <span>सुनें</span>
+              <span>{t.summary.listen}</span>
             </button>
           </div>
           <div className="text-3xl font-black mt-1 text-white">
             {formatINR(summary.estimatedProfit)}
           </div>
           <p className="text-[11px] text-emerald-100 mt-1">
-            लागत घटाने और 15% अनुमानित मार्जिन के बाद
+            {t.summary.marginSub}
           </p>
         </div>
 
@@ -117,7 +127,7 @@ export const DailySummaryModal: React.FC<DailySummaryModalProps> = ({
           {/* Total Sales */}
           <div className="bg-gray-50 rounded-2xl p-3 border border-gray-100">
             <div className="flex items-center justify-between text-xs text-app-muted font-bold">
-              <span>नकद बिक्री</span>
+              <span>{t.today.cashSaleLabel}</span>
               <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
             </div>
             <p className="text-xl font-black text-emerald-700 mt-1">
@@ -128,7 +138,7 @@ export const DailySummaryModal: React.FC<DailySummaryModalProps> = ({
           {/* Credit Given */}
           <div className="bg-red-50/50 rounded-2xl p-3 border border-red-100">
             <div className="flex items-center justify-between text-xs text-app-muted font-bold">
-              <span>उधार दिया</span>
+              <span>{t.today.creditGiven}</span>
               <ArrowUpRight className="w-3.5 h-3.5 text-owed" />
             </div>
             <p className="text-xl font-black text-owed mt-1">
@@ -139,7 +149,7 @@ export const DailySummaryModal: React.FC<DailySummaryModalProps> = ({
           {/* Cash Collected */}
           <div className="bg-emerald-50/50 rounded-2xl p-3 border border-emerald-100">
             <div className="flex items-center justify-between text-xs text-app-muted font-bold">
-              <span>उधार लौटा</span>
+              <span>{t.today.cashCollected}</span>
               <ArrowDownLeft className="w-3.5 h-3.5 text-received" />
             </div>
             <p className="text-xl font-black text-received mt-1">
@@ -150,7 +160,7 @@ export const DailySummaryModal: React.FC<DailySummaryModalProps> = ({
           {/* Expenses */}
           <div className="bg-amber-50/50 rounded-2xl p-3 border border-amber-100">
             <div className="flex items-center justify-between text-xs text-app-muted font-bold">
-              <span>दुकान खर्च</span>
+              <span>{t.today.shopExpenseLabel}</span>
               <Receipt className="w-3.5 h-3.5 text-amber-600" />
             </div>
             <p className="text-xl font-black text-amber-700 mt-1">
@@ -166,7 +176,7 @@ export const DailySummaryModal: React.FC<DailySummaryModalProps> = ({
             className="touch-target-64 flex-1 py-3 bg-accent hover:bg-accent-hover text-app-text font-black text-xs rounded-xl shadow-md active:scale-95 flex items-center justify-center space-x-2"
           >
             <Volume2 className="w-4 h-4" />
-            <span>फिर से बोलें (Voice)</span>
+            <span>{t.summary.speakAgain}</span>
           </button>
 
           <button
@@ -174,7 +184,7 @@ export const DailySummaryModal: React.FC<DailySummaryModalProps> = ({
             className="touch-target-64 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs rounded-xl active:scale-95 flex items-center justify-center space-x-1"
           >
             <Share2 className="w-4 h-4" />
-            <span>साझा करें</span>
+            <span>{t.summary.share}</span>
           </button>
         </div>
       </div>

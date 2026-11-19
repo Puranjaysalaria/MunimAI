@@ -75,14 +75,98 @@ export const Home: React.FC<HomeProps> = ({
     onStartVoice();
   };
 
-  // Curated quick voice prompts
-  const quickPrompts = [
-    { icon: '⚡', label: 'रमेश को ₹500 उधार', prompt: 'रमेश को 500 का उधार लिख दो' },
-    { icon: '🥛', label: '2 पैकेट दूध और चीनी', prompt: '2 पैकेट दूध और 1 किलो चीनी नकद' },
-    { icon: '💰', label: 'सुनीता से ₹350 जमा', prompt: 'सुनीता ने 350 रुपये जमा किए' },
-    { icon: '📊', label: 'आज की कुल कमाई', prompt: 'आज की कमाई बताओ' },
-    { icon: '📦', label: 'स्टॉक चेक करें', prompt: 'स्टॉक दिखाओ' },
-  ];
+  // Curated quick voice prompts localized dynamically
+  const quickPrompts = React.useMemo(() => {
+    if (language === 'en') {
+      return [
+        { icon: '⚡', label: 'Ramesh ₹500 Udhaar', prompt: 'Ramesh ko 500 ka udhaar likh do' },
+        { icon: '🥛', label: '2 Packets Milk & Sugar', prompt: '2 packet doodh aur 1 kilo chini cash' },
+        { icon: '💰', label: 'Sunita ₹350 Payment', prompt: 'Sunita ne 350 rupaye jama kiye' },
+        { icon: '📊', label: "Today's Total Sales", prompt: 'Aaj ki kamai batao' },
+        { icon: '📦', label: 'Check Stock', prompt: 'Stock dikhao' },
+      ];
+    }
+    if (language === 'pa') {
+      return [
+        { icon: '⚡', label: 'ਰਮੇਸ਼ ਨੂੰ ₹500 ਉਧਾਰ', prompt: 'ਰਮੇਸ਼ ਨੂੰ 500 ਰੁਪਏ ਉਧਾਰ ਲਿਖ ਦਿਓ' },
+        { icon: '🥛', label: '2 ਪੈਕੇਟ ਦੁੱਧ ਤੇ ਖੰਡ', prompt: '2 ਪੈਕੇਟ ਦੁੱਧ ਅਤੇ 1 ਕਿਲੋ ਖੰਡ ਨਕਦ' },
+        { icon: '💰', label: 'ਸੁਨੀਤਾ ਤੋਂ ₹350 ਜਮ੍ਹਾ', prompt: 'ਸੁਨੀਤਾ ਨੇ 350 ਰੁਪਏ ਜਮ੍ਹਾ ਕਰਵਾਏ' },
+        { icon: '📊', label: 'ਅੱਜ ਦੀ ਕੁੱਲ ਕਮਾਈ', prompt: 'ਅੱਜ ਦੀ ਕਮਾਈ ਦੱਸੋ' },
+        { icon: '📦', label: 'ਸਟਾਕ ਚੈੱਕ ਕਰੋ', prompt: 'ਸਟਾਕ ਦਿਖਾਓ' },
+      ];
+    }
+    if (language === 'gu') {
+      return [
+        { icon: '⚡', label: 'રમેશને ₹500 ઉધાર', prompt: 'રમેશને 500 નું ઉધાર લખી દો' },
+        { icon: '🥛', label: '2 પેકેટ દૂધ અને ખાંડ', prompt: '2 પેકેટ દૂધ અને 1 કિલો ખાંડ રોકડ' },
+        { icon: '💰', label: 'સુનીતા પાસેથી ₹350 જમા', prompt: 'સુનીતાએ 350 રૂપિયા જમા કર્યા' },
+        { icon: '📊', label: 'આજની કમાણી', prompt: 'આજની કમાણી બતાવો' },
+        { icon: '📦', label: 'સ્ટોક તપાસો', prompt: 'સ્ટોક બતાવો' },
+      ];
+    }
+    if (language === 'mr') {
+      return [
+        { icon: '⚡', label: 'रमेशला ₹500 उधार', prompt: 'रमेशला 500 रुपये उधार लिहून घ्या' },
+        { icon: '🥛', label: '2 पॅकेट दूध आणि साखर', prompt: '2 पॅकेट दूध आणि 1 किलो साखर रोख' },
+        { icon: '💰', label: 'सुनीताकडून ₹350 जमा', prompt: 'सुनीताने 350 रुपये जमा केले' },
+        { icon: '📊', label: 'आजची एकूण कमाई', prompt: 'आजची कमाई सांगा' },
+        { icon: '📦', label: 'स्टॉक तपासा', prompt: 'स्टॉक दाखवा' },
+      ];
+    }
+    if (language === 'bn') {
+      return [
+        { icon: '⚡', label: 'রমেশকে ₹500 বাকি', prompt: 'রমেশের নামে ৫০০ টাকা বাকি লিখুন' },
+        { icon: '🥛', label: '২ প্যাকেট দুধ ও চিনি', prompt: '২ প্যাকেট দুধ ও ১ কেজি চিনি নগদ' },
+        { icon: '💰', label: 'সুনীতা ₹350 জমা', prompt: 'সুনীতা ৩৫০ টাকা জমা দিয়েছেন' },
+        { icon: '📊', label: 'আজকের মোট বিক্রি', prompt: 'আজকের মোট বিক্রি কত' },
+        { icon: '📦', label: 'মজুদ স্টক দেখুন', prompt: 'স্টক দেখাও' },
+      ];
+    }
+    if (language === 'ta') {
+      return [
+        { icon: '⚡', label: 'ரமேஷ் ₹500 கடன்', prompt: 'ரமேஷுக்கு 500 ரூபாய் கடன் எழுது' },
+        { icon: '🥛', label: '2 பாக்கெட் பால் & சர்க்கரை', prompt: '2 பாக்கெட் பால் 1 கிலோ சர்க்கரை ரொக்கம்' },
+        { icon: '💰', label: 'சுனிதா ₹350 வரவு', prompt: 'சுனிதா 350 ரூபாய் கொடுத்தார்' },
+        { icon: '📊', label: 'இன்றைய விற்பனை', prompt: 'இன்றைய விற்பனை எவ்வளவு' },
+        { icon: '📦', label: 'இருப்பு சரிபார்', prompt: 'ஸ்டாக் காட்டு' },
+      ];
+    }
+    if (language === 'te') {
+      return [
+        { icon: '⚡', label: 'రమేష్ ₹500 అప్పు', prompt: 'రమేష్‌కు 500 రూపాయల అప్పు రాయి' },
+        { icon: '🥛', label: '2 ప్యాకెట్ల పాలు & చక్కెర', prompt: '2 ప్యాకెట్ల పాలు 1 కిలో చక్కెర నగదు' },
+        { icon: '💰', label: 'సునీత ₹350 జమ', prompt: 'సునీత 350 రూపాయలు చెల్లించింది' },
+        { icon: '📊', label: 'నేటి మొత్తం అమ్మకాలు', prompt: 'నేటి అమ్మకాలు ఎంత' },
+        { icon: '📦', label: 'స్టాక్ చూడండి', prompt: 'స్టాక్ చూపించు' },
+      ];
+    }
+    if (language === 'kn') {
+      return [
+        { icon: '⚡', label: 'ರಮೇಶ್ ₹500 ಸಾಲ', prompt: 'ರಮೇಶ್‌ಗೆ 500 ರೂಪಾಯಿ ಸಾಲ ಬರೆ' },
+        { icon: '🥛', label: '2 ಪ್ಯಾಕೆಟ್ ಹಾಲು & ಸಕ್ಕರೆ', prompt: '2 ಪ್ಯಾಕೆಟ್ ಹಾಲು 1 ಕೆಜಿ ಸಕ್ಕರೆ ನಗದು' },
+        { icon: '💰', label: 'ಸುನೀತಾ ₹350 ಜಮೆ', prompt: 'ಸುನೀತಾ 350 ರೂಪಾಯಿ ಜಮೆ ಮಾಡಿದರು' },
+        { icon: '📊', label: 'ಇಂದಿನ ಒಟ್ಟು ಗಳಿಕೆ', prompt: 'ಇಂದಿನ ಗಳಿಕೆ ಎಷ್ಟು' },
+        { icon: '📦', label: 'ಸ್ಟಾಕ್ ಪರಿಶೀಲಿಸಿ', prompt: 'ಸ್ಟಾಕ್ ತೋರಿಸಿ' },
+      ];
+    }
+    if (language === 'ml') {
+      return [
+        { icon: '⚡', label: 'രമേശ് ₹500 കടം', prompt: 'രമേശിന് 500 രൂപ കടം എഴുതുക' },
+        { icon: '🥛', label: '2 പാക്കറ്റ് പാൽ & പഞ്ചസാര', prompt: '2 പാക്കറ്റ് പാലും 1 കിലോ പഞ്ചസാരയും ക്യാഷ്' },
+        { icon: '💰', label: 'സുനിത ₹350 അടച്ചു', prompt: 'സുനിത 350 രൂപ അടച്ചു' },
+        { icon: '📊', label: 'ഇന്നത്തെ വിൽപ്പന', prompt: 'ഇന്നത്തെ വരുമാനം പറയൂ' },
+        { icon: '📦', label: 'സ്റ്റോക്ക് പരിശോധിക്കുക', prompt: 'സ്റ്റോക്ക് കാണിക്കുക' },
+      ];
+    }
+    // Hindi default
+    return [
+      { icon: '⚡', label: 'रमेश को ₹500 उधार', prompt: 'रमेश को 500 का उधार लिख दो' },
+      { icon: '🥛', label: '2 पैकेट दूध और चीनी', prompt: '2 पैकेट दूध और 1 किलो चीनी नकद' },
+      { icon: '💰', label: 'सुनीता से ₹350 जमा', prompt: 'सुनीता ने 350 रुपये जमा किए' },
+      { icon: '📊', label: 'आज की कुल कमाई', prompt: 'आज की कमाई बताओ' },
+      { icon: '📦', label: 'स्टॉक चेक करें', prompt: 'स्टॉक दिखाओ' },
+    ];
+  }, [language]);
 
   // Recent 6 transactions
   const recentTxs = transactions.slice(0, 6);
@@ -319,7 +403,7 @@ export const Home: React.FC<HomeProps> = ({
               >
                 <div className="text-left pr-2">
                   <p className="text-xs font-bold text-owed">{errorMessage}</p>
-                  <p className="text-[10px] text-rose-600 font-medium">साफ़ आवाज़ में दोबारा बोलें</p>
+                  <p className="text-[10px] text-rose-600 font-medium">{t.home.speakClearlyAgain}</p>
                 </div>
                 <motion.button
                   whileTap={{ scale: 0.92 }}

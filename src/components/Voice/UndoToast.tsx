@@ -37,7 +37,7 @@ export const UndoToast: React.FC<UndoToastProps> = ({
             </div>
             <div className="truncate">
               <p className="text-xs font-black text-white truncate">
-                {formatINR(lastTransaction.amount)} दर्ज हुआ
+                {formatINR(lastTransaction.amount)} ({t.confirmCard.saved})
               </p>
               <p className="text-[11px] text-slate-400 font-medium truncate mt-0.5">
                 {lastTransaction.voice_transcript || lastTransaction.type}

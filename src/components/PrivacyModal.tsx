@@ -1,5 +1,6 @@
 import React from 'react';
 import { Shield, Lock, FileText, Trash2, X, CheckCircle } from 'lucide-react';
+import { useI18n } from '../i18n';
 
 interface PrivacyModalProps {
   isOpen: boolean;
@@ -7,6 +8,8 @@ interface PrivacyModalProps {
 }
 
 export const PrivacyModal: React.FC<PrivacyModalProps> = ({ isOpen, onClose }) => {
+  const { t } = useI18n();
+
   if (!isOpen) return null;
 
   return (
@@ -17,7 +20,7 @@ export const PrivacyModal: React.FC<PrivacyModalProps> = ({ isOpen, onClose }) =
             <div className="p-2 bg-emerald-100 text-primary rounded-xl">
               <Shield className="w-5 h-5" />
             </div>
-            <h2 className="text-lg font-bold text-app-text">गोपनीयता और डेटा सुरक्षा नीति</h2>
+            <h2 className="text-lg font-bold text-app-text">{t.privacyModal.title}</h2>
           </div>
           <button
             onClick={onClose}
@@ -32,40 +35,40 @@ export const PrivacyModal: React.FC<PrivacyModalProps> = ({ isOpen, onClose }) =
           <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 space-y-1">
             <p className="font-bold text-sm text-primary flex items-center">
               <Lock className="w-4 h-4 mr-1.5" />
-              1. डेटा अलगाव और सुरक्षा (Data Isolation)
+              {t.privacyModal.section1Title}
             </p>
             <p className="text-app-muted">
-              आपकी दुकान का खाता सिर्फ आपका है। Postgres Row-Level Security (RLS) नीतियों द्वारा एक दुकान का डेटा किसी दूसरी दुकान को कभी नहीं दिखता।
+              {t.privacyModal.section1Desc}
             </p>
           </div>
 
           <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 space-y-1">
             <p className="font-bold text-sm text-amber-900 flex items-center">
               <FileText className="w-4 h-4 mr-1.5" />
-              2. ग्राहक की आवाज़ का सबूत (Audio Proof Consent)
+              {t.privacyModal.section2Title}
             </p>
             <p className="text-app-muted">
-              ग्राहक की सहमति के बिना कोई ऑडियो रिकॉर्ड नहीं होता। उधार दर्ज करने के बाद ग्राहक की स्पष्ट स्वीकृति ("हाँ, ₹... मेरे नाम लिख दो") केवल 5 सेकंड के लिए रिकॉर्ड की जाती है।
+              {t.privacyModal.section2Desc}
             </p>
           </div>
 
           <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 space-y-1">
             <p className="font-bold text-sm text-emerald-800 flex items-center">
               <CheckCircle className="w-4 h-4 mr-1.5" />
-              3. प्राइवेट स्टोरेज और हस्ताक्षरित यूआरएल (Signed URLs)
+              {t.privacyModal.section3Title}
             </p>
             <p className="text-app-muted">
-              सभी सबूत प्राइवेट स्टोरेज बकेट में सुरक्षित रहते हैं। कोई भी ऑडियो क्लिप पब्लिक नहीं होती; इसे केवल दुकान मालिक टाइम-लिमिटेड हस्ताक्षरित लिंक (Signed URL) से सुन सकता है।
+              {t.privacyModal.section3Desc}
             </p>
           </div>
 
           <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 space-y-1">
             <p className="font-bold text-sm text-owed flex items-center">
               <Trash2 className="w-4 h-4 mr-1.5" />
-              4. रिकॉर्डिंग हटाने का अधिकार (Right to Delete)
+              {t.privacyModal.section4Title}
             </p>
             <p className="text-app-muted">
-              दुकानदार किसी भी समय ग्राहक की पुरानी ऑडियो क्लिप को खाते से हमेशा के लिए हटा सकता है।
+              {t.privacyModal.section4Desc}
             </p>
           </div>
         </div>
@@ -75,7 +78,7 @@ export const PrivacyModal: React.FC<PrivacyModalProps> = ({ isOpen, onClose }) =
             onClick={onClose}
             className="touch-target-64 w-full bg-primary hover:bg-primary-dark text-white font-bold rounded-xl shadow-md active:scale-95 flex items-center justify-center"
           >
-            समझ गया
+            {t.privacyModal.understood}
           </button>
         </div>
       </div>

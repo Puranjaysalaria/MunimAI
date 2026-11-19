@@ -84,7 +84,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
           {/* Shop Details */}
           <div>
             <label className="block text-sm font-bold text-app-text mb-1">
-              {t.settings.shopDetails} (नाम)
+              {t.settings.shopNameLabel}
             </label>
             <input
               type="text"
@@ -97,7 +97,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
           {/* UPI ID */}
           <div>
             <label className="block text-sm font-bold text-app-text mb-1">
-              {t.settings.upiId} (उधार तगादा के लिए)
+              {t.settings.upiIdLabel}
             </label>
             <input
               type="text"
@@ -107,7 +107,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
               className="w-full px-4 py-3 rounded-xl border border-gray-300 font-mono focus:outline-none focus:ring-2 focus:ring-primary"
             />
             <p className="text-xs text-app-muted mt-1">
-              यह UPI ID ग्राहक को भेजे जाने वाले पेमेंट लिंक में जुड़ेगी।
+              {t.settings.upiHelpText}
             </p>
           </div>
 
@@ -115,7 +115,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
           <div>
             <label className="block text-sm font-bold text-app-text mb-1 flex items-center">
               <Lock className="w-4 h-4 mr-1.5 text-primary" />
-              4-अंकों का ऐप लॉक PIN
+              {t.settings.appLockPin}
             </label>
             <input
               type="password"
@@ -131,7 +131,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
           <div>
             <label className="block text-sm font-bold text-app-text mb-2 flex items-center">
               <UserCheck className="w-4 h-4 mr-1.5 text-primary" />
-              उपयोगकर्ता भूमिका (User Role)
+              {t.settings.userRole}
             </label>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -143,7 +143,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                     : 'border-gray-200 bg-gray-50 text-gray-700'
                 }`}
               >
-                👑 दुकानदार (Owner)
+                {t.settings.ownerRole}
               </button>
               <button
                 type="button"
@@ -154,12 +154,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                     : 'border-gray-200 bg-gray-50 text-gray-700'
                 }`}
               >
-                🧑‍💼 सहायक (Staff)
+                {t.settings.staffRole}
               </button>
             </div>
             {user?.role === 'staff' && (
               <p className="text-[11px] text-amber-700 mt-1">
-                स्टाफ मोड सक्रिय: बिक्री व उधार दर्ज कर सकते हैं, पर लागत व शुद्ध मुनाफा गुप्त रहेगा।
+                {t.settings.staffModeActive}
               </p>
             )}
           </div>
@@ -176,9 +176,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
           >
             <Shield className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-bold text-app-text">{t.settings.privacy} नीति देखें</p>
+              <p className="font-bold text-app-text">{t.settings.viewPrivacyPolicy}</p>
               <p className="mt-0.5">
-                दुकान का डेटा निजी है। ग्राहक की आवाज केवल सहमति के साथ 5 सेकंड रिकॉर्ड होती है।
+                {t.settings.privacySub}
               </p>
             </div>
           </div>
@@ -192,10 +192,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
               {savedNotice ? (
                 <>
                   <Check className="w-5 h-5 text-accent" />
-                  <span>सुरक्षित हुआ!</span>
+                  <span>{t.settings.savedNotice}</span>
                 </>
               ) : (
-                <span>सेटिंग्स सुरक्षित करें</span>
+                <span>{t.settings.saveSettings}</span>
               )}
             </button>
 

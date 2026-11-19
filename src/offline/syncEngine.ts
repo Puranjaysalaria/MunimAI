@@ -102,7 +102,9 @@ export function announceSyncSuccess(count: number, language: LanguageCode): void
   playAudioCue('success');
 
   const voiceMsg =
-    language === 'pa'
+    language === 'en'
+      ? `Internet connection restored. ${count} transactions synchronized.`
+      : language === 'pa'
       ? `ਇੰਟਰਨੈੱਟ ਵਾਪਸ ਆ ਗਿਆ। ${count} ਸੌਦੇ ਸੁਰੱਖਿਅਤ ਸਿੰਕ ਹੋ ਗਏ ਹਨ।`
       : `इंटरनेट वापस आ गया। ${count} सौदे सर्वर पर सिंक हो गए हैं।`;
 

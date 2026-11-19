@@ -4,7 +4,7 @@ import { DraftReminder, buildDraftReminders } from '../../lib/reminderService';
 import { formatINR } from '../../lib/utils';
 import { triggerHaptic, playAudioCue } from '../../lib/sound';
 import { speechSynthesizer } from '../../tts/speechSynthesizer';
-import { LanguageCode } from '../../i18n';
+import { LanguageCode, useI18n } from '../../i18n';
 import {
   X,
   Bell,
@@ -37,6 +37,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
   language,
   onReminderSent,
 }) => {
+  const { t } = useI18n();
   const [sentMap, setSentMap] = useState<Record<string, boolean>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -80,7 +81,9 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
 
     // Speak confirmation
     const confirmVoice =
-      language === 'pa'
+      language === 'en'
+        ? `Reminders sent to all ${draftReminders.length} customers.`
+        : language === 'pa'
         ? `ਕੁੱਲ ${draftReminders.length} ਗਾਹਕਾਂ ਨੂੰ ਯਾਦ-ਪੱਤਰ ਭੇਜ ਦਿੱਤਾ ਗਿਆ ਹੈ`
         : `कुल ${draftReminders.length} ग्राहकों को तगादा मैसेज भेज दिया गया है`;
     speechSynthesizer.speak(confirmVoice, language);
@@ -105,10 +108,12 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-black text-app-text">
-                उधार तगादा (Reminders)
+                {t.reminders.title}
               </h2>
               <p className="text-xs text-app-muted">
-                ₹{thresholdAmount} से अधिक बाकी वाले {draftReminders.length} ग्राहक
+                {t.reminders.eligibleCountSuffix
+                  .replace('{amount}', String(thresholdAmount))
+                  .replace('{count}', String(draftReminders.length))}
               </p>
             </div>
           </div>
@@ -126,7 +131,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
         <div className="bg-red-50/60 border border-red-200 rounded-2xl p-3 my-3 flex items-center justify-between">
           <div>
             <span className="text-[10px] uppercase font-bold text-owed tracking-wider">
-              कुल वसूली योग्य रकम
+              {t.reminders.totalRecoverable}
             </span>
             <p className="text-2xl font-black text-owed mt-0.5">
               {formatINR(totalOwed)}
@@ -134,7 +139,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
           </div>
           <div className="text-right">
             <span className="text-xs bg-white px-2.5 py-1 rounded-full font-bold text-gray-700 shadow-xs">
-              {sentCount}/{draftReminders.length} भेजे गए
+              {sentCount}/{draftReminders.length} {t.reminders.sentLabel}
             </span>
           </div>
         </div>
@@ -143,7 +148,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
         <div className="flex-1 overflow-y-auto space-y-3 pr-1">
           {draftReminders.length === 0 ? (
             <div className="text-center py-12 text-app-muted text-xs">
-              ₹{thresholdAmount} से अधिक किसी ग्राहक का उधार बाकी नहीं है। बहुत बढ़िया!
+              {t.reminders.allSettled}
             </div>
           ) : (
             draftReminders.map((draft) => {
@@ -169,7 +174,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                       </div>
                       <p className="text-xs text-app-muted flex items-center mt-0.5">
                         <Phone className="w-3 h-3 mr-1 text-gray-400" />
-                        {draft.customer.phone || 'फोन नंबर नहीं है'}
+                        {draft.customer.phone || (language === 'en' ? 'No phone' : language === 'pa' ? 'ਫ਼ੋਨ ਨੰਬਰ ਨਹੀਂ ਹੈ' : 'फोन नंबर नहीं है')}
                         {draft.customer.address_note && ` • ${draft.customer.address_note}`}
                       </p>
                     </div>
@@ -185,14 +190,22 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                   <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
                     <span className="text-[11px] text-app-muted flex items-center">
                       <CreditCard className="w-3 h-3 mr-1 text-primary" />
-                      UPI लिंक संलग्न है
+                      {t.reminders.upiIncluded}
                     </span>
 
                     <button
                       onClick={() => setExpandedId(isExpanded ? null : draft.customer.id)}
                       className="text-primary font-bold text-xs flex items-center space-x-0.5"
                     >
-                      <span>{isExpanded ? 'संदेश छुपाएं' : 'संदेश देखें'}</span>
+                      <span>
+                        {isExpanded
+                          ? language === 'en'
+                            ? 'Hide Message'
+                            : 'संदेश छुपाएं'
+                          : language === 'en'
+                          ? 'View Message'
+                          : 'संदेश देखें'}
+                      </span>
                       {isExpanded ? (
                         <ChevronUp className="w-3.5 h-3.5" />
                       ) : (
@@ -221,12 +234,12 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                       {isSent ? (
                         <>
                           <CheckCircle className="w-4 h-4 text-emerald-700" />
-                          <span>भेज दिया गया</span>
+                          <span>{t.reminders.sentLabel}</span>
                         </>
                       ) : (
                         <>
                           <MessageCircle className="w-4 h-4" />
-                          <span>WhatsApp पर भेजें</span>
+                          <span>{t.reminders.sendWhatsApp}</span>
                         </>
                       )}
                     </button>
@@ -234,7 +247,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                     <button
                       onClick={() => handleSendSMS(draft)}
                       className="touch-target-64 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-xs active:scale-95 flex items-center justify-center"
-                      title="SMS भेजें"
+                      title="SMS"
                     >
                       <Share2 className="w-4 h-4" />
                     </button>
@@ -253,10 +266,14 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
               className="touch-target-64 w-full py-3 bg-accent hover:bg-accent-hover text-app-text font-black text-sm rounded-2xl shadow-md active:scale-95 flex items-center justify-center space-x-2"
             >
               <Send className="w-4 h-4" />
-              <span>सभी {draftReminders.length} ग्राहकों को भेजें (Send All)</span>
+              <span>{t.reminders.sendAllButton}</span>
             </button>
             <p className="text-[11px] text-center text-app-muted">
-              आवाज़ से भेजने के लिए बोलें: <strong>"भेज दो"</strong>
+              {language === 'en'
+                ? 'Or speak: "Send all reminders"'
+                : language === 'pa'
+                ? 'ਬੋਲੋ: "ਸਭ ਨੂੰ ਭੇਜ ਦਿਓ"'
+                : 'बोलें: "सबको तगादा भेज दो"'}
             </p>
           </div>
         )}

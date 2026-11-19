@@ -86,7 +86,7 @@ export const Ledger: React.FC<LedgerProps> = ({
   };
 
   const handleDeleteProof = (txId: string) => {
-    if (confirm('क्या आप ग्राहक की यह आवाज़ रिकॉर्डिंग हटाना चाहते हैं?')) {
+    if (confirm(t.ledger.deleteProofConfirm)) {
       triggerHaptic('stop');
       playAudioCue('cancel');
       attachProofClip(txId, '');
@@ -197,7 +197,7 @@ export const Ledger: React.FC<LedgerProps> = ({
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => printCustomerStatement(cust, transactions, shop)}
+            onClick={() => printCustomerStatement(cust, transactions, shop, language)}
             className={`touch-target-64 py-2.5 px-3 bg-gray-100 hover:bg-gray-200 text-slate-800 font-black text-xs rounded-2xl flex items-center justify-center space-x-1.5 border border-gray-200 shadow-xs ${
               cust.balance_owed > 0 ? '' : 'col-span-2'
             }`}

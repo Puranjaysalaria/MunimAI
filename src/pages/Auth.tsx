@@ -5,7 +5,7 @@ import { KeyRound, Sparkles, ArrowRight, ShieldCheck, Mail, Lock, Store, User, L
 
 export const Auth: React.FC = () => {
   const { loginWithSupabase, signUpWithSupabase, loginDemo } = useShop();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('shopkeeper@munimai.com');
@@ -19,7 +19,7 @@ export const Auth: React.FC = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      setError('कृपया ईमेल और पासवर्ड दोनों दर्ज करें');
+      setError(t.auth.errEmailPasswordRequired);
       return;
     }
 
@@ -30,18 +30,18 @@ export const Auth: React.FC = () => {
     setLoading(false);
 
     if (!res.success) {
-      setError(res.error || 'गलत ईमेल या पासवर्ड। कृपया दोबारा जांचें।');
+      setError(res.error || t.auth.errInvalidCredentials);
     }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password || !shopName) {
-      setError('कृपया दुकान का नाम, ईमेल और पासवर्ड दर्ज करें');
+      setError(t.auth.errRegisterRequired);
       return;
     }
     if (password.length < 6) {
-      setError('पासवर्ड कम से कम 6 अक्षरों का होना चाहिए');
+      setError(t.auth.errPasswordMinLength);
       return;
     }
 
@@ -52,7 +52,7 @@ export const Auth: React.FC = () => {
     setLoading(false);
 
     if (!res.success) {
-      setError(res.error || 'पंजीकरण विफल। कृपया दोबारा प्रयास करें।');
+      setError(res.error || t.auth.errRegisterFailed);
     }
   };
 
@@ -81,7 +81,9 @@ export const Auth: React.FC = () => {
           {/* Top Brand identity */}
           <div className="relative z-10 text-center lg:text-left">
             <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-white/10 backdrop-blur-md border border-white/20 text-white shadow-xl mb-3">
-              <span className="text-3xl sm:text-4xl font-extrabold tracking-tight">मु</span>
+              <span className="text-3xl sm:text-4xl font-extrabold tracking-tight">
+                {language === 'en' ? 'M' : 'मु'}
+              </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">{t.auth.loginTitle}</h1>
             <p className="text-emerald-100 text-sm sm:text-base mt-1 font-medium">{t.auth.loginSubtitle}</p>

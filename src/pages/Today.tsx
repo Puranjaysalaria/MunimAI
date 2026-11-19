@@ -281,10 +281,7 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
                     {formatINR(tx.amount)}
                   </p>
                   <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
-                    {formatRelativeTime(
-                      tx.created_at,
-                      language === 'pa' ? 'pa' : language === 'en' ? 'en' : 'hi'
-                    )}
+                    {formatRelativeTime(tx.created_at, language)}
                   </p>
                 </div>
               </motion.div>

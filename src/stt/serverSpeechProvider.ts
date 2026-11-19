@@ -69,7 +69,10 @@ export class ServerSpeechProvider implements STTProvider {
           // Fall back gracefully to browser STT or return error
           callbacks.onError({
             code: 'network',
-            message: 'सर्वर STT में त्रुटि। ब्राउज़र से प्रयास करें।',
+            message:
+              options?.language === 'en'
+                ? 'Server speech error. Falling back to browser speech.'
+                : 'सर्वर STT में त्रुटि। ब्राउज़र से प्रयास करें।',
           });
           this.state = 'idle';
           callbacks.onStateChange('idle');
@@ -81,12 +84,18 @@ export class ServerSpeechProvider implements STTProvider {
       if (err.name === 'NotAllowedError') {
         callbacks.onError({
           code: 'not-allowed',
-          message: 'माइक की अनुमति नहीं मिली।',
+          message:
+            options?.language === 'en'
+              ? 'Microphone permission denied.'
+              : 'माइक की अनुमति नहीं मिली।',
         });
       } else {
         callbacks.onError({
           code: 'audio-capture',
-          message: 'माइक चालू करने में त्रुटि।',
+          message:
+            options?.language === 'en'
+              ? 'Error activating microphone.'
+              : 'माइक चालू करने में त्रुटि।',
         });
       }
       this.state = 'idle';
