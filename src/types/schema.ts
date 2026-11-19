@@ -19,6 +19,17 @@ export interface ReminderSettings {
   quiet_hours_end: string;           // default "08:00" (8 AM)
 }
 
+export const DEFAULT_REMINDER_SETTINGS: ReminderSettings = {
+  default_threshold: 1000,
+  message_tone: 'polite',
+  send_channel: 'whatsapp_first_sms_fallback',
+  include_upi_link: true,
+  schedule: 'manual',
+  auto_filter_high_trust: true,
+  quiet_hours_start: '21:00',
+  quiet_hours_end: '08:00',
+};
+
 export interface Shop {
   id: string;
   name: string;

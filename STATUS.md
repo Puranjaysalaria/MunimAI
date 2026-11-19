@@ -17,12 +17,14 @@
   - Daily cap check (1 reminder per customer per day)
   - VIP / high-trust exemption check (customers with no score never exempt)
   - Comprehensive unit test suite (15 new tests, 106 tests total passing)
-- [ ] **Step 3: Reminder Settings Modal (`src/components/Reminders/ReminderSettingsModal.tsx`)**
-  - Threshold chips & custom input
-  - Tone selector with live message preview
-  - WhatsApp first, SMS fallback selector
-  - Quiet hours configuration
-  - Clear text stating schedules only create review prompts and never auto-send
+- [x] **Step 3: Reminder Settings Modal (`src/components/Reminders/ReminderSettingsModal.tsx`)**
+  - Threshold chips & custom input (₹500, ₹1000, ₹2000, ₹5000 + custom)
+  - Tone selector (Polite, Standard, Firm (दृढ़)) with live message preview
+  - WhatsApp first, SMS fallback channel selector (never sends twice)
+  - Quiet hours configuration (default 21:00 to 08:00)
+  - VIP / High-trust exemption toggle (trust score >= 90; unrated customers never exempt)
+  - UPI link toggle with display of existing shop UPI ID (no duplicate field)
+  - Clear text stating schedules only create in-app review prompts and never auto-send
 - [ ] **Step 4: Integration into Modals & Context**
   - Settings gear icon in `RecoveryModal.tsx` header
   - Section in `SettingsModal.tsx`

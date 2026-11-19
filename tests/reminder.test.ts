@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   generateReminderMessage,
-  generateUPILink,
   isQuietHours,
   hasSentReminderToday,
   evaluateCustomerReminderEligibility,
