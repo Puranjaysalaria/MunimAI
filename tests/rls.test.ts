@@ -173,4 +173,27 @@ describe('Row Level Security (RLS) & Multi-Tenant Data Isolation', () => {
     expect(client.select('transactions')).toEqual([]);
     expect(client.select('shops')).toEqual([]);
   });
+
+  it('Customer reminder safety fields (do_not_remind, reminder_tone_override, last_reminded_at) are isolated per shop by RLS', () => {
+    client.addRecord('customers', {
+      id: 'cust-b1',
+      shop_id: shopB,
+      name: 'Pooja Verma',
+      balance_owed: 1800,
+      do_not_remind: true,
+      reminder_tone_override: 'firm',
+      last_reminded_at: new Date().toISOString(),
+    });
+
+    client.setUser(userOwnerA);
+    const shopACustomers = client.select('customers');
+    expect(shopACustomers.some((c) => c.name === 'Pooja Verma')).toBe(false);
+
+    client.setUser(userOwnerB);
+    const shopBCustomers = client.select('customers');
+    const pooja = shopBCustomers.find((c) => c.name === 'Pooja Verma');
+    expect(pooja).toBeDefined();
+    expect(pooja?.do_not_remind).toBe(true);
+    expect(pooja?.reminder_tone_override).toBe('firm');
+  });
 });

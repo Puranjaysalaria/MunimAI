@@ -46,5 +46,10 @@
   - Localized across all 10 language files: Hindi (`hi`), English (`en`), Punjabi (`pa`), Gujarati (`gu`), Marathi (`mr`), Bengali (`bn`), Tamil (`ta`), Telugu (`te`), Kannada (`kn`), Malayalam (`ml`)
   - Added keys for reminder settings modal, sent today badge, do not remind badge, and quiet hours alert
   - Listed 7 languages needing native review (`gu`, `mr`, `bn`, `ta`, `te`, `kn`, `ml`)
-- [ ] **Step 7: Supabase Migration**
-  - SQL migration script for schema updates
+- [x] **Step 7: Supabase Migration**
+  - Created `supabase/migrations/20261120000000_reminder_settings.sql`
+  - Added `do_not_remind`, `reminder_tone_override`, and `last_reminded_at` columns to `public.customers`
+  - Extended `preferred_language` constraint for all 10 Indian languages
+  - Added indexes for daily cap and filtering performance
+  - Preserved existing multi-tenant Row Level Security (RLS) policies
+  - Added RLS multi-tenant test in `tests/rls.test.ts` (110 tests passing)
