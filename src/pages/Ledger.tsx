@@ -26,7 +26,7 @@ import {
   Printer,
   Share2,
 } from 'lucide-react';
-import { triggerHaptic } from '../lib/sound';
+import { triggerHaptic, playAudioCue } from '../lib/sound';
 import { CustomerAvatar } from '../components/CustomerAvatar';
 
 interface LedgerProps {
@@ -68,6 +68,7 @@ export const Ledger: React.FC<LedgerProps> = ({
 
   const handlePlayProof = (tx: Transaction) => {
     triggerHaptic('start');
+    playAudioCue('start');
     if (playingTxId === tx.id) {
       setPlayingTxId(null);
     } else {
@@ -81,14 +82,23 @@ export const Ledger: React.FC<LedgerProps> = ({
   const handleDeleteProof = (txId: string) => {
     if (confirm('क्या आप ग्राहक की यह आवाज़ रिकॉर्डिंग हटाना चाहते हैं?')) {
       triggerHaptic('stop');
+      playAudioCue('cancel');
       attachProofClip(txId, '');
       setPlayingTxId(null);
     }
   };
 
   const handlePaymentAction = (cust: Customer) => {
+    triggerHaptic('success');
+    playAudioCue('success');
     firePaymentConfetti();
     onQuickAction(cust, 'payment');
+  };
+
+  const handleCreditAction = (cust: Customer) => {
+    triggerHaptic('start');
+    playAudioCue('start');
+    onQuickAction(cust, 'credit');
   };
 
   return (
@@ -97,7 +107,7 @@ export const Ledger: React.FC<LedgerProps> = ({
       <motion.div
         initial={{ opacity: 0, y: -6 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-3xl p-5 bg-gradient-to-br from-rose-50 via-white to-rose-50/50 border border-rose-200/80 shadow-card flex items-center justify-between"
+        className="rounded-[30px] p-5 bg-gradient-to-br from-rose-50 via-white to-rose-50/50 border border-rose-200/80 shadow-card flex items-center justify-between card-hover-elevate"
       >
         <div>
           <span className="text-xs font-black text-rose-800 uppercase tracking-wider block">
@@ -118,6 +128,7 @@ export const Ledger: React.FC<LedgerProps> = ({
             whileTap={{ scale: 0.94 }}
             onClick={() => {
               triggerHaptic('start');
+              playAudioCue('start');
               exportLedgerToCSV(transactions, customers, shop.name);
             }}
             className="touch-target-64 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-primary border border-emerald-200 rounded-2xl font-black text-xs flex flex-col items-center justify-center space-y-1 shadow-xs"
@@ -134,6 +145,7 @@ export const Ledger: React.FC<LedgerProps> = ({
               whileTap={{ scale: 0.94 }}
               onClick={() => {
                 triggerHaptic('start');
+                playAudioCue('start');
                 onOpenRecovery();
               }}
               className="touch-target-64 px-3.5 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black rounded-2xl shadow-md text-xs flex flex-col items-center justify-center space-y-1 border border-amber-400"
@@ -172,7 +184,10 @@ export const Ledger: React.FC<LedgerProps> = ({
             <motion.button
               key={mode}
               whileTap={{ scale: 0.94 }}
-              onClick={() => setFilter(mode)}
+              onClick={() => {
+                triggerHaptic('light');
+                setFilter(mode);
+              }}
               className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
                 filter === mode
                   ? 'bg-primary text-white shadow-xs'
@@ -211,7 +226,7 @@ export const Ledger: React.FC<LedgerProps> = ({
               <motion.div
                 key={cust.id}
                 whileHover={{ y: -2 }}
-                className="bg-white rounded-3xl p-4 shadow-card border border-gray-100/90 space-y-3 hover:border-gray-200 transition-colors"
+                className="bg-white rounded-[28px] p-4 shadow-card border border-gray-100/90 space-y-3 hover:border-gray-200 transition-colors card-hover-elevate"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-start space-x-3">
@@ -226,6 +241,7 @@ export const Ledger: React.FC<LedgerProps> = ({
                       <h3
                         onClick={() => {
                           triggerHaptic('start');
+                          playAudioCue('start');
                           setSelectedCustomer(cust);
                         }}
                         className="font-black text-lg text-slate-900 cursor-pointer hover:text-primary active:scale-[0.98] leading-tight flex items-center space-x-1.5"
@@ -285,20 +301,24 @@ export const Ledger: React.FC<LedgerProps> = ({
                       </motion.a>
                     )}
 
-                    {/* Audio Proof Playback Button */}
+                    {/* Audio Proof Playback Button with Animated Wave Equalizer */}
                     {recentProofTx?.proof_clip_path ? (
                       <motion.button
                         whileTap={{ scale: 0.94 }}
                         onClick={() => handlePlayProof(recentProofTx)}
                         className={`px-3 py-1.5 rounded-xl font-black flex items-center space-x-1.5 border shadow-xs transition-all ${
                           playingTxId === recentProofTx.id
-                            ? 'bg-blue-600 text-white border-blue-700 animate-pulse'
+                            ? 'bg-blue-600 text-white border-blue-700 shadow-listening'
                             : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
                         }`}
                         title="Play Voice Proof"
                       >
                         {playingTxId === recentProofTx.id ? (
-                          <Pause className="w-3.5 h-3.5 fill-current" />
+                          <div className="flex items-center space-x-0.5 h-3.5">
+                            <span className="w-1 bg-white rounded-full soundbar-anim" style={{ animationDelay: '0ms' }} />
+                            <span className="w-1 bg-white rounded-full soundbar-anim" style={{ animationDelay: '200ms' }} />
+                            <span className="w-1 bg-white rounded-full soundbar-anim" style={{ animationDelay: '400ms' }} />
+                          </div>
                         ) : (
                           <Volume2 className="w-3.5 h-3.5 text-blue-600" />
                         )}
@@ -316,6 +336,7 @@ export const Ledger: React.FC<LedgerProps> = ({
                           whileTap={{ scale: 0.94 }}
                           onClick={() => {
                             triggerHaptic('start');
+                            playAudioCue('start');
                             onRecordProofForTransaction(recentUdhaarTx, cust);
                           }}
                           className="px-2.5 py-1.5 rounded-xl bg-amber-50 text-amber-900 hover:bg-amber-100 font-black flex items-center space-x-1 border border-amber-200 text-[11px] shadow-xs"
@@ -332,7 +353,7 @@ export const Ledger: React.FC<LedgerProps> = ({
                     <motion.button
                       whileHover={{ scale: 1.04 }}
                       whileTap={{ scale: 0.94 }}
-                      onClick={() => onQuickAction(cust, 'credit')}
+                      onClick={() => handleCreditAction(cust)}
                       className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-owed font-black border border-rose-200 flex items-center space-x-1 shadow-xs"
                     >
                       <PlusCircle className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -356,7 +377,7 @@ export const Ledger: React.FC<LedgerProps> = ({
         )}
       </div>
 
-      {/* Customer Passbook Detail Drawer / Modal */}
+      {/* Customer Passbook Detail Drawer / Modal with Bahi-Khata Styling */}
       <AnimatePresence>
         {selectedCustomer && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
@@ -366,16 +387,32 @@ export const Ledger: React.FC<LedgerProps> = ({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedCustomer(null)}
-              className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs"
+              className="fixed inset-0 bg-slate-950/65 backdrop-blur-xs"
             />
 
             <motion.div
+              drag="y"
+              dragConstraints={{ top: 0 }}
+              dragElastic={0.2}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 100) {
+                  setSelectedCustomer(null);
+                }
+              }}
               initial={{ y: '100%', opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: '100%', opacity: 0 }}
               transition={{ type: 'spring', damping: 26, stiffness: 300 }}
-              className="relative z-10 bg-white w-full max-w-md rounded-t-[32px] sm:rounded-3xl p-6 shadow-sheet max-h-[85vh] overflow-y-auto border-t-4 border-primary"
+              className="relative z-10 bg-white w-full max-w-md rounded-t-[36px] sm:rounded-3xl p-6 shadow-sheet max-h-[85vh] overflow-y-auto border-t-4 border-primary"
             >
+              {/* Sheet Drag Indicator */}
+              <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-3 cursor-grab" />
+
+              {/* Traditional Bahi-Khata Auspicious Header Banner */}
+              <div className="text-center py-1 bg-amber-50 rounded-xl border border-amber-200/80 mb-3 text-[11px] font-black text-amber-900 tracking-wider">
+                ॥ शुभ लाभ ॥ डिजिटल बही-खाता रजिस्टर
+              </div>
+
               {/* Header */}
               <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                 <div className="flex items-center space-x-3">
@@ -443,31 +480,35 @@ export const Ledger: React.FC<LedgerProps> = ({
               <div className="grid grid-cols-2 gap-2.5 mb-4">
                 {/* WhatsApp Reminder Button */}
                 {selectedCustomer.balance_owed > 0 && (
-                  <a
+                  <motion.a
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.95 }}
                     href={`https://wa.me/${selectedCustomer.phone?.replace(/\D/g, '') || ''}?text=${encodeURIComponent(
                       `नमस्ते ${selectedCustomer.name} जी! ${shop.name} पर आपका ₹${selectedCustomer.balance_owed} का उधार बाकी है। कृपया UPI या दुकान पर आकर जमा करा दें। धन्यवाद!`
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="touch-target-64 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-2xl active:scale-95 flex items-center justify-center space-x-1.5 shadow-xs"
+                    className="touch-target-64 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-2xl flex items-center justify-center space-x-1.5 shadow-xs"
                   >
                     <Share2 className="w-4 h-4 text-emerald-100" />
                     <span>WhatsApp तगादा</span>
-                  </a>
+                  </motion.a>
                 )}
 
                 {/* Print Slip Button */}
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() =>
                     printCustomerStatement(selectedCustomer, transactions, shop)
                   }
-                  className={`touch-target-64 py-2.5 px-3 bg-gray-100 hover:bg-gray-200 text-slate-800 font-black text-xs rounded-2xl active:scale-95 flex items-center justify-center space-x-1.5 border border-gray-200 shadow-xs ${
+                  className={`touch-target-64 py-2.5 px-3 bg-gray-100 hover:bg-gray-200 text-slate-800 font-black text-xs rounded-2xl flex items-center justify-center space-x-1.5 border border-gray-200 shadow-xs ${
                     selectedCustomer.balance_owed > 0 ? '' : 'col-span-2'
                   }`}
                 >
                   <Printer className="w-4 h-4 text-slate-700" />
                   <span>पर्ची प्रिंट करें</span>
-                </button>
+                </motion.button>
               </div>
 
               {/* Customer's Individual Transactions History */}
@@ -554,7 +595,7 @@ export const Ledger: React.FC<LedgerProps> = ({
                 <button
                   onClick={() => {
                     setSelectedCustomer(null);
-                    onQuickAction(selectedCustomer, 'credit');
+                    handleCreditAction(selectedCustomer);
                   }}
                   className="touch-target-64 bg-rose-50 text-owed hover:bg-rose-100 font-black rounded-2xl border border-rose-200"
                 >

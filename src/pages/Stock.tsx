@@ -15,7 +15,7 @@ import {
   TrendingUp,
   PackageCheck,
 } from 'lucide-react';
-import { triggerHaptic } from '../lib/sound';
+import { triggerHaptic, playAudioCue } from '../lib/sound';
 
 interface StockProps {
   onOpenSupplierOrders: () => void;
@@ -41,13 +41,25 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
   const displayedAnalyses = filter === 'low' ? lowStockAnalyses : stockAnalyses;
   const isOwner = user?.role !== 'staff';
 
+  const handleOpenSuppliers = () => {
+    triggerHaptic('start');
+    playAudioCue('start');
+    onOpenSupplierOrders();
+  };
+
+  const handleOrderClick = (item: Item) => {
+    triggerHaptic('success');
+    playAudioCue('success');
+    onQuickStockOrder(item);
+  };
+
   return (
     <div className="pb-32 px-4 pt-3 max-w-md mx-auto space-y-4 select-none">
       {/* Top Banner / Supplier Order Trigger */}
       <motion.div
         initial={{ opacity: 0, y: -6 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-br from-emerald-950 via-primary to-emerald-900 text-white rounded-3xl p-5 shadow-card flex items-center justify-between border border-emerald-800/40"
+        className="bg-gradient-to-br from-emerald-950 via-primary to-emerald-900 text-white rounded-[32px] p-6 shadow-card flex items-center justify-between border border-emerald-800/40 card-hover-elevate"
       >
         <div>
           <span className="text-xs uppercase tracking-wider text-emerald-200 font-black block">
@@ -64,10 +76,7 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.94 }}
-          onClick={() => {
-            triggerHaptic('start');
-            onOpenSupplierOrders();
-          }}
+          onClick={handleOpenSuppliers}
           className="touch-target-64 px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs rounded-2xl shadow-md flex flex-col items-center justify-center space-y-1 border border-amber-300"
         >
           <Truck className="w-5 h-5 mb-0.5" />
@@ -80,7 +89,7 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/90 rounded-3xl p-4 shadow-xs flex items-start space-x-3"
+          className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/90 rounded-[28px] p-4 shadow-xs flex items-start space-x-3 card-hover-elevate"
         >
           <div className="p-2.5 rounded-2xl bg-amber-400 text-slate-950 flex-shrink-0 mt-0.5 shadow-xs">
             <Sparkles className="w-4 h-4" />
@@ -113,7 +122,10 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
       <div className="flex space-x-2">
         <motion.button
           whileTap={{ scale: 0.94 }}
-          onClick={() => setFilter('all')}
+          onClick={() => {
+            triggerHaptic('light');
+            setFilter('all');
+          }}
           className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
             filter === 'all'
               ? 'bg-primary text-white shadow-xs'
@@ -125,7 +137,10 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
 
         <motion.button
           whileTap={{ scale: 0.94 }}
-          onClick={() => setFilter('low')}
+          onClick={() => {
+            triggerHaptic('light');
+            setFilter('low');
+          }}
           className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center space-x-1.5 ${
             filter === 'low'
               ? 'bg-amber-500 text-slate-950 shadow-xs'
@@ -148,7 +163,7 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
             <p className="text-xs text-slate-400 mt-1">कोई भी सामान कम नहीं है</p>
           </div>
         ) : (
-          displayedAnalyses.map((analysis) => {
+          displayedAnalyses.map((analysis, idx) => {
             const item = analysis.item;
             const isLow = analysis.isLowStock;
             const isCritical = analysis.isCritical;
@@ -160,8 +175,11 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
             return (
               <motion.div
                 key={item.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.04, duration: 0.25 }}
                 whileHover={{ y: -2 }}
-                className={`bg-white rounded-3xl p-4 shadow-card border transition-all space-y-3 ${
+                className={`bg-white rounded-[28px] p-4 shadow-card border transition-all space-y-3 card-hover-elevate ${
                   isCritical
                     ? 'border-rose-300 ring-2 ring-rose-100 bg-rose-50/20'
                     : isLow
@@ -216,17 +234,19 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
                   </div>
                 </div>
 
-                {/* Stock Level Visual Progress Bar */}
-                <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${
+                {/* Animated Stock Level Progress Bar */}
+                <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden p-0.5">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.max(8, stockPct)}%` }}
+                    transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                    className={`h-full rounded-full ${
                       isCritical
                         ? 'bg-rose-500'
                         : isLow
                         ? 'bg-amber-500'
                         : 'bg-emerald-500'
                     }`}
-                    style={{ width: `${Math.max(8, stockPct)}%` }}
                   />
                 </div>
 
@@ -254,10 +274,7 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.92 }}
-                        onClick={() => {
-                          triggerHaptic('start');
-                          onQuickStockOrder(item);
-                        }}
+                        onClick={() => handleOrderClick(item)}
                         className="px-3 py-1.5 bg-primary text-white rounded-xl text-xs font-black shadow-xs flex items-center space-x-1"
                       >
                         <ShoppingCart className="w-3 h-3 mr-0.5" />

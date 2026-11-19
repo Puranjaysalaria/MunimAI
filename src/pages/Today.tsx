@@ -12,8 +12,9 @@ import {
   Award,
   Sparkles,
   ShoppingBag,
+  CircleDollarSign,
 } from 'lucide-react';
-import { triggerHaptic } from '../lib/sound';
+import { triggerHaptic, playAudioCue } from '../lib/sound';
 import { CustomerAvatar } from '../components/CustomerAvatar';
 
 interface TodayProps {
@@ -50,8 +51,14 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
   // Estimated gross profit: ~15% average margin on Kirana groceries
   const estimatedProfit = Math.round((totalSales + creditGiven) * 0.15 - expenses);
 
+  const totalInflow = totalSales + cashCollected;
+  const cashRatio = totalInflow + creditGiven > 0
+    ? Math.round((totalInflow / (totalInflow + creditGiven)) * 100)
+    : 100;
+
   const handleSpeakClick = () => {
     triggerHaptic('start');
+    playAudioCue('start');
     onSpeakSummary();
   };
 
@@ -61,11 +68,11 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
       <motion.div
         initial={{ opacity: 0, y: -6 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-br from-emerald-950 via-primary to-emerald-900 text-white rounded-3xl p-6 shadow-card relative overflow-hidden border border-emerald-800/40"
+        className="bg-gradient-to-br from-emerald-950 via-primary to-emerald-900 text-white rounded-[32px] p-6 shadow-card relative overflow-hidden border border-emerald-800/40 card-hover-elevate"
       >
         <div className="flex items-center justify-between">
           <span className="text-xs font-black text-emerald-200 uppercase tracking-wider flex items-center">
-            <Award className="w-4 h-4 mr-1 text-accent" />
+            <Award className="w-4 h-4 mr-1.5 text-accent" />
             {t.today.title}
           </span>
           <span className="text-xs bg-white/15 px-3 py-1 rounded-full font-black border border-white/20">
@@ -97,7 +104,7 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.94 }}
             onClick={handleSpeakClick}
-            className="touch-target-64 px-4 py-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs rounded-2xl shadow-md flex items-center space-x-2 border border-amber-300"
+            className="touch-target-64 px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs rounded-2xl shadow-md flex items-center space-x-2 border border-amber-300"
           >
             <Volume2 className="w-4 h-4 text-slate-950" />
             <span>{t.today.voiceSummaryButton}</span>
@@ -110,7 +117,7 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
         {/* Cash Sales */}
         <motion.div
           whileHover={{ y: -2 }}
-          className="bg-white rounded-3xl p-4 shadow-card border border-emerald-100 flex flex-col justify-between"
+          className="bg-white rounded-3xl p-4 shadow-card border border-emerald-100 flex flex-col justify-between card-hover-elevate"
         >
           <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
             <span>{t.today.totalSales}</span>
@@ -127,7 +134,7 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
         {/* Udhaar Given */}
         <motion.div
           whileHover={{ y: -2 }}
-          className="bg-white rounded-3xl p-4 shadow-card border border-rose-100 flex flex-col justify-between"
+          className="bg-white rounded-3xl p-4 shadow-card border border-rose-100 flex flex-col justify-between card-hover-elevate"
         >
           <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
             <span>{t.today.creditGiven}</span>
@@ -144,7 +151,7 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
         {/* Cash Collected on Old Udhaar */}
         <motion.div
           whileHover={{ y: -2 }}
-          className="bg-white rounded-3xl p-4 shadow-card border border-emerald-100 flex flex-col justify-between"
+          className="bg-white rounded-3xl p-4 shadow-card border border-emerald-100 flex flex-col justify-between card-hover-elevate"
         >
           <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
             <span>{t.today.cashCollected}</span>
@@ -161,7 +168,7 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
         {/* Expenses */}
         <motion.div
           whileHover={{ y: -2 }}
-          className="bg-white rounded-3xl p-4 shadow-card border border-amber-100 flex flex-col justify-between"
+          className="bg-white rounded-3xl p-4 shadow-card border border-amber-100 flex flex-col justify-between card-hover-elevate"
         >
           <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
             <span>{t.today.expenses}</span>
@@ -176,13 +183,42 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
         </motion.div>
       </div>
 
+      {/* Cashflow Ratio Indicator */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="bg-white rounded-3xl p-4 shadow-card border border-gray-100 space-y-2 card-hover-elevate"
+      >
+        <div className="flex items-center justify-between text-xs font-black text-slate-700">
+          <span className="flex items-center">
+            <CircleDollarSign className="w-4 h-4 mr-1 text-emerald-600" />
+            दुकान की सेहत: {cashRatio}% नकद अनुपात
+          </span>
+          <span className="text-[11px] text-slate-400">
+            {cashRatio >= 70 ? 'शानदार स्थिति' : 'उधार ज़्यादा है'}
+          </span>
+        </div>
+        <div className="w-full bg-rose-100 rounded-full h-3 overflow-hidden flex">
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${cashRatio}%` }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            className="h-full bg-emerald-500 rounded-full"
+          />
+        </div>
+        <div className="flex justify-between text-[10px] text-slate-400 font-bold px-0.5">
+          <span className="text-emerald-700">नकद गल्ला ({cashRatio}%)</span>
+          <span className="text-rose-600">उधार ({100 - cashRatio}%)</span>
+        </div>
+      </motion.div>
+
       {/* Today's Transactions Timeline */}
-      <div className="bg-white rounded-3xl p-5 shadow-card border border-gray-100">
-        <div className="flex items-center justify-between mb-3 px-1">
+      <div className="bg-white rounded-[28px] p-5 shadow-card border border-gray-100">
+        <div className="flex items-center justify-between mb-3.5 px-1">
           <h3 className="font-black text-sm text-slate-900">
             आज के सभी लेन-देन ({todayTxs.length})
           </h3>
-          <span className="text-xs font-bold text-slate-500 bg-gray-100 px-2 py-0.5 rounded-full">
+          <span className="text-xs font-bold text-slate-500 bg-gray-100 px-2.5 py-0.5 rounded-full">
             समय अनुसार
           </span>
         </div>
@@ -194,13 +230,19 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {todayTxs.map((tx) => {
+            {todayTxs.map((tx, idx) => {
               const customer = customers.find((c) => c.id === tx.customer_id);
               const isOwed = tx.type === 'credit';
               const isPayment = tx.type === 'payment';
 
               return (
-                <div key={tx.id} className="py-3 flex items-center justify-between">
+                <motion.div
+                  key={tx.id}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.04, duration: 0.2 }}
+                  className="py-3 flex items-center justify-between hover:bg-gray-50/60 rounded-xl px-1 transition-colors"
+                >
                   <div className="flex items-center space-x-3">
                     {customer ? (
                       <CustomerAvatar
@@ -244,7 +286,7 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
                       )}
                     </p>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>

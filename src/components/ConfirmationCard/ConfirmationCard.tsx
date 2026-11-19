@@ -16,7 +16,7 @@ import {
   ArrowRight,
   Sparkles,
 } from 'lucide-react';
-import { triggerHaptic } from '../../lib/sound';
+import { triggerHaptic, playAudioCue } from '../../lib/sound';
 import { CustomerAvatar } from '../CustomerAvatar';
 
 export interface PendingConfirmation {
@@ -92,28 +92,40 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
             exit={{ opacity: 0 }}
             onClick={() => {
               triggerHaptic('stop');
+              playAudioCue('cancel');
               speechSynthesizer.stop();
               onCancel();
             }}
             className="fixed inset-0 bg-slate-950/65 backdrop-blur-sm"
           />
 
-          {/* Slide-Up Bottom Sheet Card */}
+          {/* Slide-Up Bottom Sheet Card with Swipe-to-Dismiss */}
           <motion.div
+            drag="y"
+            dragConstraints={{ top: 0 }}
+            dragElastic={0.2}
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 100) {
+                triggerHaptic('stop');
+                playAudioCue('cancel');
+                speechSynthesizer.stop();
+                onCancel();
+              }
+            }}
             initial={{ y: '100%', opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: '100%', opacity: 0 }}
             transition={{ type: 'spring', damping: 26, stiffness: 300 }}
-            className="relative z-10 bg-white w-full max-w-md rounded-t-[32px] p-6 shadow-sheet border-t-4 border-primary pb-8 overflow-hidden max-h-[90vh] overflow-y-auto"
+            className="relative z-10 bg-white w-full max-w-md rounded-t-[36px] p-6 shadow-sheet border-t-4 border-primary pb-8 overflow-hidden max-h-[90vh] overflow-y-auto"
           >
             {/* Top Sheet Drag Indicator Pill */}
-            <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4" />
+            <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4 cursor-grab active:cursor-grabbing" />
 
             {/* Header tag */}
-            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+            <div className="flex items-center justify-between pb-3.5 border-b border-gray-100">
               <div className="flex items-center space-x-3">
                 <div
-                  className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-xs ${
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-xs ${
                     isCredit
                       ? 'bg-rose-100 text-owed'
                       : isPayment
@@ -130,7 +142,7 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                   )}
                 </div>
                 <div>
-                  <span className="text-[11px] uppercase tracking-wider font-extrabold text-slate-400 block">
+                  <span className="text-[11px] uppercase tracking-wider font-black text-slate-400 block">
                     {t.confirmCard.title}
                   </span>
                   <h2 className="text-base font-black text-slate-900 leading-tight">
@@ -149,13 +161,14 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
               <motion.button
                 whileHover={{ scale: 1.08 }}
                 whileTap={{ scale: 0.92 }}
-                onClick={() =>
+                onClick={() => {
+                  triggerHaptic('light');
                   speechSynthesizer.speak(
                     spokenPrompt,
                     language === 'pa' ? 'pa' : language === 'en' ? 'en' : 'hi'
-                  )
-                }
-                className="p-3 rounded-2xl bg-gray-100 hover:bg-gray-200 text-primary shadow-xs transition-colors"
+                  );
+                }}
+                className="p-3 rounded-2xl bg-gray-100 hover:bg-gray-200 text-primary shadow-xs transition-colors flex items-center space-x-1"
                 title="Repeat voice prompt"
                 aria-label="Repeat voice prompt"
               >
@@ -167,8 +180,8 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
             <div
               className={`py-5 px-4 text-center rounded-3xl my-4 border relative overflow-hidden ${
                 isCredit
-                  ? 'bg-gradient-to-b from-rose-50/80 to-white border-rose-200/80'
-                  : 'bg-gradient-to-b from-emerald-50/80 to-white border-emerald-200/80'
+                  ? 'bg-gradient-to-b from-rose-50/90 to-white border-rose-200/90'
+                  : 'bg-gradient-to-b from-emerald-50/90 to-white border-emerald-200/90'
               }`}
             >
               <span className="text-xs uppercase tracking-wider text-slate-500 font-black block mb-1">
@@ -237,7 +250,7 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                     {isPayment ? 'बकाया हिसाब (Balance):' : 'नया कुल उधार:'}
                   </span>
                   <div className="flex items-center space-x-2">
-                    <span className="text-slate-400 line-through font-semibold">
+                    <span className="text-slate-400 line-through font-bold">
                       {formatINR(pending.customer.balance_owed)}
                     </span>
                     <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
@@ -265,7 +278,7 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                   pending.customer.credit_limit && (
                   <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center space-x-2.5 shadow-xs">
                     <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
-                    <span className="font-semibold">
+                    <span className="font-semibold leading-snug">
                       चेतावनी: ग्राहक की कुल उधारी ₹
                       {Number(pending.customer.balance_owed) + pending.amount} हो जाएगी
                       (तय सीमा ₹{pending.customer.credit_limit})
@@ -292,9 +305,10 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
               {/* Nahi (Cancel) Button */}
               <motion.button
                 whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.94 }}
+                whileTap={{ scale: 0.93 }}
                 onClick={() => {
                   triggerHaptic('stop');
+                  playAudioCue('cancel');
                   speechSynthesizer.stop();
                   onCancel();
                 }}
@@ -307,9 +321,10 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
               {/* Haan (Confirm & Save) Button */}
               <motion.button
                 whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.94 }}
+                whileTap={{ scale: 0.93 }}
                 onClick={() => {
                   triggerHaptic('success');
+                  playAudioCue('success');
                   speechSynthesizer.stop();
                   onConfirm();
                 }}

@@ -194,7 +194,7 @@ export const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-background relative overflow-y-auto font-sans">
+    <div className="h-full flex flex-col bg-ambient-canvas relative overflow-y-auto font-sans">
       {/* Sticky Top Header */}
       <Header
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -203,46 +203,80 @@ export const AppContent: React.FC = () => {
         onTriggerSync={syncOfflineData}
       />
 
-      {/* Main Tab Screen Content */}
-      <main className="flex-1 overflow-y-auto">
-        {activeTab === 'home' && (
-          <Home
-            onStartVoice={voice.startListening}
-            onTextSubmit={voice.processInput}
-            isListening={voice.isListening}
-            voiceState={voice.voiceState}
-            liveTranscript={voice.liveTranscript}
-            errorMessage={voice.errorMessage}
-            onRetryVoice={voice.startListening}
-            onSelectCustomerSuggestion={(name) =>
-              voice.processInput(`${name} ko 500 ka udhaar`)
-            }
-          />
-        )}
+      {/* Main Tab Screen Content with Animated Page Transitions */}
+      <main className="flex-1 overflow-y-auto relative">
+        <AnimatePresence mode="wait">
+          {activeTab === 'home' && (
+            <motion.div
+              key="home"
+              initial={{ opacity: 0, y: 10, scale: 0.99 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.99 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <Home
+                onStartVoice={voice.startListening}
+                onTextSubmit={voice.processInput}
+                isListening={voice.isListening}
+                voiceState={voice.voiceState}
+                liveTranscript={voice.liveTranscript}
+                errorMessage={voice.errorMessage}
+                onRetryVoice={voice.startListening}
+                onSelectCustomerSuggestion={(name) =>
+                  voice.processInput(`${name} ko 500 ka udhaar`)
+                }
+              />
+            </motion.div>
+          )}
 
-        {activeTab === 'ledger' && (
-          <Ledger
-            onSelectCustomer={handleSelectCustomer}
-            onOpenRecovery={() => {
-              setRecoveryThreshold(1000);
-              setIsRecoveryOpen(true);
-            }}
-            onPlayProof={handlePlayProofAudio}
-            onQuickAction={handleQuickCustomerAction}
-            onRecordProofForTransaction={handleOpenProofRecorder}
-          />
-        )}
+          {activeTab === 'ledger' && (
+            <motion.div
+              key="ledger"
+              initial={{ opacity: 0, y: 10, scale: 0.99 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.99 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <Ledger
+                onSelectCustomer={handleSelectCustomer}
+                onOpenRecovery={() => {
+                  setRecoveryThreshold(1000);
+                  setIsRecoveryOpen(true);
+                }}
+                onPlayProof={handlePlayProofAudio}
+                onQuickAction={handleQuickCustomerAction}
+                onRecordProofForTransaction={handleOpenProofRecorder}
+              />
+            </motion.div>
+          )}
 
-        {activeTab === 'stock' && (
-          <Stock
-            onOpenSupplierOrders={() => setIsSupplierOrdersOpen(true)}
-            onQuickStockOrder={(_item) => setIsSupplierOrdersOpen(true)}
-          />
-        )}
+          {activeTab === 'stock' && (
+            <motion.div
+              key="stock"
+              initial={{ opacity: 0, y: 10, scale: 0.99 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.99 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <Stock
+                onOpenSupplierOrders={() => setIsSupplierOrdersOpen(true)}
+                onQuickStockOrder={(_item) => setIsSupplierOrdersOpen(true)}
+              />
+            </motion.div>
+          )}
 
-        {activeTab === 'today' && (
-          <Today onSpeakSummary={handleSpeakTodaySummary} />
-        )}
+          {activeTab === 'today' && (
+            <motion.div
+              key="today"
+              initial={{ opacity: 0, y: 10, scale: 0.99 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.99 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <Today onSpeakSummary={handleSpeakTodaySummary} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
       {/* "Customer se bulwayein" Post-Credit Voice Proof Button */}
