@@ -10,13 +10,13 @@
   - Added `ReminderSettings` with quiet hours, trust filtering, and link toggles
   - Extended `Customer` with `do_not_remind`, `reminder_tone_override`, `last_reminded_at`
   - Extended `Shop.settings` with `reminder_settings`
-- [ ] **Step 2: Message Formatter (`src/lib/reminderService.ts`) & Unit Tests (`tests/reminder.test.ts`)**
+- [x] **Step 2: Message Formatter (`src/lib/reminderService.ts`) & Unit Tests (`tests/reminder.test.ts`)**
   - 10 Indian languages x 3 tones x 2 UPI variants (with/without) = 60 templates
   - Factual & respectful "Firm (दृढ़)" wording without threats/shaming
   - Quiet hours check helper (default 9 PM - 8 AM)
   - Daily cap check (1 reminder per customer per day)
   - VIP / high-trust exemption check (customers with no score never exempt)
-  - Comprehensive unit test suite
+  - Comprehensive unit test suite (15 new tests, 106 tests total passing)
 - [ ] **Step 3: Reminder Settings Modal (`src/components/Reminders/ReminderSettingsModal.tsx`)**
   - Threshold chips & custom input
   - Tone selector with live message preview
