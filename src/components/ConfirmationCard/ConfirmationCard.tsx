@@ -84,7 +84,7 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
   return (
     <AnimatePresence>
       {pending && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center select-none">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
           {/* Backdrop blur with fade */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -99,7 +99,7 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
             className="fixed inset-0 bg-slate-950/65 backdrop-blur-sm"
           />
 
-          {/* Slide-Up Bottom Sheet Card with Swipe-to-Dismiss */}
+          {/* Slide-Up Bottom Sheet Card on Mobile, Centered Dialog on Laptop/Desktop */}
           <motion.div
             drag="y"
             dragConstraints={{ top: 0 }}
@@ -116,10 +116,10 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: '100%', opacity: 0 }}
             transition={{ type: 'spring', damping: 26, stiffness: 300 }}
-            className="relative z-10 bg-white w-full max-w-md rounded-t-[36px] p-6 shadow-sheet border-t-4 border-primary pb-8 overflow-hidden max-h-[90vh] overflow-y-auto"
+            className="relative z-10 bg-white w-full max-w-md sm:max-w-lg rounded-t-[36px] sm:rounded-3xl p-6 shadow-sheet sm:shadow-2xl border-t-4 border-primary pb-8 sm:pb-6 overflow-hidden max-h-[90vh] sm:max-h-[85vh] overflow-y-auto"
           >
-            {/* Top Sheet Drag Indicator Pill */}
-            <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4 cursor-grab active:cursor-grabbing" />
+            {/* Top Sheet Drag Indicator Pill (Mobile only) */}
+            <div className="sm:hidden w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4 cursor-grab active:cursor-grabbing" />
 
             {/* Header tag */}
             <div className="flex items-center justify-between pb-3.5 border-b border-gray-100">

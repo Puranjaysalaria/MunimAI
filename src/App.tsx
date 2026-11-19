@@ -201,6 +201,8 @@ export const AppContent: React.FC = () => {
         isOnline={isOnline}
         pendingSyncCount={offlinePendingCount}
         onTriggerSync={syncOfflineData}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
       />
 
       {/* Main Tab Screen Content with Animated Page Transitions */}

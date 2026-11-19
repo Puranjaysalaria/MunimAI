@@ -62,235 +62,262 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
     onSpeakSummary();
   };
 
-  return (
-    <div className="pb-32 px-4 pt-3 max-w-md mx-auto space-y-4 select-none">
-      {/* Top Hero: Estimated Profit Card */}
-      <motion.div
-        initial={{ opacity: 0, y: -6 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-br from-emerald-950 via-primary to-emerald-900 text-white rounded-[32px] p-6 shadow-card relative overflow-hidden border border-emerald-800/40 card-hover-elevate"
-      >
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-black text-emerald-200 uppercase tracking-wider flex items-center">
-            <Award className="w-4 h-4 mr-1.5 text-accent" />
-            {t.today.title}
-          </span>
-          <span className="text-xs bg-white/15 px-3 py-1 rounded-full font-black border border-white/20">
-            {todayTxs.length} कुल सौदे
-          </span>
-        </div>
-
-        <div className="mt-4">
-          <p className="text-xs text-emerald-200 font-semibold">{t.today.estimatedProfit}</p>
-          <div className="text-4xl font-black tracking-tight text-white mt-1">
-            {isOwner ? formatINR(Math.max(0, estimatedProfit)) : '••••••'}
-          </div>
-          {!isOwner ? (
-            <p className="text-[11px] text-emerald-300 mt-1">
-              (स्टाफ मोड: शुद्ध मुनाफा केवल दुकान मालिक को दिखता है)
-            </p>
-          ) : (
-            <p className="text-[11px] text-emerald-300 mt-1 font-semibold flex items-center">
-              <Sparkles className="w-3.5 h-3.5 mr-1 text-accent" />
-              किराना औसत मुनाफ़ा ~15% मार्जिन
-            </p>
-          )}
-        </div>
-
-        {/* Speak Summary Button */}
-        <div className="mt-5 pt-3.5 border-t border-emerald-800/60 flex items-center justify-between">
-          <p className="text-xs text-emerald-200 font-semibold">दिन भर का पूरा हिसाब सुनें</p>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.94 }}
-            onClick={handleSpeakClick}
-            className="touch-target-64 px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs rounded-2xl shadow-md flex items-center space-x-2 border border-amber-300"
-          >
-            <Volume2 className="w-4 h-4 text-slate-950" />
-            <span>{t.today.voiceSummaryButton}</span>
-          </motion.button>
-        </div>
-      </motion.div>
-
-      {/* 4-Box Financial Grid */}
-      <div className="grid grid-cols-2 gap-3">
-        {/* Cash Sales */}
-        <motion.div
-          whileHover={{ y: -2 }}
-          className="bg-white rounded-3xl p-4 shadow-card border border-emerald-100 flex flex-col justify-between card-hover-elevate"
-        >
-          <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
-            <span>{t.today.totalSales}</span>
-            <div className="p-1.5 rounded-xl bg-emerald-50 text-emerald-600">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-emerald-700 mt-3 tracking-tight">
-            {formatINR(totalSales)}
-          </div>
-          <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">नकद बिक्री</p>
-        </motion.div>
-
-        {/* Udhaar Given */}
-        <motion.div
-          whileHover={{ y: -2 }}
-          className="bg-white rounded-3xl p-4 shadow-card border border-rose-100 flex flex-col justify-between card-hover-elevate"
-        >
-          <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
-            <span>{t.today.creditGiven}</span>
-            <div className="p-1.5 rounded-xl bg-rose-50 text-owed">
-              <ArrowUpRight className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-owed mt-3 tracking-tight">
-            {formatINR(creditGiven)}
-          </div>
-          <p className="text-[11px] text-rose-600 font-semibold mt-0.5">नया उधार दिया</p>
-        </motion.div>
-
-        {/* Cash Collected on Old Udhaar */}
-        <motion.div
-          whileHover={{ y: -2 }}
-          className="bg-white rounded-3xl p-4 shadow-card border border-emerald-100 flex flex-col justify-between card-hover-elevate"
-        >
-          <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
-            <span>{t.today.cashCollected}</span>
-            <div className="p-1.5 rounded-xl bg-emerald-50 text-received">
-              <ArrowDownLeft className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-received mt-3 tracking-tight">
-            {formatINR(cashCollected)}
-          </div>
-          <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">पुराना उधार लौटा</p>
-        </motion.div>
-
-        {/* Expenses */}
-        <motion.div
-          whileHover={{ y: -2 }}
-          className="bg-white rounded-3xl p-4 shadow-card border border-amber-100 flex flex-col justify-between card-hover-elevate"
-        >
-          <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
-            <span>{t.today.expenses}</span>
-            <div className="p-1.5 rounded-xl bg-amber-50 text-amber-600">
-              <Receipt className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-amber-700 mt-3 tracking-tight">
-            {formatINR(expenses)}
-          </div>
-          <p className="text-[11px] text-amber-600 font-semibold mt-0.5">दुकान का खर्चा</p>
-        </motion.div>
+  const ProfitHero = (
+    <motion.div
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-gradient-to-br from-emerald-950 via-primary to-emerald-900 text-white rounded-[32px] p-6 shadow-card relative overflow-hidden border border-emerald-800/40 card-hover-elevate"
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-black text-emerald-200 uppercase tracking-wider flex items-center">
+          <Award className="w-4 h-4 mr-1.5 text-accent" />
+          {t.today.title}
+        </span>
+        <span className="text-xs bg-white/15 px-3 py-1 rounded-full font-black border border-white/20">
+          {todayTxs.length} कुल सौदे
+        </span>
       </div>
 
-      {/* Cashflow Ratio Indicator */}
+      <div className="mt-4">
+        <p className="text-xs text-emerald-200 font-semibold">{t.today.estimatedProfit}</p>
+        <div className="text-4xl sm:text-5xl font-black tracking-tight text-white mt-1">
+          {isOwner ? formatINR(Math.max(0, estimatedProfit)) : '••••••'}
+        </div>
+        {!isOwner ? (
+          <p className="text-[11px] text-emerald-300 mt-1">
+            (स्टाफ मोड: शुद्ध मुनाफा केवल दुकान मालिक को दिखता है)
+          </p>
+        ) : (
+          <p className="text-[11px] text-emerald-300 mt-1 font-semibold flex items-center">
+            <Sparkles className="w-3.5 h-3.5 mr-1 text-accent" />
+            किराना औसत मुनाफ़ा ~15% मार्जिन
+          </p>
+        )}
+      </div>
+
+      {/* Speak Summary Button */}
+      <div className="mt-5 pt-3.5 border-t border-emerald-800/60 flex items-center justify-between">
+        <p className="text-xs text-emerald-200 font-semibold">दिन भर का पूरा हिसाब सुनें</p>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.94 }}
+          onClick={handleSpeakClick}
+          className="touch-target-64 px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs rounded-2xl shadow-md flex items-center space-x-2 border border-amber-300"
+        >
+          <Volume2 className="w-4 h-4 text-slate-950" />
+          <span>{t.today.voiceSummaryButton}</span>
+        </motion.button>
+      </div>
+    </motion.div>
+  );
+
+  const CashflowMeter = (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="bg-white rounded-3xl p-5 shadow-card border border-gray-100 space-y-3 card-hover-elevate"
+    >
+      <div className="flex items-center justify-between text-xs font-black text-slate-700">
+        <span className="flex items-center">
+          <CircleDollarSign className="w-4 h-4 mr-1.5 text-emerald-600" />
+          दुकान की सेहत: {cashRatio}% नकद अनुपात
+        </span>
+        <span className="text-[11px] font-bold text-slate-500">
+          {cashRatio >= 70 ? 'शानदार स्थिति' : 'उधार ज़्यादा है'}
+        </span>
+      </div>
+      <div className="w-full bg-rose-100 rounded-full h-3 overflow-hidden flex">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${cashRatio}%` }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          className="h-full bg-emerald-500 rounded-full"
+        />
+      </div>
+      <div className="flex justify-between text-[11px] text-slate-500 font-bold px-0.5">
+        <span className="text-emerald-700">नकद गल्ला ({cashRatio}%)</span>
+        <span className="text-rose-600">उधार ({100 - cashRatio}%)</span>
+      </div>
+    </motion.div>
+  );
+
+  const FinancialGrid = (
+    <div className="grid grid-cols-2 gap-3 sm:gap-4">
+      {/* Cash Sales */}
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="bg-white rounded-3xl p-4 shadow-card border border-gray-100 space-y-2 card-hover-elevate"
+        whileHover={{ y: -2 }}
+        className="bg-white rounded-3xl p-4 sm:p-5 shadow-card border border-emerald-100 flex flex-col justify-between card-hover-elevate"
       >
-        <div className="flex items-center justify-between text-xs font-black text-slate-700">
-          <span className="flex items-center">
-            <CircleDollarSign className="w-4 h-4 mr-1 text-emerald-600" />
-            दुकान की सेहत: {cashRatio}% नकद अनुपात
-          </span>
-          <span className="text-[11px] text-slate-400">
-            {cashRatio >= 70 ? 'शानदार स्थिति' : 'उधार ज़्यादा है'}
-          </span>
+        <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
+          <span>{t.today.totalSales}</span>
+          <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+            <TrendingUp className="w-4 h-4 stroke-[2.5]" />
+          </div>
         </div>
-        <div className="w-full bg-rose-100 rounded-full h-3 overflow-hidden flex">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${cashRatio}%` }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="h-full bg-emerald-500 rounded-full"
-          />
+        <div className="text-2xl sm:text-3xl font-black text-emerald-700 mt-3 tracking-tight">
+          {formatINR(totalSales)}
         </div>
-        <div className="flex justify-between text-[10px] text-slate-400 font-bold px-0.5">
-          <span className="text-emerald-700">नकद गल्ला ({cashRatio}%)</span>
-          <span className="text-rose-600">उधार ({100 - cashRatio}%)</span>
-        </div>
+        <p className="text-[11px] sm:text-xs text-emerald-600 font-semibold mt-0.5">नकद बिक्री</p>
       </motion.div>
 
-      {/* Today's Transactions Timeline */}
-      <div className="bg-white rounded-[28px] p-5 shadow-card border border-gray-100">
-        <div className="flex items-center justify-between mb-3.5 px-1">
-          <h3 className="font-black text-sm text-slate-900">
-            आज के सभी लेन-देन ({todayTxs.length})
-          </h3>
-          <span className="text-xs font-bold text-slate-500 bg-gray-100 px-2.5 py-0.5 rounded-full">
-            समय अनुसार
-          </span>
+      {/* Udhaar Given */}
+      <motion.div
+        whileHover={{ y: -2 }}
+        className="bg-white rounded-3xl p-4 sm:p-5 shadow-card border border-rose-100 flex flex-col justify-between card-hover-elevate"
+      >
+        <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
+          <span>{t.today.creditGiven}</span>
+          <div className="p-2 rounded-xl bg-rose-50 text-owed">
+            <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
+          </div>
+        </div>
+        <div className="text-2xl sm:text-3xl font-black text-owed mt-3 tracking-tight">
+          {formatINR(creditGiven)}
+        </div>
+        <p className="text-[11px] sm:text-xs text-rose-600 font-semibold mt-0.5">नया उधार दिया</p>
+      </motion.div>
+
+      {/* Cash Collected on Old Udhaar */}
+      <motion.div
+        whileHover={{ y: -2 }}
+        className="bg-white rounded-3xl p-4 sm:p-5 shadow-card border border-emerald-100 flex flex-col justify-between card-hover-elevate"
+      >
+        <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
+          <span>{t.today.cashCollected}</span>
+          <div className="p-2 rounded-xl bg-emerald-50 text-received">
+            <ArrowDownLeft className="w-4 h-4 stroke-[2.5]" />
+          </div>
+        </div>
+        <div className="text-2xl sm:text-3xl font-black text-received mt-3 tracking-tight">
+          {formatINR(cashCollected)}
+        </div>
+        <p className="text-[11px] sm:text-xs text-emerald-600 font-semibold mt-0.5">पुराना उधार लौटा</p>
+      </motion.div>
+
+      {/* Expenses */}
+      <motion.div
+        whileHover={{ y: -2 }}
+        className="bg-white rounded-3xl p-4 sm:p-5 shadow-card border border-amber-100 flex flex-col justify-between card-hover-elevate"
+      >
+        <div className="flex items-center justify-between text-slate-500 text-xs font-bold">
+          <span>{t.today.expenses}</span>
+          <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
+            <Receipt className="w-4 h-4 stroke-[2.5]" />
+          </div>
+        </div>
+        <div className="text-2xl sm:text-3xl font-black text-amber-700 mt-3 tracking-tight">
+          {formatINR(expenses)}
+        </div>
+        <p className="text-[11px] sm:text-xs text-amber-600 font-semibold mt-0.5">दुकान का खर्चा</p>
+      </motion.div>
+    </div>
+  );
+
+  const TransactionsTimeline = (
+    <div className="bg-white rounded-[28px] p-5 sm:p-6 shadow-card border border-gray-100">
+      <div className="flex items-center justify-between mb-3.5 px-1">
+        <h3 className="font-black text-sm text-slate-900">
+          आज के सभी लेन-देन ({todayTxs.length})
+        </h3>
+        <span className="text-xs font-bold text-slate-500 bg-gray-100 px-2.5 py-0.5 rounded-full">
+          समय अनुसार
+        </span>
+      </div>
+
+      {todayTxs.length === 0 ? (
+        <div className="py-12 text-center text-slate-400">
+          <ShoppingBag className="w-12 h-12 mx-auto text-slate-300 mb-2" />
+          <p className="text-xs font-bold text-slate-600">आज अभी तक कोई सौदा दर्ज नहीं हुआ</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-gray-100 max-h-[460px] overflow-y-auto">
+          {todayTxs.map((tx, idx) => {
+            const customer = customers.find((c) => c.id === tx.customer_id);
+            const isOwed = tx.type === 'credit';
+            const isPayment = tx.type === 'payment';
+
+            return (
+              <motion.div
+                key={tx.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.04, duration: 0.2 }}
+                className="py-3.5 flex items-center justify-between hover:bg-gray-50/60 rounded-xl px-1.5 transition-colors"
+              >
+                <div className="flex items-center space-x-3">
+                  {customer ? (
+                    <CustomerAvatar
+                      name={customer.name}
+                      size="sm"
+                      trustScore={customer.trust_score}
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center text-slate-600 font-bold text-xs">
+                      🛒
+                    </div>
+                  )}
+
+                  <div>
+                    <p className="text-sm font-black text-slate-900">
+                      {customer?.name || (tx.type === 'sale' ? 'नकद बिक्री' : 'दुकान खर्चा')}
+                    </p>
+                    <p className="text-xs text-slate-500 font-medium">
+                      {tx.voice_transcript || tx.type}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <p
+                    className={`text-base font-black ${
+                      isOwed
+                        ? 'text-owed'
+                        : isPayment
+                        ? 'text-received'
+                        : 'text-slate-900'
+                    }`}
+                  >
+                    {isOwed ? '+' : isPayment ? '-' : ''}
+                    {formatINR(tx.amount)}
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                    {formatRelativeTime(
+                      tx.created_at,
+                      language === 'pa' ? 'pa' : language === 'en' ? 'en' : 'hi'
+                    )}
+                  </p>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="pb-32 md:pb-12 px-4 sm:px-6 lg:px-8 max-w-md sm:max-w-xl md:max-w-3xl lg:max-w-6xl xl:max-w-7xl mx-auto space-y-6 pt-3 select-none">
+      {/* Responsive Grid for Laptop / Desktop (lg:) */}
+      <div className="hidden lg:grid lg:grid-cols-12 gap-8 items-start">
+        {/* Left Column: Profit Hero & Cashflow Meter */}
+        <div className="lg:col-span-5 space-y-5 lg:sticky lg:top-20">
+          {ProfitHero}
+          {CashflowMeter}
         </div>
 
-        {todayTxs.length === 0 ? (
-          <div className="py-8 text-center text-slate-400">
-            <ShoppingBag className="w-10 h-10 mx-auto text-slate-300 mb-2" />
-            <p className="text-xs font-bold text-slate-600">आज अभी तक कोई सौदा दर्ज नहीं हुआ</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {todayTxs.map((tx, idx) => {
-              const customer = customers.find((c) => c.id === tx.customer_id);
-              const isOwed = tx.type === 'credit';
-              const isPayment = tx.type === 'payment';
+        {/* Right Column: 4-Box Grid & Transactions Feed */}
+        <div className="lg:col-span-7 space-y-5">
+          {FinancialGrid}
+          {TransactionsTimeline}
+        </div>
+      </div>
 
-              return (
-                <motion.div
-                  key={tx.id}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.04, duration: 0.2 }}
-                  className="py-3 flex items-center justify-between hover:bg-gray-50/60 rounded-xl px-1 transition-colors"
-                >
-                  <div className="flex items-center space-x-3">
-                    {customer ? (
-                      <CustomerAvatar
-                        name={customer.name}
-                        size="sm"
-                        trustScore={customer.trust_score}
-                      />
-                    ) : (
-                      <div className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center text-slate-600 font-bold text-xs">
-                        🛒
-                      </div>
-                    )}
-
-                    <div>
-                      <p className="text-sm font-black text-slate-900">
-                        {customer?.name || (tx.type === 'sale' ? 'नकद बिक्री' : 'दुकान खर्चा')}
-                      </p>
-                      <p className="text-xs text-slate-500 font-medium">
-                        {tx.voice_transcript || tx.type}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <p
-                      className={`text-base font-black ${
-                        isOwed
-                          ? 'text-owed'
-                          : isPayment
-                          ? 'text-received'
-                          : 'text-slate-900'
-                      }`}
-                    >
-                      {isOwed ? '+' : isPayment ? '-' : ''}
-                      {formatINR(tx.amount)}
-                    </p>
-                    <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
-                      {formatRelativeTime(
-                        tx.created_at,
-                        language === 'pa' ? 'pa' : language === 'en' ? 'en' : 'hi'
-                      )}
-                    </p>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
+      {/* Mobile Flow (< lg) */}
+      <div className="lg:hidden space-y-4">
+        {ProfitHero}
+        {FinancialGrid}
+        {CashflowMeter}
+        {TransactionsTimeline}
       </div>
     </div>
   );

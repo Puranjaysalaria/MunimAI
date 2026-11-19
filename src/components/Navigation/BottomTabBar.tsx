@@ -22,7 +22,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({ activeTab, onTabChan
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1 pointer-events-none select-none">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1 pointer-events-none select-none">
       <nav
         className="max-w-md mx-auto pointer-events-auto rounded-3xl glass-panel shadow-dock border border-white/70 p-1.5 flex items-center justify-around"
         role="navigation"

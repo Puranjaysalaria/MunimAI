@@ -54,69 +54,72 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
   };
 
   return (
-    <div className="pb-32 px-4 pt-3 max-w-md mx-auto space-y-4 select-none">
-      {/* Top Banner / Supplier Order Trigger */}
-      <motion.div
-        initial={{ opacity: 0, y: -6 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-br from-emerald-950 via-primary to-emerald-900 text-white rounded-[32px] p-6 shadow-card flex items-center justify-between border border-emerald-800/40 card-hover-elevate"
-      >
-        <div>
-          <span className="text-xs uppercase tracking-wider text-emerald-200 font-black block">
-            {t.stock.title}
-          </span>
-          <h2 className="text-2xl font-black mt-1 leading-tight tracking-tight">
-            {lowStockAnalyses.length} सामान कम है
-          </h2>
-          <p className="text-xs text-emerald-200/90 mt-1 font-medium">
-            14 दिनों की खपत के आधार पर री-ऑर्डर तैयार
-          </p>
-        </div>
-
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.94 }}
-          onClick={handleOpenSuppliers}
-          className="touch-target-64 px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs rounded-2xl shadow-md flex flex-col items-center justify-center space-y-1 border border-amber-300"
-        >
-          <Truck className="w-5 h-5 mb-0.5" />
-          <span>सप्लायर लिस्ट</span>
-        </motion.button>
-      </motion.div>
-
-      {/* Smart Seasonal Stocking Alert Card */}
-      {activeSeason && (
+    <div className="pb-32 md:pb-12 px-4 sm:px-6 lg:px-8 max-w-md sm:max-w-xl md:max-w-3xl lg:max-w-6xl xl:max-w-7xl mx-auto space-y-6 pt-3 select-none">
+      {/* Top Cards: Supplier Orders Banner & Seasonal Intelligence (2-cols on tablet/laptop) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 items-stretch">
+        {/* Supplier Order Trigger */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/90 rounded-[28px] p-4 shadow-xs flex items-start space-x-3 card-hover-elevate"
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-br from-emerald-950 via-primary to-emerald-900 text-white rounded-[32px] p-6 shadow-card flex items-center justify-between border border-emerald-800/40 card-hover-elevate"
         >
-          <div className="p-2.5 rounded-2xl bg-amber-400 text-slate-950 flex-shrink-0 mt-0.5 shadow-xs">
-            <Sparkles className="w-4 h-4" />
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center justify-between">
-              <h4 className="font-black text-xs text-amber-950">
-                {language === 'pa'
-                  ? activeSeason.seasonNamePa
-                  : language === 'en'
-                  ? activeSeason.seasonNameEn
-                  : activeSeason.seasonName}
-              </h4>
-              <span className="text-[10px] bg-amber-200/80 font-black px-2 py-0.5 rounded-full text-amber-900 border border-amber-300/80">
-                +{activeSeason.recommendedBoostPercentage}% मांग
-              </span>
-            </div>
-            <p className="text-[11px] text-amber-800 mt-1 leading-snug font-medium">
-              {language === 'pa'
-                ? activeSeason.descriptionPa
-                : language === 'en'
-                ? activeSeason.descriptionEn
-                : activeSeason.description}
+          <div>
+            <span className="text-xs uppercase tracking-wider text-emerald-200 font-black block">
+              {t.stock.title}
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black mt-1 leading-tight tracking-tight">
+              {lowStockAnalyses.length} सामान कम है
+            </h2>
+            <p className="text-xs text-emerald-200/90 mt-1 font-medium">
+              14 दिनों की खपत के आधार पर री-ऑर्डर तैयार
             </p>
           </div>
+
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.94 }}
+            onClick={handleOpenSuppliers}
+            className="touch-target-64 px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs rounded-2xl shadow-md flex flex-col items-center justify-center space-y-1 border border-amber-300 flex-shrink-0 ml-3"
+          >
+            <Truck className="w-5 h-5 mb-0.5" />
+            <span>सप्लायर लिस्ट</span>
+          </motion.button>
         </motion.div>
-      )}
+
+        {/* Smart Seasonal Stocking Alert Card */}
+        {activeSeason && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/90 rounded-[32px] p-5 shadow-xs flex items-start space-x-3.5 card-hover-elevate"
+          >
+            <div className="p-3 rounded-2xl bg-amber-400 text-slate-950 flex-shrink-0 mt-0.5 shadow-xs">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <h4 className="font-black text-sm text-amber-950">
+                  {language === 'pa'
+                    ? activeSeason.seasonNamePa
+                    : language === 'en'
+                    ? activeSeason.seasonNameEn
+                    : activeSeason.seasonName}
+                </h4>
+                <span className="text-[10px] bg-amber-200/80 font-black px-2.5 py-0.5 rounded-full text-amber-900 border border-amber-300/80">
+                  +{activeSeason.recommendedBoostPercentage}% मांग
+                </span>
+              </div>
+              <p className="text-xs text-amber-800 mt-1 leading-relaxed font-medium">
+                {language === 'pa'
+                  ? activeSeason.descriptionPa
+                  : language === 'en'
+                  ? activeSeason.descriptionEn
+                  : activeSeason.description}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </div>
 
       {/* Filter Tabs */}
       <div className="flex space-x-2">
@@ -154,12 +157,12 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
         </motion.button>
       </div>
 
-      {/* Items List */}
-      <div className="space-y-3">
+      {/* Responsive Items Grid: 1 col on mobile, 2 cols on tablet, 3 cols on desktop/laptop */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
         {displayedAnalyses.length === 0 ? (
-          <div className="bg-white rounded-3xl p-8 text-center text-slate-400 border border-gray-200">
-            <PackageCheck className="w-12 h-12 mx-auto text-emerald-500 mb-2" />
-            <p className="font-bold text-sm text-slate-800">सब स्टॉक पूरा है</p>
+          <div className="col-span-full bg-white rounded-3xl p-12 text-center text-slate-400 border border-gray-200">
+            <PackageCheck className="w-14 h-14 mx-auto text-emerald-500 mb-3" />
+            <p className="font-bold text-base text-slate-800">सब स्टॉक पूरा है</p>
             <p className="text-xs text-slate-400 mt-1">कोई भी सामान कम नहीं है</p>
           </div>
         ) : (
@@ -177,9 +180,9 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
                 key={item.id}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.04, duration: 0.25 }}
+                transition={{ delay: idx * 0.03, duration: 0.25 }}
                 whileHover={{ y: -2 }}
-                className={`bg-white rounded-[28px] p-4 shadow-card border transition-all space-y-3 card-hover-elevate ${
+                className={`bg-white rounded-[28px] p-5 shadow-card border transition-all space-y-3.5 card-hover-elevate flex flex-col justify-between ${
                   isCritical
                     ? 'border-rose-300 ring-2 ring-rose-100 bg-rose-50/20'
                     : isLow
@@ -187,77 +190,79 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
                     : 'border-gray-100'
                 }`}
               >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-black text-base text-slate-900 capitalize flex items-center space-x-2">
-                      <span>{item.name}</span>
-                      {isLow && (
-                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-100 text-owed flex items-center">
-                          <AlertTriangle className="w-3 h-3 mr-0.5" />
-                          कम स्टॉक
-                        </span>
-                      )}
-                    </h3>
-
-                    <p className="text-xs text-slate-500 mt-1 leading-relaxed font-medium">
-                      बिक्री: <span className="font-black text-slate-800">{formatINR(item.selling_price)}</span> /{item.unit}
-                      {isOwner ? (
-                        <>
-                          {' • '}लागत: {formatINR(item.cost_price)}
-                          {' • '}
-                          <span className="text-emerald-700 font-black inline-flex items-center">
-                            <TrendingUp className="w-3 h-3 mr-0.5 text-emerald-600" />
-                            +₹{item.selling_price - item.cost_price} ({Math.round(((item.selling_price - item.cost_price) / item.selling_price) * 100)}%)
+                <div>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-black text-base sm:text-lg text-slate-900 capitalize flex items-center space-x-2">
+                        <span>{item.name}</span>
+                        {isLow && (
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-100 text-owed flex items-center">
+                            <AlertTriangle className="w-3 h-3 mr-0.5" />
+                            कम
                           </span>
-                        </>
-                      ) : (
-                        <span className="text-slate-400 ml-1">• लागत गुप्त</span>
-                      )}
-                    </p>
-                  </div>
+                        )}
+                      </h3>
 
-                  {/* Stock Number */}
-                  <div className="text-right">
-                    <div
-                      className={`text-2xl font-black ${
-                        isLow ? 'text-owed' : 'text-emerald-700'
-                      }`}
-                    >
-                      {item.current_stock}
-                      <span className="text-xs font-semibold ml-1 text-slate-400">
-                        {item.unit}
-                      </span>
+                      <p className="text-xs text-slate-500 mt-1 leading-relaxed font-medium">
+                        बिक्री: <span className="font-black text-slate-800">{formatINR(item.selling_price)}</span> /{item.unit}
+                        {isOwner ? (
+                          <>
+                            {' • '}लागत: {formatINR(item.cost_price)}
+                            {' • '}
+                            <span className="text-emerald-700 font-black inline-flex items-center">
+                              <TrendingUp className="w-3 h-3 mr-0.5 text-emerald-600" />
+                              +₹{item.selling_price - item.cost_price} ({Math.round(((item.selling_price - item.cost_price) / item.selling_price) * 100)}%)
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-slate-400 ml-1">• लागत गुप्त</span>
+                        )}
+                      </p>
                     </div>
-                    <p className="text-[10px] text-slate-400 font-semibold">
-                      सीमा: {item.min_threshold} {item.unit}
-                    </p>
-                  </div>
-                </div>
 
-                {/* Animated Stock Level Progress Bar */}
-                <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden p-0.5">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.max(8, stockPct)}%` }}
-                    transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                    className={`h-full rounded-full ${
-                      isCritical
-                        ? 'bg-rose-500'
-                        : isLow
-                        ? 'bg-amber-500'
-                        : 'bg-emerald-500'
-                    }`}
-                  />
+                    {/* Stock Number */}
+                    <div className="text-right flex-shrink-0 ml-2">
+                      <div
+                        className={`text-2xl font-black ${
+                          isLow ? 'text-owed' : 'text-emerald-700'
+                        }`}
+                      >
+                        {item.current_stock}
+                        <span className="text-xs font-semibold ml-1 text-slate-400">
+                          {item.unit}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-semibold">
+                        सीमा: {item.min_threshold} {item.unit}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Animated Stock Level Progress Bar */}
+                  <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden p-0.5 mt-3">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.max(8, stockPct)}%` }}
+                      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                      className={`h-full rounded-full ${
+                        isCritical
+                          ? 'bg-rose-500'
+                          : isLow
+                          ? 'bg-amber-500'
+                          : 'bg-emerald-500'
+                      }`}
+                    />
+                  </div>
                 </div>
 
                 {/* 14-Day Sales Run Rate & Days Left */}
-                <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
+                <div className="pt-2.5 border-t border-gray-100 flex items-center justify-between text-xs">
                   <div className="flex items-center space-x-1.5 text-slate-500 font-semibold">
-                    <TrendingDown className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>रोज़ाना खपत: ~{analysis.dailyAvgSales} {item.unit}</span>
+                    <TrendingDown className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                    <span className="truncate">~{analysis.dailyAvgSales} {item.unit}/दिन</span>
                   </div>
 
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
                     <span
                       className={`font-black px-2.5 py-1 rounded-xl text-[11px] ${
                         isCritical
