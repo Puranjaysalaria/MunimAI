@@ -304,13 +304,23 @@ export function useVoiceController({
         },
         onError: (err) => {
           setIsListening(false);
-          setVoiceState('error');
           if (err.code === 'not-allowed') {
+            setVoiceState('error');
             setErrorMessage(t.voice.micPermissionDenied);
+            triggerHaptic('error');
+          } else if (err.code === 'no-speech') {
+            // User hesitated or brief silence - smoothly return to idle without locking a red error box
+            setVoiceState('idle');
           } else {
+            setVoiceState('error');
             setErrorMessage(t.voice.noiseError);
+            triggerHaptic('error');
+            // Auto dismiss error message after 4.5 seconds so user isn't stuck
+            setTimeout(() => {
+              setErrorMessage((cur) => (cur === t.voice.noiseError ? null : cur));
+              setVoiceState((cur) => (cur === 'error' ? 'idle' : cur));
+            }, 4500);
           }
-          triggerHaptic('error');
         },
         onStateChange: (state) => {
           if (state === 'idle') setIsListening(false);
@@ -443,8 +453,8 @@ export function useVoiceController({
           const raw = res.transcript.trim().toLowerCase();
 
           // Rapid intent detection even on interim results for snappy, instant response
-          const isYes = /\b(haan|ha|haa|aaho|yes|yeah|yup|ok|okay|confirm|likh\s*do|likh\s*deo|theek\s*hai|theek|save\s*kar\s*do|kar\s*do|bilkul|ho|sari|aam|avunu|haudu|athe)\b/i.test(raw);
-          const isNo = /\b(nahi|nahin|na|no|nope|cancel|stop|ruko|mat likho|mat karo|chhad do|na karo|don't|dont|nakko|venda|beda|illai|vaddu)\b/i.test(raw);
+          const isYes = /\b(haan|ha|haa|aaho|yes|yeah|yup|ok|okay|confirm|save|record|done|correct|right|likh\s*do|likh\s*deo|theek\s*hai|theek|save\s*kar\s*do|kar\s*do|bilkul|ho|sari|aam|avunu|haudu|athe)\b/i.test(raw);
+          const isNo = /\b(nahi|nahin|na|no|nope|cancel|stop|ruko|discard|back|mat\s*likho|mat\s*karo|chhad\s*do|na\s*karo|don't|dont|nakko|venda|beda|illai|vaddu)\b/i.test(raw);
 
           if (isYes && !isNo) {
             if (sttProviderRef.current) {

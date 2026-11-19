@@ -206,8 +206,8 @@ export function extractNumbers(text: string): number[] {
 export function extractAmount(text: string): number | null {
   const clean = cleanText(text);
 
-  // 1. Explicit amount patterns like "500 ka", "500 rupaye", "₹500"
-  const amountPattern = /(\d+|pachaas|fifty|paanch sau|panj sau|dhai sau|sau|hazaar|thousand)\s*(?:ka|ke|rupaye|rs|inr|da|de|roopaye|rupaiya)\b/i;
+  // 1. Explicit amount patterns like "500 ka", "500 rupaye", "₹500", "500 rupees"
+  const amountPattern = /(\d+|pachaas|fifty|paanch sau|panj sau|dhai sau|sau|hazaar|thousand)\s*(?:ka|ke|rupaye|rupees|rupee|bucks|rs|inr|da|de|roopaye|rupaiya)\b/i;
   const match = clean.match(amountPattern);
   if (match) {
     const extracted = extractNumbers(match[1]);

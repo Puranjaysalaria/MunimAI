@@ -32,6 +32,7 @@ interface HomeProps {
   errorMessage: string | null;
   onRetryVoice: () => void;
   onSelectCustomerSuggestion: (name: string) => void;
+  onOpenSupplierOrders?: () => void;
 }
 
 export const Home: React.FC<HomeProps> = ({
@@ -43,6 +44,7 @@ export const Home: React.FC<HomeProps> = ({
   errorMessage,
   onRetryVoice,
   onSelectCustomerSuggestion,
+  onOpenSupplierOrders,
 }) => {
   const { customers, items, transactions } = useShop();
   const { t, language } = useI18n();
@@ -223,11 +225,22 @@ export const Home: React.FC<HomeProps> = ({
     </div>
   );
 
+  const daysLeftEstimated =
+    lowStockItems[0]?.days_stock_left !== undefined
+      ? lowStockItems[0].days_stock_left
+      : lowStockItems[0]?.daily_avg_sales
+      ? Number((lowStockItems[0].current_stock / lowStockItems[0].daily_avg_sales).toFixed(1))
+      : 1.0;
+
   const StockAlert = lowStockItems.length > 0 && (
     <motion.div
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300/80 rounded-2xl p-3.5 flex items-center justify-between shadow-xs card-hover-elevate"
+      onClick={() => {
+        triggerHaptic('light');
+        onOpenSupplierOrders?.();
+      }}
+      className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300/80 rounded-2xl p-3.5 flex items-center justify-between shadow-xs card-hover-elevate cursor-pointer"
     >
       <div className="flex items-center space-x-3">
         <div className="p-2 bg-amber-500 text-white rounded-xl shadow-xs flex-shrink-0 animate-pulse">
@@ -238,7 +251,7 @@ export const Home: React.FC<HomeProps> = ({
             {lowStockItems[0].name.toUpperCase()} {t.stock.lowStockNotice}
           </p>
           <p className="text-[11px] text-amber-800 font-medium">
-            {lowStockItems[0].current_stock} {lowStockItems[0].unit} ({lowStockItems[0].days_stock_left} {t.home.daysLeftRemaining})
+            {lowStockItems[0].current_stock} {lowStockItems[0].unit} ({daysLeftEstimated} {t.home.daysLeftRemaining})
           </p>
         </div>
       </div>

@@ -392,4 +392,42 @@ describe('Speech Parser - 30+ Multilingual Sentences Across All Intents', () => 
       expect(res.intent).toBe('summary');
     });
   });
+
+  // 11. English Natural Voice Inputs (Loan, Credit, Payment, Sales)
+  describe('English Natural Speech Recognition', () => {
+    it('44. parses English loan query: "Ankit 900 loan"', async () => {
+      const res = await parseSpeech('Ankit 900 loan', testContext);
+      expect(res.intent).toBe('credit');
+      expect(res.amount).toBe(900);
+      expect(res.customer).toBe('Ankit');
+      expect(res.confidence).toBeGreaterThanOrEqual(0.85);
+    });
+
+    it('45. parses English credit with preposition: "add 500 loan for Ramesh"', async () => {
+      const res = await parseSpeech('add 500 loan for Ramesh', testContext);
+      expect(res.intent).toBe('credit');
+      expect(res.amount).toBe(500);
+      expect(res.ambiguousCustomers?.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('46. parses English payment: "Sunita 350 payment"', async () => {
+      const res = await parseSpeech('Sunita 350 payment', testContext);
+      expect(res.intent).toBe('payment');
+      expect(res.amount).toBe(350);
+      expect(res.matchedCustomer?.name).toBe('Sunita Devi');
+    });
+
+    it('47. parses English payment received: "received 400 from Ankit"', async () => {
+      const res = await parseSpeech('received 400 from Ankit', testContext);
+      expect(res.intent).toBe('payment');
+      expect(res.amount).toBe(400);
+      expect(res.customer).toBe('Ankit');
+    });
+
+    it('48. parses English sale: "sold 2 packets milk cash"', async () => {
+      const res = await parseSpeech('sold 2 packets milk cash', testContext);
+      expect(res.intent).toBe('sale');
+      expect(res.item).toBe('doodh');
+    });
+  });
 });

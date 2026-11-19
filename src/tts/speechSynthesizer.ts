@@ -62,8 +62,20 @@ export class SpeechSynthesizer {
         utterance.voice = matchingVoice;
       }
 
-      utterance.onend = () => resolve();
-      utterance.onerror = () => resolve();
+      let resolved = false;
+      const safeResolve = () => {
+        if (!resolved) {
+          resolved = true;
+          resolve();
+        }
+      };
+
+      utterance.onend = safeResolve;
+      utterance.onerror = safeResolve;
+
+      // Chrome SpeechSynthesis watchdog to guarantee resolution
+      const timeoutMs = Math.max(1500, Math.min(text.length * 80 + 1200, 5000));
+      setTimeout(safeResolve, timeoutMs);
 
       this.synth.speak(utterance);
     });

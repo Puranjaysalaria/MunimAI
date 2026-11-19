@@ -82,8 +82,9 @@ export function parseWithRules(
   }
 
   // Check if sentence is an active transaction request (has udhaar, khate mein, sale, payment keywords)
-  const isCreditPhrase = /\b(udhaar|udhar|khate\s*mein|khate\s*me|naame|udharaan)\b/i.test(lower);
-  const isPaymentPhrase = /\b(diye|diya|jama|lauta\s*diye|de\s*ditta|wapis\s*kite|pay\s*kitta)\b/i.test(lower);
+  const isCreditPhrase = /\b(udhaar|udhar|khate\s*mein|khate\s*me|naame|udharaan|loan|loans|credit|borrow|borrowed|lent|lend|on\s*credit|due)\b/i.test(lower);
+  const isPaymentPhrase = /\b(diye|diya|jama|lauta\s*diye|de\s*ditta|wapis\s*kite|pay\s*kitta|paid|pay|payment|repaid|repay|returned|received|cleared|settled)\b/i.test(lower);
+  const isSalePhrase = /\b(bechi|becha|bika|biki|vechi|vech|sale|sales|cash\s*sale|becho|sold|sell|selling)\b/i.test(lower);
 
   // Confirmation YES: "Haan" / "Haan likh do" / "Aaho" (only if not an explicit credit entry or item/customer present)
   const hasCustomerMarker = /\b(ko|ne|nu|ke\s*khate)\b/i.test(lower);
@@ -207,16 +208,15 @@ export function parseWithRules(
   // 4. Match Customer in Context
   let matchedCustomerName: string | null = null;
 
-  // Check known customers
-  // First check exact full names
+  // First check exact full names of known customers
   for (const cust of context.customers) {
-    if (lower.includes(cust.name.toLowerCase())) {
+    if (new RegExp(`(^|\\s)${cust.name.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}(\\s|$)`, 'i').test(lower)) {
       matchedCustomerName = cust.name;
       break;
     }
   }
 
-  // If not full name, check first names or customer markers
+  // Next check customer markers: Hindi/Punjabi (ko/ne/nu/ke khate)
   if (!matchedCustomerName) {
     const custPattern = /(?:^|\s)([a-zA-Z\u0900-\u097F]+)\s+(?:ko|ne|nu|ke\s*khate)\b/i;
     const match = text.match(custPattern);
@@ -224,6 +224,44 @@ export function parseWithRules(
       const candidate = match[1].trim();
       if (!['aaj', 'kal', 'subah', 'sham', 'aj', 'unko'].includes(candidate.toLowerCase())) {
         matchedCustomerName = candidate;
+      }
+    }
+  }
+
+  // Next check English prepositions: for/to/from <name>
+  if (!matchedCustomerName) {
+    const prepPattern = /(?:^|\s)(?:for|to|from)\s+([a-zA-Z\u0900-\u097F]+)\b/i;
+    const match = text.match(prepPattern);
+    if (match) {
+      const candidate = match[1].trim();
+      if (!['aaj', 'kal', 'today', 'cash', 'loan', 'credit', 'me', 'him', 'her', 'store', 'the'].includes(candidate.toLowerCase())) {
+        matchedCustomerName = candidate;
+      }
+    }
+  }
+
+  // Next check leading name pattern: "<Name> <amount> <intent>" e.g. "Ankit 900 loan", "Sunita 350 payment"
+  if (!matchedCustomerName) {
+    const leadingNamePattern = /^([a-zA-Z\u0900-\u097F]+)\s+(?:\d+|pachaas|fifty|sau|hundred)/i;
+    const match = text.trim().match(leadingNamePattern);
+    if (match) {
+      const candidate = match[1].trim();
+      if (!['add', 'record', 'nava', 'new', 'send', 'aaj', 'kal', 'total', 'sale', 'cash'].includes(candidate.toLowerCase())) {
+        matchedCustomerName = candidate;
+      }
+    }
+  }
+
+  // Next check if any known customer's first name is present as a standalone word
+  if (!matchedCustomerName) {
+    for (const cust of context.customers) {
+      const firstName = cust.name.trim().split(/\s+/)[0];
+      if (firstName.length >= 2 && new RegExp(`(^|\\s)${firstName.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}(\\s|$)`, 'i').test(lower)) {
+        const count = context.customers.filter((c) =>
+          c.name.toLowerCase().startsWith(firstName.toLowerCase())
+        ).length;
+        matchedCustomerName = count > 1 ? firstName : cust.name;
+        break;
       }
     }
   }
@@ -310,7 +348,7 @@ export function parseWithRules(
       rawText: rawText,
       spokenReply: matchedCustomerName && finalAmount
         ? detectedLang === 'en'
-          ? `${matchedCustomerName}, ₹${finalAmount} credit udhaar. Record it?`
+          ? `${matchedCustomerName}, ₹${finalAmount} credit loan. Record it?`
           : detectedLang === 'pa'
           ? `${matchedCustomerName}, ${itemsSummary ? itemsSummary + ' (ਕੁੱਲ ₹' + finalAmount + ')' : finalAmount + ' ਰੁਪਏ'} ਉਧਾਰ। ਲਿਖ ਦਿਆਂ?`
           : `${matchedCustomerName}, ${itemsSummary ? itemsSummary + ' (कुल ₹' + finalAmount + ')' : finalAmount + ' रुपये'} उधार। लिख दूँ?`
@@ -319,14 +357,14 @@ export function parseWithRules(
           ? `How much credit for ${matchedCustomerName}?`
           : `${matchedCustomerName} का कितना उधार लिखना है?`
         : detectedLang === 'en'
-        ? 'Record udhaar transaction?'
+        ? 'Record credit transaction?'
         : 'उधार खाता दर्ज करें?',
       questionToAsk: !finalAmount ? 'Kitne rupaye ka udhaar likhna hai?' : null,
     };
   }
 
-  // 7. Sale Intent: "Aaj 5 kilo chini bechi" / "becha" / "vechi" / "bika"
-  if (/\b(bechi|becha|bika|biki|vechi|vech|sale|cash sale|becho)\b/i.test(lower) || (firstItem && qtyInfo.quantity)) {
+  // 7. Sale Intent: "Aaj 5 kilo chini bechi" / "becha" / "vechi" / "bika" / "sold" / "cash sale"
+  if (isSalePhrase || (firstItem && qtyInfo.quantity)) {
     const conf = (amount || (firstItem && qtyInfo.quantity)) ? 0.95 : 0.7;
     const spokenAmount = amount
       ? detectedLang === 'en'

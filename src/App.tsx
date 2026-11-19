@@ -233,6 +233,7 @@ export const AppContent: React.FC = () => {
                 onSelectCustomerSuggestion={(name) =>
                   voice.processInput(`${name} ko 500 ka udhaar`)
                 }
+                onOpenSupplierOrders={() => setIsSupplierOrdersOpen(true)}
               />
             </motion.div>
           )}

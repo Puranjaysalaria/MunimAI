@@ -72,7 +72,7 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
   const spokenPrompt = pending
     ? language === 'en'
       ? isCredit && custDisplayName
-        ? `${custDisplayName}, ${amountInWords} (₹${pending.amount}) credit udhaar. Should I record it?`
+        ? `${custDisplayName}, ${amountInWords} (₹${pending.amount}) credit loan. Should I record it?`
         : isPayment && custDisplayName
         ? `Record ${amountInWords} (₹${pending.amount}) payment from ${custDisplayName}?`
         : isSale && pending.itemName
@@ -353,8 +353,8 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                   <div className="flex items-center space-x-1.5">
                     <span className="text-xs font-black">
                       {isListeningForReply
-                        ? (language === 'en' ? 'Listening...' : 'सुन रहे हैं...')
-                        : t.confirmCard.speechPrompt}
+                        ? (t.confirmCard.listeningStatus || (language === 'en' ? 'Listening...' : 'सुन रहे हैं...'))
+                        : (language === 'en' ? 'Voice Confirmation' : 'आवाज़ से पुष्टि')}
                     </span>
                     {isListeningForReply && (
                       <span className="flex h-2 w-2 relative">
@@ -364,11 +364,7 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                     )}
                   </div>
                   <span className="text-[10px] text-slate-500 font-bold block">
-                    {language === 'en'
-                      ? 'Say "Yes" to save or "No" to cancel'
-                      : language === 'pa'
-                      ? 'ਬੋਲੋ "ਹਾਂ" ਜਾਂ "ਨਹੀਂ"'
-                      : 'बोलें "हाँ" या "नहीं"'}
+                    {t.confirmCard.speechPrompt}
                   </span>
                 </div>
               </motion.button>
