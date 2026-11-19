@@ -21,6 +21,7 @@ import {
   Clock,
   BellOff,
   RotateCw,
+  ArrowRight,
 } from 'lucide-react';
 
 interface RecoveryModalProps {
@@ -70,6 +71,20 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
   }, [customers, shop, effectiveThreshold]);
 
   if (!isOpen) return null;
+
+  // Filter actionable customers (not yet sent today, and reminders not paused)
+  const actionableReminders = draftReminders.filter(
+    (d) => !sentMap[d.customer.id] && !d.isSentToday && !d.isDoNotRemind
+  );
+
+  const sentCount = draftReminders.filter(
+    (d) => Boolean(sentMap[d.customer.id] || d.isSentToday)
+  ).length;
+
+  const totalCount = draftReminders.length;
+
+  // Recoverable amount is calculated over pending/unsent eligible debts
+  const totalOwed = actionableReminders.reduce((sum, d) => sum + Number(d.amount), 0);
 
   const markCustomerReminded = (draft: DraftReminder) => {
     setSentMap((prev) => ({ ...prev, [draft.customer.id]: true }));
@@ -127,36 +142,34 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
     }
   };
 
-  // Send to all (batch trigger - only eligible and not sent today)
-  const handleSendAll = () => {
+  // Guided Queue Send: Dispatches the next pending customer in order
+  const handleSendNextInQueue = () => {
+    if (actionableReminders.length === 0) return;
+
     triggerHaptic('success');
     playAudioCue('success');
 
-    const actionable = draftReminders.filter(
-      (d) => !sentMap[d.customer.id] && !d.isSentToday && !d.isDoNotRemind
-    );
+    const nextTarget = actionableReminders[0];
+    handleSendWhatsApp(nextTarget);
 
-    actionable.forEach((d) => {
-      markCustomerReminded(d);
-    });
-
-    // Speak confirmation
+    const remainingAfterThis = actionableReminders.length - 1;
     const confirmVoice =
-      language === 'en'
-        ? `Reminders prepared for ${actionable.length} customers.`
+      remainingAfterThis > 0
+        ? language === 'en'
+          ? `Opening WhatsApp for ${nextTarget.customer.name}. ${remainingAfterThis} remaining in queue.`
+          : language === 'pa'
+          ? `${nextTarget.customer.name} ਲਈ WhatsApp ਖੋਲ੍ਹਿਆ ਗਿਆ। ${remainingAfterThis} ਬਾਕੀ ਹਨ।`
+          : `${nextTarget.customer.name} के लिए WhatsApp खोला गया। ${remainingAfterThis} बाकी हैं।`
+        : language === 'en'
+        ? `Opening WhatsApp for ${nextTarget.customer.name}. All reminders complete.`
         : language === 'pa'
-        ? `ਕੁੱਲ ${actionable.length} ਗਾਹਕਾਂ ਲਈ ਯਾਦ-ਪੱਤਰ ਤਿਆਰ ਕੀਤੇ ਗਏ`
-        : `कुल ${actionable.length} ग्राहकों के लिए तगादा मैसेज तैयार किए गए`;
-    speechSynthesizer.speak(confirmVoice, language);
+        ? `${nextTarget.customer.name} ਲਈ WhatsApp ਖੋਲ੍ਹਿਆ ਗਿਆ। ਸਾਰੇ ਤਿਆਰ ਹਨ।`
+        : `${nextTarget.customer.name} के लिए WhatsApp खोला गया। सभी तगादे पूरे हुए।`;
 
-    // If there is an actionable customer, open the first one in WhatsApp
-    if (actionable.length > 0) {
-      handleSendWhatsApp(actionable[0]);
-    }
+    speechSynthesizer.speak(confirmVoice, language);
   };
 
-  const totalOwed = draftReminders.reduce((sum, d) => sum + Number(d.amount), 0);
-  const sentCount = Object.keys(sentMap).length;
+  const nextUpCustomer = actionableReminders[0];
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -174,7 +187,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
               <p className="text-xs text-app-muted">
                 {t.reminders.eligibleCountSuffix
                   .replace('{amount}', String(effectiveThreshold))
-                  .replace('{count}', String(draftReminders.length))}
+                  .replace('{count}', String(totalCount))}
               </p>
             </div>
           </div>
@@ -223,26 +236,32 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
           </div>
         )}
 
-        {/* Hero Badge */}
+        {/* Hero Recovery Badge */}
         <div className="bg-red-50/60 border border-red-200 rounded-2xl p-3 my-2 flex items-center justify-between flex-shrink-0">
           <div>
             <span className="text-[10px] uppercase font-bold text-owed tracking-wider">
-              {t.reminders.totalRecoverable}
+              {actionableReminders.length > 0
+                ? t.reminders.totalRecoverable
+                : language === 'en'
+                ? 'All Reminders Dispatched Today'
+                : language === 'pa'
+                ? 'ਸਾਰੇ ਯਾਦ-ਪੱਤਰ ਅੱਜ ਭੇਜੇ ਜਾ ਚੁੱਕੇ ਹਨ'
+                : 'आज के सभी तगादे भेजे जा चुके हैं'}
             </span>
             <p className="text-2xl font-black text-owed mt-0.5">
               {formatINR(totalOwed)}
             </p>
           </div>
           <div className="text-right">
-            <span className="text-xs bg-white px-2.5 py-1 rounded-full font-bold text-gray-700 shadow-xs">
-              {sentCount}/{draftReminders.length} {t.reminders.sentLabel}
+            <span className="text-xs bg-white px-2.5 py-1 rounded-full font-bold text-gray-700 shadow-xs border border-gray-100">
+              {sentCount}/{totalCount} {t.reminders.sentLabel}
             </span>
           </div>
         </div>
 
         {/* Customer Reminders List */}
         <div className="flex-1 overflow-y-auto space-y-3 pr-1 py-1">
-          {draftReminders.length === 0 ? (
+          {totalCount === 0 ? (
             <div className="text-center py-12 text-app-muted text-xs">
               {t.reminders.allSettled}
             </div>
@@ -259,7 +278,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                     isBlocked
                       ? 'border-gray-200 bg-gray-50/70 opacity-75'
                       : isSent
-                      ? 'border-emerald-200 bg-emerald-50/20'
+                      ? 'border-emerald-200 bg-emerald-50/30'
                       : 'border-gray-200'
                   }`}
                 >
@@ -304,10 +323,10 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                           )}
 
                         {/* Daily Cap Sent Today Badge */}
-                        {draft.isSentToday && (
-                          <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded-full flex items-center">
+                        {isSent && (
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded-full flex items-center">
                             <CheckCircle className="w-2.5 h-2.5 mr-0.5" />
-                            {t.reminders.sentToday || 'Sent Today'}
+                            {t.reminders.sentToday || (language === 'en' ? 'Sent Today' : 'आज भेजा गया')}
                           </span>
                         )}
 
@@ -315,7 +334,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                         {isBlocked && (
                           <span className="text-[10px] bg-red-100 text-red-800 font-bold px-1.5 py-0.5 rounded-full flex items-center">
                             <BellOff className="w-2.5 h-2.5 mr-0.5" />
-                            {t.reminders.doNotRemind || "Don't Remind"}
+                            {t.reminders.doNotRemind || (language === 'en' ? "Don't Remind" : 'तगादा बंद')}
                           </span>
                         )}
                       </div>
@@ -399,14 +418,14 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                           isBlocked
                             ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                             : isSent
-                            ? 'bg-emerald-100 text-emerald-800'
+                            ? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800'
                             : 'bg-emerald-600 hover:bg-emerald-700 text-white'
                         }`}
                       >
                         {isSent ? (
                           <>
                             <CheckCircle className="w-4 h-4 text-emerald-700" />
-                            <span>{t.reminders.sentLabel} (Resend)</span>
+                            <span>{language === 'en' ? 'Sent Today (Tap to Resend)' : 'भेजा गया (फिर भेजें)'}</span>
                           </>
                         ) : (
                           <>
@@ -443,22 +462,44 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
           )}
         </div>
 
-        {/* Bottom Actions */}
-        {draftReminders.length > 0 && (
+        {/* Bottom Actions: Guided Queue Dispatch */}
+        {totalCount > 0 && (
           <div className="pt-3 border-t border-gray-100 mt-2 space-y-2 flex-shrink-0">
-            <button
-              onClick={handleSendAll}
-              className="touch-target-64 w-full py-3 bg-accent hover:bg-accent-hover text-app-text font-black text-sm rounded-2xl shadow-md active:scale-95 flex items-center justify-center space-x-2"
-            >
-              <Send className="w-4 h-4" />
-              <span>{t.reminders.sendAllButton}</span>
-            </button>
+            {actionableReminders.length > 0 ? (
+              <button
+                onClick={handleSendNextInQueue}
+                className="touch-target-64 w-full py-3 bg-accent hover:bg-accent-hover text-app-text font-black text-sm rounded-2xl shadow-md active:scale-95 flex items-center justify-center space-x-2"
+              >
+                <Send className="w-4 h-4" />
+                <span>
+                  {language === 'en'
+                    ? `Dispatch Next: ${nextUpCustomer.customer.name} (${formatINR(nextUpCustomer.amount)})`
+                    : language === 'pa'
+                    ? `ਅਗਲਾ ਭੇਜੋ: ${nextUpCustomer.customer.name} (${formatINR(nextUpCustomer.amount)})`
+                    : `अगला तगादा भेजें: ${nextUpCustomer.customer.name} (${formatINR(nextUpCustomer.amount)})`}
+                </span>
+                <ArrowRight className="w-4 h-4 ml-1" />
+              </button>
+            ) : (
+              <div className="py-2.5 px-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-center">
+                <p className="text-xs font-bold text-emerald-800 flex items-center justify-center space-x-1.5">
+                  <CheckCircle className="w-4 h-4 text-emerald-600" />
+                  <span>
+                    {language === 'en'
+                      ? `All ${totalCount} reminders completed today!`
+                      : language === 'pa'
+                      ? `ਅੱਜ ਦੇ ਸਾਰੇ ${totalCount} ਯਾਦ-ਪੱਤਰ ਪੂਰੇ ਹੋ ਚੁੱਕੇ ਹਨ!`
+                      : `आज के सभी ${totalCount} तगादे भेजे जा चुके हैं!`}
+                  </span>
+                </p>
+              </div>
+            )}
             <p className="text-[11px] text-center text-app-muted">
               {language === 'en'
-                ? 'Schedules never auto-send • Tap to send individually or in batch'
+                ? 'Tapping opens WhatsApp with message pre-filled • Never sends in background'
                 : language === 'pa'
-                ? 'ਕਦੇ ਵੀ ਆਪਣੇ ਆਪ ਨਹੀਂ ਭੇਜਿਆ ਜਾਂਦਾ • ਇਕੱਲੇ ਜਾਂ ਇਕੱਠੇ ਭੇਜਣ ਲਈ ਟੈਪ ਕਰੋ'
-                : 'ऑटो-सेंड कभी नहीं होता • व्यक्तिगत या समूह में भेजने के लिए टैप करें'}
+                ? "ਬਟਨ ਦਬਾਉਣ 'ਤੇ ਸੁਨੇਹਾ ਭਰਿਆ WhatsApp ਖੁੱਲ੍ਹਦਾ ਹੈ • ਕਦੇ ਵੀ ਆਪਣੇ ਆਪ ਨਹੀਂ ਭੇਜਿਆ ਜਾਂਦਾ"
+                : 'बटन दबाने पर पूरा मैसेज लिखा हुआ WhatsApp खुलता है • बैकग्राउंड में कभी नहीं जाता'}
             </p>
           </div>
         )}

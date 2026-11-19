@@ -371,7 +371,9 @@ export function buildDraftReminders(
   };
 
   const threshold = customThreshold !== undefined ? customThreshold : settings.default_threshold;
-  const eligible = getEligibleRecoveryCustomers(customers, settings, threshold, now);
+  const eligible = customers
+    .filter((c) => Number(c.balance_owed) >= threshold)
+    .sort((a, b) => Number(b.balance_owed) - Number(a.balance_owed));
 
   return eligible.map((customer) => {
     // 1. Per-customer tone override takes priority over shop-wide tone
