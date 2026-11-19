@@ -67,7 +67,7 @@ export const PinLock: React.FC = () => {
         {error ? (
           <p className="text-owed text-sm font-semibold mt-4 animate-bounce">{error}</p>
         ) : (
-          <p className="text-xs text-gray-400 mt-4">डिफ़ॉल्ट पिन: 1234</p>
+          <p className="text-xs text-gray-400 mt-4">PIN: 1234</p>
         )}
       </div>
 
@@ -90,7 +90,7 @@ export const PinLock: React.FC = () => {
           title="Logout"
         >
           <LogOut className="w-5 h-5 mr-1" />
-          <span>लॉगआउट</span>
+          <span>{t.settings.logout}</span>
         </button>
 
         <button

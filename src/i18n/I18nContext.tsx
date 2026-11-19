@@ -1,54 +1,80 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Translations, LanguageCode } from './types';
 import { hi } from './hi';
-import { pa } from './pa';
 import { en } from './en';
+import { pa } from './pa';
+import { gu } from './gu';
+import { mr } from './mr';
+import { bn } from './bn';
+import { ta } from './ta';
+import { te } from './te';
+import { kn } from './kn';
+import { ml } from './ml';
 
 const translationsMap: Record<LanguageCode, Translations> = {
   hi,
-  pa,
   en,
-  mr: hi,
-  bn: hi,
-  gu: hi,
-  ta: hi,
+  pa,
+  gu,
+  mr,
+  bn,
+  ta,
+  te,
+  kn,
+  ml,
 };
+
+export interface LanguageMeta {
+  code: LanguageCode;
+  label: string;
+  nativeLabel: string;
+  region: string;
+}
 
 export interface I18nContextType {
   language: LanguageCode;
   setLanguage: (lang: LanguageCode) => void;
   t: Translations;
-  availableLanguages: { code: LanguageCode; label: string; nativeLabel: string }[];
+  availableLanguages: LanguageMeta[];
 }
 
 const I18nContext = createContext<I18nContextType | null>(null);
 
 const STORAGE_KEY = 'munim_preferred_language';
 
+export const availableLanguages: LanguageMeta[] = [
+  { code: 'hi', label: 'Hindi', nativeLabel: 'हिंदी', region: 'North & Central' },
+  { code: 'en', label: 'English / Hinglish', nativeLabel: 'English', region: 'Pan-India' },
+  { code: 'pa', label: 'Punjabi', nativeLabel: 'ਪੰਜਾਬੀ', region: 'Punjab / Haryana' },
+  { code: 'gu', label: 'Gujarati', nativeLabel: 'ગુજરાતી', region: 'Gujarat / Mumbai' },
+  { code: 'mr', label: 'Marathi', nativeLabel: 'मराठी', region: 'Maharashtra' },
+  { code: 'bn', label: 'Bengali', nativeLabel: 'বাংলা', region: 'West Bengal' },
+  { code: 'ta', label: 'Tamil', nativeLabel: 'தமிழ்', region: 'Tamil Nadu' },
+  { code: 'te', label: 'Telugu', nativeLabel: 'తెలుగు', region: 'AP & Telangana' },
+  { code: 'kn', label: 'Kannada', nativeLabel: 'ಕನ್ನಡ', region: 'Karnataka' },
+  { code: 'ml', label: 'Malayalam', nativeLabel: 'മലയാളം', region: 'Kerala' },
+];
+
 export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<LanguageCode>(() => {
     const saved = localStorage.getItem(STORAGE_KEY) as LanguageCode | null;
-    if (saved && (saved === 'hi' || saved === 'pa' || saved === 'en')) {
+    if (saved && translationsMap[saved]) {
       return saved;
     }
     return 'hi';
   });
 
   const setLanguage = (lang: LanguageCode) => {
-    setLanguageState(lang);
-    localStorage.setItem(STORAGE_KEY, lang);
-    document.documentElement.lang = lang;
+    if (translationsMap[lang]) {
+      setLanguageState(lang);
+      localStorage.setItem(STORAGE_KEY, lang);
+      document.documentElement.lang = lang;
+    }
   };
 
   useEffect(() => {
     document.documentElement.lang = language;
   }, [language]);
-
-  const availableLanguages = [
-    { code: 'hi' as LanguageCode, label: 'Hindi', nativeLabel: 'हिंदी' },
-    { code: 'pa' as LanguageCode, label: 'Punjabi', nativeLabel: 'ਪੰਜਾਬੀ' },
-    { code: 'en' as LanguageCode, label: 'English / Hinglish', nativeLabel: 'English' },
-  ];
 
   return (
     <I18nContext.Provider

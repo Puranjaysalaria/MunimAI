@@ -62,7 +62,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
               <Globe className="w-4 h-4 mr-1.5 text-primary" />
               {t.settings.language}
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-56 overflow-y-auto pr-1">
               {availableLanguages.map((lang) => (
                 <button
                   key={lang.code}

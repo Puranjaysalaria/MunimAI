@@ -116,7 +116,7 @@ export const Ledger: React.FC<LedgerProps> = ({
       <div className="space-y-4">
         {/* Traditional Bahi-Khata Auspicious Header Banner */}
         <div className="text-center py-1.5 bg-amber-50 rounded-2xl border border-amber-200/80 text-[11px] font-black text-amber-900 tracking-wider shadow-xs">
-          ॥ शुभ लाभ ॥ डिजिटल बही-खाता रजिस्टर
+          {t.ledger.passbookTitle}
         </div>
 
         {/* Customer Header Info */}
@@ -134,7 +134,7 @@ export const Ledger: React.FC<LedgerProps> = ({
               </h2>
               <p className="text-xs text-slate-500 flex items-center mt-0.5 font-medium">
                 <MapPin className="w-3.5 h-3.5 mr-1 text-slate-400" />
-                {cust.address_note || 'स्थानीय ग्राहक'}
+                {cust.address_note || cust.name}
               </p>
             </div>
           </div>
@@ -153,7 +153,7 @@ export const Ledger: React.FC<LedgerProps> = ({
         <div className="grid grid-cols-2 gap-3 my-3">
           <div className="p-4 bg-gradient-to-br from-rose-50 to-white rounded-3xl border border-rose-200 shadow-xs">
             <span className="text-[11px] font-black text-rose-700 block">
-              कुल उधार बकाया
+              {t.ledger.totalOwed}
             </span>
             <span className="text-2xl sm:text-3xl font-black text-owed block mt-1 tracking-tight">
               {formatINR(cust.balance_owed)}
@@ -161,7 +161,7 @@ export const Ledger: React.FC<LedgerProps> = ({
           </div>
           <div className="p-4 bg-gradient-to-br from-gray-50 to-white rounded-3xl border border-gray-200 shadow-xs">
             <span className="text-[11px] font-black text-slate-500 block">
-              उधार सीमा (Limit)
+              {t.ledger.creditLimit}
             </span>
             <span className="text-xl sm:text-2xl font-black text-slate-800 block mt-1">
               {formatINR(cust.credit_limit)}
@@ -170,7 +170,7 @@ export const Ledger: React.FC<LedgerProps> = ({
               <span
                 className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${trust.badgeColor}`}
               >
-                {trust.tierLabelHi} ({trust.score}%)
+                {t.ledger.trustLabel}: {trust.score}%
               </span>
             </div>
           </div>
@@ -183,14 +183,14 @@ export const Ledger: React.FC<LedgerProps> = ({
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.95 }}
               href={`https://wa.me/${cust.phone?.replace(/\D/g, '') || ''}?text=${encodeURIComponent(
-                `नमस्ते ${cust.name} जी! ${shop.name} पर आपका ₹${cust.balance_owed} का उधार बाकी है। कृपया UPI या दुकान पर आकर जमा करा दें। धन्यवाद!`
+                `${shop.name}: ₹${cust.balance_owed} ${t.ledger.customerBalanceOwed}.`
               )}`}
               target="_blank"
               rel="noopener noreferrer"
               className="touch-target-64 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-2xl flex items-center justify-center space-x-1.5 shadow-xs"
             >
               <Share2 className="w-4 h-4 text-emerald-100" />
-              <span>WhatsApp तगादा</span>
+              <span>{t.ledger.sendWhatsAppReminder}</span>
             </motion.a>
           )}
 
@@ -203,20 +203,20 @@ export const Ledger: React.FC<LedgerProps> = ({
             }`}
           >
             <Printer className="w-4 h-4 text-slate-700" />
-            <span>पर्ची प्रिंट करें</span>
+            <span>{t.ledger.printStatement}</span>
           </motion.button>
         </div>
 
         {/* Customer's Individual Transactions History */}
         <div className="mt-3">
           <h4 className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">
-            खाते का लेन-देन इतिहास ({custTxs.length})
+            {t.today.allTransactionsToday} ({custTxs.length})
           </h4>
 
           <div className="divide-y divide-gray-100 border border-gray-100 rounded-3xl overflow-hidden bg-gray-50/50 max-h-[340px] overflow-y-auto">
             {custTxs.length === 0 ? (
               <div className="py-6 text-center text-xs text-slate-400 font-medium">
-                इस खाते में अभी कोई लेन-देन दर्ज नहीं है
+                {t.home.noActivity}
               </div>
             ) : (
               custTxs.map((tx) => {
@@ -226,7 +226,7 @@ export const Ledger: React.FC<LedgerProps> = ({
                     <div>
                       <p className="text-xs font-black text-slate-900">
                         {tx.voice_transcript ||
-                          (isCredit ? 'सामान का उधार' : 'रकम जमा')}
+                          (isCredit ? t.ledger.giveCreditBtn : t.ledger.receivePaymentBtn)}
                       </p>
                       <p className="text-[10px] text-slate-400 flex items-center mt-0.5 font-medium">
                         <Calendar className="w-3 h-3 mr-1" />
@@ -292,13 +292,13 @@ export const Ledger: React.FC<LedgerProps> = ({
             onClick={() => handleCreditAction(cust)}
             className="touch-target-64 bg-rose-50 text-owed hover:bg-rose-100 font-black rounded-2xl border border-rose-200"
           >
-            + नया उधार दें
+            + {t.ledger.giveCredit}
           </button>
           <button
             onClick={() => handlePaymentAction(cust)}
             className="touch-target-64 bg-emerald-50 text-received hover:bg-emerald-100 font-black rounded-2xl border border-emerald-200"
           >
-            - रकम जमा करें
+            - {t.ledger.recordPayment}
           </button>
         </div>
       </div>
@@ -321,7 +321,7 @@ export const Ledger: React.FC<LedgerProps> = ({
             {formatINR(totalOwed)}
           </div>
           <p className="text-xs text-rose-600 font-semibold mt-0.5">
-            {customers.filter((c) => c.balance_owed > 0).length} ग्राहकों पर बाकी
+            {customers.filter((c) => c.balance_owed > 0).length} {t.ledger.customerBalanceOwed}
           </p>
         </div>
 
@@ -336,10 +336,10 @@ export const Ledger: React.FC<LedgerProps> = ({
               exportLedgerToCSV(transactions, customers, shop.name);
             }}
             className="touch-target-64 px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-primary border border-emerald-200 rounded-2xl font-black text-xs flex flex-col items-center justify-center space-y-1 shadow-xs"
-            title="Excel CSV डाउनलोड करें"
+            title="Export CSV"
           >
             <FileSpreadsheet className="w-5 h-5 text-primary" />
-            <span>CSV पर्ची</span>
+            <span>CSV</span>
           </motion.button>
 
           {/* Recovery Reminder Alert */}
@@ -355,7 +355,7 @@ export const Ledger: React.FC<LedgerProps> = ({
               className="touch-target-64 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black rounded-2xl shadow-md text-xs flex flex-col items-center justify-center space-y-1 border border-amber-400"
             >
               <BellRing className="w-5 h-5 text-slate-950 animate-bounce" />
-              <span>तगादा ({over1000Count})</span>
+              <span>{t.reminders.title} ({over1000Count})</span>
             </motion.button>
           )}
         </div>
@@ -417,8 +417,8 @@ export const Ledger: React.FC<LedgerProps> = ({
             {filteredCustomers.length === 0 ? (
               <div className="bg-white rounded-3xl p-8 text-center text-slate-400 border border-gray-200 shadow-xs">
                 <UserCheck className="w-12 h-12 mx-auto text-slate-300 mb-2" />
-                <p className="font-bold text-sm text-slate-700">कोई ग्राहक नहीं मिला</p>
-                <p className="text-xs text-slate-400 mt-1">नया नाम बोलकर खाता शुरू करें</p>
+                <p className="font-bold text-sm text-slate-700">{t.ledger.noCustomersFound}</p>
+                <p className="text-xs text-slate-400 mt-1">{t.ledger.startKhataWithVoice}</p>
               </div>
             ) : (
               filteredCustomers.map((cust) => {
@@ -461,7 +461,7 @@ export const Ledger: React.FC<LedgerProps> = ({
 
                           <div className="flex items-center space-x-2 mt-1">
                             <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
-                              भरोसा: {cust.trust_score}%
+                              {t.ledger.trustLabel}: {cust.trust_score}%
                             </span>
 
                             {cust.address_note && (
@@ -490,7 +490,7 @@ export const Ledger: React.FC<LedgerProps> = ({
                             hasBalance ? 'text-rose-500' : 'text-emerald-600'
                           }`}
                         >
-                          {hasBalance ? 'उधार बाकी' : 'हिसाब चुकता'}
+                          {hasBalance ? t.ledger.customerBalanceOwed : t.ledger.accountSettled}
                         </span>
                       </div>
                     </div>
@@ -532,8 +532,8 @@ export const Ledger: React.FC<LedgerProps> = ({
                             )}
                             <span>
                               {playingTxId === recentProofTx.id
-                                ? 'बज रहा है...'
-                                : 'सबूत'}
+                                ? t.ledger.playing
+                                : t.ledger.listenProof}
                             </span>
                           </motion.button>
                         ) : (
@@ -551,7 +551,7 @@ export const Ledger: React.FC<LedgerProps> = ({
                               title="Record Customer Proof"
                             >
                               <Mic className="w-3 h-3 text-amber-700" />
-                              <span>सबूत लें</span>
+                              <span>{t.ledger.recordProof}</span>
                             </motion.button>
                           )
                         )}
@@ -565,7 +565,7 @@ export const Ledger: React.FC<LedgerProps> = ({
                           className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-owed font-black border border-rose-200 flex items-center space-x-1 shadow-xs"
                         >
                           <PlusCircle className="w-3.5 h-3.5 stroke-[2.5]" />
-                          <span>उधार</span>
+                          <span>{t.ledger.giveCreditBtn}</span>
                         </motion.button>
 
                         <motion.button
@@ -575,7 +575,7 @@ export const Ledger: React.FC<LedgerProps> = ({
                           className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-received font-black border border-emerald-200 flex items-center space-x-1 shadow-xs"
                         >
                           <MinusCircle className="w-3.5 h-3.5 stroke-[2.5]" />
-                          <span>जमा</span>
+                          <span>{t.ledger.receivePaymentBtn}</span>
                         </motion.button>
                       </div>
                     </div>
@@ -594,9 +594,9 @@ export const Ledger: React.FC<LedgerProps> = ({
             ) : (
               <div className="py-20 text-center text-slate-400">
                 <UserCheck className="w-16 h-16 mx-auto text-slate-300 mb-3" />
-                <p className="font-bold text-base text-slate-700">कोई ग्राहक चुनें</p>
+                <p className="font-bold text-base text-slate-700">{t.ledger.selectCustomerPrompt}</p>
                 <p className="text-xs text-slate-400 mt-1">
-                  बाईं ओर किसी भी ग्राहक पर क्लिक करके उनका बही-खाता देखें
+                  {t.ledger.selectCustomerHint}
                 </p>
               </div>
             )}

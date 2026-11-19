@@ -23,10 +23,29 @@ export class BrowserSpeechProvider implements STTProvider {
   }
 
   private mapLanguage(lang: string): string {
-    if (lang === 'hi' || lang === 'hi-IN') return 'hi-IN';
-    if (lang === 'pa' || lang === 'pa-IN') return 'pa-Guru-IN'; // Punjabi
-    if (lang === 'en' || lang === 'en-IN') return 'en-IN';
-    return 'hi-IN'; // Default to Hindi
+    const map: Record<string, string> = {
+      hi: 'hi-IN',
+      'hi-IN': 'hi-IN',
+      en: 'en-IN',
+      'en-IN': 'en-IN',
+      pa: 'pa-Guru-IN',
+      'pa-IN': 'pa-Guru-IN',
+      gu: 'gu-IN',
+      'gu-IN': 'gu-IN',
+      mr: 'mr-IN',
+      'mr-IN': 'mr-IN',
+      bn: 'bn-IN',
+      'bn-IN': 'bn-IN',
+      ta: 'ta-IN',
+      'ta-IN': 'ta-IN',
+      te: 'te-IN',
+      'te-IN': 'te-IN',
+      kn: 'kn-IN',
+      'kn-IN': 'kn-IN',
+      ml: 'ml-IN',
+      'ml-IN': 'ml-IN',
+    };
+    return map[lang] || 'hi-IN';
   }
 
   async startListening(

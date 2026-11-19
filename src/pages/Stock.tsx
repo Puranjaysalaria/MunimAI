@@ -68,10 +68,10 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
               {t.stock.title}
             </span>
             <h2 className="text-2xl sm:text-3xl font-black mt-1 leading-tight tracking-tight">
-              {lowStockAnalyses.length} सामान कम है
+              {lowStockAnalyses.length} {t.stock.itemsRunningLow}
             </h2>
             <p className="text-xs text-emerald-200/90 mt-1 font-medium">
-              14 दिनों की खपत के आधार पर री-ऑर्डर तैयार
+              {t.stock.reorderReadySub}
             </p>
           </div>
 
@@ -82,7 +82,7 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
             className="touch-target-64 px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs rounded-2xl shadow-md flex flex-col items-center justify-center space-y-1 border border-amber-300 flex-shrink-0 ml-3"
           >
             <Truck className="w-5 h-5 mb-0.5" />
-            <span>सप्लायर लिस्ट</span>
+            <span>{t.stock.supplierListBtn}</span>
           </motion.button>
         </motion.div>
 
@@ -106,7 +106,7 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
                     : activeSeason.seasonName}
                 </h4>
                 <span className="text-[10px] bg-amber-200/80 font-black px-2.5 py-0.5 rounded-full text-amber-900 border border-amber-300/80">
-                  +{activeSeason.recommendedBoostPercentage}% मांग
+                  +{activeSeason.recommendedBoostPercentage}% {t.stock.demandSurge}
                 </span>
               </div>
               <p className="text-xs text-amber-800 mt-1 leading-relaxed font-medium">
@@ -162,8 +162,8 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
         {displayedAnalyses.length === 0 ? (
           <div className="col-span-full bg-white rounded-3xl p-12 text-center text-slate-400 border border-gray-200">
             <PackageCheck className="w-14 h-14 mx-auto text-emerald-500 mb-3" />
-            <p className="font-bold text-base text-slate-800">सब स्टॉक पूरा है</p>
-            <p className="text-xs text-slate-400 mt-1">कोई भी सामान कम नहीं है</p>
+            <p className="font-bold text-base text-slate-800">{t.stock.allStockFull}</p>
+            <p className="text-xs text-slate-400 mt-1">{t.stock.noItemsLow}</p>
           </div>
         ) : (
           displayedAnalyses.map((analysis, idx) => {
@@ -198,16 +198,16 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
                         {isLow && (
                           <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-100 text-owed flex items-center">
                             <AlertTriangle className="w-3 h-3 mr-0.5" />
-                            कम
+                            {t.stock.stockLowBadge}
                           </span>
                         )}
                       </h3>
 
                       <p className="text-xs text-slate-500 mt-1 leading-relaxed font-medium">
-                        बिक्री: <span className="font-black text-slate-800">{formatINR(item.selling_price)}</span> /{item.unit}
+                        {t.stock.sellingPrice}: <span className="font-black text-slate-800">{formatINR(item.selling_price)}</span> /{item.unit}
                         {isOwner ? (
                           <>
-                            {' • '}लागत: {formatINR(item.cost_price)}
+                            {' • '}{t.stock.costPrice}: {formatINR(item.cost_price)}
                             {' • '}
                             <span className="text-emerald-700 font-black inline-flex items-center">
                               <TrendingUp className="w-3 h-3 mr-0.5 text-emerald-600" />
@@ -215,7 +215,7 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
                             </span>
                           </>
                         ) : (
-                          <span className="text-slate-400 ml-1">• लागत गुप्त</span>
+                          <span className="text-slate-400 ml-1">• {t.stock.costHidden}</span>
                         )}
                       </p>
                     </div>
@@ -233,7 +233,7 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
                         </span>
                       </div>
                       <p className="text-[10px] text-slate-400 font-semibold">
-                        सीमा: {item.min_threshold} {item.unit}
+                        {t.stock.thresholdLimit}: {item.min_threshold} {item.unit}
                       </p>
                     </div>
                   </div>
@@ -259,7 +259,7 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
                 <div className="pt-2.5 border-t border-gray-100 flex items-center justify-between text-xs">
                   <div className="flex items-center space-x-1.5 text-slate-500 font-semibold">
                     <TrendingDown className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
-                    <span className="truncate">~{analysis.dailyAvgSales} {item.unit}/दिन</span>
+                    <span className="truncate">~{analysis.dailyAvgSales} {item.unit}/{t.stock.perDay}</span>
                   </div>
 
                   <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
@@ -272,7 +272,7 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
                           : 'bg-emerald-50 text-emerald-800'
                       }`}
                     >
-                      {`${analysis.daysStockLeft} दिन बाकी`}
+                      {`${analysis.daysStockLeft} ${t.stock.daysLeftCount}`}
                     </span>
 
                     {isLow && (
@@ -283,7 +283,7 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
                         className="px-3 py-1.5 bg-primary text-white rounded-xl text-xs font-black shadow-xs flex items-center space-x-1"
                       >
                         <ShoppingCart className="w-3 h-3 mr-0.5" />
-                        <span>मंगवाएं</span>
+                        <span>{t.stock.orderBtn}</span>
                       </motion.button>
                     )}
                   </div>

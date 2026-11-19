@@ -74,7 +74,7 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
           {t.today.title}
         </span>
         <span className="text-xs bg-white/15 px-3 py-1 rounded-full font-black border border-white/20">
-          {todayTxs.length} कुल सौदे
+          {todayTxs.length} {t.today.totalDeals}
         </span>
       </div>
 
@@ -85,19 +85,19 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
         </div>
         {!isOwner ? (
           <p className="text-[11px] text-emerald-300 mt-1">
-            (स्टाफ मोड: शुद्ध मुनाफा केवल दुकान मालिक को दिखता है)
+            {t.today.staffMarginNotice}
           </p>
         ) : (
           <p className="text-[11px] text-emerald-300 mt-1 font-semibold flex items-center">
             <Sparkles className="w-3.5 h-3.5 mr-1 text-accent" />
-            किराना औसत मुनाफ़ा ~15% मार्जिन
+            {t.today.groceriesMargin}
           </p>
         )}
       </div>
 
       {/* Speak Summary Button */}
       <div className="mt-5 pt-3.5 border-t border-emerald-800/60 flex items-center justify-between">
-        <p className="text-xs text-emerald-200 font-semibold">दिन भर का पूरा हिसाब सुनें</p>
+        <p className="text-xs text-emerald-200 font-semibold">{t.today.listenDaySummary}</p>
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.94 }}
@@ -120,10 +120,10 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
       <div className="flex items-center justify-between text-xs font-black text-slate-700">
         <span className="flex items-center">
           <CircleDollarSign className="w-4 h-4 mr-1.5 text-emerald-600" />
-          दुकान की सेहत: {cashRatio}% नकद अनुपात
+          {t.today.storeHealth}: {cashRatio}% {t.today.cashRatio}
         </span>
         <span className="text-[11px] font-bold text-slate-500">
-          {cashRatio >= 70 ? 'शानदार स्थिति' : 'उधार ज़्यादा है'}
+          {cashRatio >= 70 ? t.today.greatHealth : t.today.highUdhaar}
         </span>
       </div>
       <div className="w-full bg-rose-100 rounded-full h-3 overflow-hidden flex">
@@ -135,8 +135,8 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
         />
       </div>
       <div className="flex justify-between text-[11px] text-slate-500 font-bold px-0.5">
-        <span className="text-emerald-700">नकद गल्ला ({cashRatio}%)</span>
-        <span className="text-rose-600">उधार ({100 - cashRatio}%)</span>
+        <span className="text-emerald-700">{t.today.cashCounter} ({cashRatio}%)</span>
+        <span className="text-rose-600">{t.today.udhaarShare} ({100 - cashRatio}%)</span>
       </div>
     </motion.div>
   );
@@ -157,7 +157,7 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
         <div className="text-2xl sm:text-3xl font-black text-emerald-700 mt-3 tracking-tight">
           {formatINR(totalSales)}
         </div>
-        <p className="text-[11px] sm:text-xs text-emerald-600 font-semibold mt-0.5">नकद बिक्री</p>
+        <p className="text-[11px] sm:text-xs text-emerald-600 font-semibold mt-0.5">{t.today.cashSaleLabel}</p>
       </motion.div>
 
       {/* Udhaar Given */}
@@ -174,7 +174,7 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
         <div className="text-2xl sm:text-3xl font-black text-owed mt-3 tracking-tight">
           {formatINR(creditGiven)}
         </div>
-        <p className="text-[11px] sm:text-xs text-rose-600 font-semibold mt-0.5">नया उधार दिया</p>
+        <p className="text-[11px] sm:text-xs text-rose-600 font-semibold mt-0.5">{t.today.newUdhaarGiven}</p>
       </motion.div>
 
       {/* Cash Collected on Old Udhaar */}
@@ -191,7 +191,7 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
         <div className="text-2xl sm:text-3xl font-black text-received mt-3 tracking-tight">
           {formatINR(cashCollected)}
         </div>
-        <p className="text-[11px] sm:text-xs text-emerald-600 font-semibold mt-0.5">पुराना उधार लौटा</p>
+        <p className="text-[11px] sm:text-xs text-emerald-600 font-semibold mt-0.5">{t.today.oldUdhaarReceived}</p>
       </motion.div>
 
       {/* Expenses */}
@@ -208,7 +208,7 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
         <div className="text-2xl sm:text-3xl font-black text-amber-700 mt-3 tracking-tight">
           {formatINR(expenses)}
         </div>
-        <p className="text-[11px] sm:text-xs text-amber-600 font-semibold mt-0.5">दुकान का खर्चा</p>
+        <p className="text-[11px] sm:text-xs text-amber-600 font-semibold mt-0.5">{t.today.shopExpenseLabel}</p>
       </motion.div>
     </div>
   );
@@ -217,17 +217,17 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
     <div className="bg-white rounded-[28px] p-5 sm:p-6 shadow-card border border-gray-100">
       <div className="flex items-center justify-between mb-3.5 px-1">
         <h3 className="font-black text-sm text-slate-900">
-          आज के सभी लेन-देन ({todayTxs.length})
+          {t.today.allTransactionsToday} ({todayTxs.length})
         </h3>
         <span className="text-xs font-bold text-slate-500 bg-gray-100 px-2.5 py-0.5 rounded-full">
-          समय अनुसार
+          {t.today.byTime}
         </span>
       </div>
 
       {todayTxs.length === 0 ? (
         <div className="py-12 text-center text-slate-400">
           <ShoppingBag className="w-12 h-12 mx-auto text-slate-300 mb-2" />
-          <p className="text-xs font-bold text-slate-600">आज अभी तक कोई सौदा दर्ज नहीं हुआ</p>
+          <p className="text-xs font-bold text-slate-600">{t.today.noDealsToday}</p>
         </div>
       ) : (
         <div className="divide-y divide-gray-100 max-h-[460px] overflow-y-auto">
@@ -259,7 +259,7 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
 
                   <div>
                     <p className="text-sm font-black text-slate-900">
-                      {customer?.name || (tx.type === 'sale' ? 'नकद बिक्री' : 'दुकान खर्चा')}
+                      {customer?.name || (tx.type === 'sale' ? t.today.cashSaleLabel : t.today.shopExpenseLabel)}
                     </p>
                     <p className="text-xs text-slate-500 font-medium">
                       {tx.voice_transcript || tx.type}

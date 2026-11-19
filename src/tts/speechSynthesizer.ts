@@ -25,7 +25,7 @@ export class SpeechSynthesizer {
     }
   }
 
-  speak(text: string, lang: LanguageCode | 'hi' | 'pa' | 'en' = 'hi'): Promise<void> {
+  speak(text: string, lang: LanguageCode | string = 'hi'): Promise<void> {
     return new Promise((resolve) => {
       if (!this.synth || this.isMuted || !text) {
         resolve();
@@ -34,15 +34,29 @@ export class SpeechSynthesizer {
 
       this.synth.cancel(); // Stop any pending speech
 
+      const langLocaleMap: Record<string, string> = {
+        hi: 'hi-IN',
+        en: 'en-IN',
+        pa: 'pa-IN',
+        gu: 'gu-IN',
+        mr: 'mr-IN',
+        bn: 'bn-IN',
+        ta: 'ta-IN',
+        te: 'te-IN',
+        kn: 'kn-IN',
+        ml: 'ml-IN',
+      };
+
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = lang === 'pa' ? 'pa-IN' : lang === 'en' ? 'en-IN' : 'hi-IN';
+      utterance.lang = langLocaleMap[lang] || 'hi-IN';
       utterance.rate = 0.95; // Slightly slower for crisp clarity in noisy shop
       utterance.pitch = 1.0;
 
       // Select localized voice if available
       const voices = this.synth.getVoices();
+      const targetPrefix = utterance.lang.toLowerCase().slice(0, 2);
       const matchingVoice = voices.find((v) =>
-        v.lang.toLowerCase().startsWith(utterance.lang.toLowerCase().slice(0, 2))
+        v.lang.toLowerCase().startsWith(targetPrefix)
       );
       if (matchingVoice) {
         utterance.voice = matchingVoice;

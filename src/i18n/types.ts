@@ -1,4 +1,14 @@
-export type LanguageCode = 'hi' | 'pa' | 'en' | 'mr' | 'bn' | 'gu' | 'ta';
+export type LanguageCode =
+  | 'hi'
+  | 'en'
+  | 'pa'
+  | 'gu'
+  | 'mr'
+  | 'bn'
+  | 'ta'
+  | 'te'
+  | 'kn'
+  | 'ml';
 
 export interface Translations {
   appName: string;
@@ -8,6 +18,35 @@ export interface Translations {
     ledger: string;
     stock: string;
     today: string;
+  };
+  header: {
+    online: string;
+    offline: string;
+    cloudSecured: string;
+    syncPending: string;
+    allSynced: string;
+    changeLanguage: string;
+    selectLanguageModalTitle: string;
+  };
+  home: {
+    greeting: string;
+    quickActionsTitle: string;
+    tapHere: string;
+    speakExample: string;
+    typeKeyboardPrompt: string;
+    typePlaceholder: string;
+    submitEntry: string;
+    criticalStockAlert: string;
+    daysLeftRemaining: string;
+    supplierList: string;
+    todaysSales: string;
+    marketUdhaar: string;
+    customerKhata: string;
+    recentActivity: string;
+    viewAll: string;
+    noActivity: string;
+    voiceAssistantReady: string;
+    voiceAssistantListening: string;
   };
   auth: {
     loginTitle: string;
@@ -29,6 +68,30 @@ export interface Translations {
     invalidOtp: string;
     invalidPin: string;
     switchUser: string;
+    signInTab: string;
+    registerTab: string;
+    emailLabel: string;
+    passwordLabel: string;
+    demoCredsLabel: string;
+    fillDemoBtn: string;
+    authenticating: string;
+    liveLoginBtn: string;
+    shopNameLabel: string;
+    shopNamePlaceholder: string;
+    ownerNameLabel: string;
+    ownerNamePlaceholder: string;
+    creatingAccount: string;
+    createShopBtn: string;
+    orInstantOpen: string;
+    instantDemoBtn: string;
+    securityBadge: string;
+    voiceFirstHighlight: string;
+    voiceFirstSub: string;
+    cloudSecurityHighlight: string;
+    cloudSecuritySub: string;
+    offlineSyncHighlight: string;
+    offlineSyncSub: string;
+    dedicatedFootnote: string;
   };
   voice: {
     tapToSpeak: string;
@@ -62,6 +125,26 @@ export interface Translations {
     creditLimit: string;
     recordPayment: string;
     giveCredit: string;
+    customerBalanceOwed: string;
+    accountSettled: string;
+    trustLabel: string;
+    listenProof: string;
+    playing: string;
+    recordProof: string;
+    giveCreditBtn: string;
+    receivePaymentBtn: string;
+    selectCustomerPrompt: string;
+    selectCustomerHint: string;
+    noCustomersFound: string;
+    startKhataWithVoice: string;
+    passbookTitle: string;
+    sendWhatsAppReminder: string;
+    printStatement: string;
+    date: string;
+    details: string;
+    debit: string;
+    credit: string;
+    audioProof: string;
   };
   stock: {
     title: string;
@@ -73,6 +156,20 @@ export interface Translations {
     filterLow: string;
     supplierOrders: string;
     reorderSuggested: string;
+    itemsRunningLow: string;
+    reorderReadySub: string;
+    supplierListBtn: string;
+    demandSurge: string;
+    allStockFull: string;
+    noItemsLow: string;
+    stockLowBadge: string;
+    sellingPrice: string;
+    costPrice: string;
+    costHidden: string;
+    thresholdLimit: string;
+    perDay: string;
+    daysLeftCount: string;
+    orderBtn: string;
   };
   today: {
     title: string;
@@ -83,6 +180,23 @@ export interface Translations {
     estimatedProfit: string;
     txCount: string;
     voiceSummaryButton: string;
+    totalDeals: string;
+    groceriesMargin: string;
+    staffMarginNotice: string;
+    listenDaySummary: string;
+    storeHealth: string;
+    cashRatio: string;
+    greatHealth: string;
+    highUdhaar: string;
+    cashCounter: string;
+    udhaarShare: string;
+    cashSaleLabel: string;
+    newUdhaarGiven: string;
+    oldUdhaarReceived: string;
+    shopExpenseLabel: string;
+    allTransactionsToday: string;
+    byTime: string;
+    noDealsToday: string;
   };
   confirmCard: {
     title: string;

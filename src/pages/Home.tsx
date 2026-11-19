@@ -108,7 +108,7 @@ export const Home: React.FC<HomeProps> = ({
           </span>
           <span className="text-[11px] sm:text-xs text-emerald-600/90 font-semibold flex items-center mt-1">
             <span className="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 inline-block animate-pulse" />
-            आज का गल्ला
+            {t.home.todaysSales}
           </span>
         </div>
       </motion.div>
@@ -131,7 +131,7 @@ export const Home: React.FC<HomeProps> = ({
           </span>
           <span className="text-[11px] sm:text-xs text-rose-600/90 font-semibold flex items-center mt-1">
             <span className="w-2 h-2 rounded-full bg-rose-500 mr-1.5 inline-block" />
-            बाजार में बाकी
+            {t.home.marketUdhaar}
           </span>
         </div>
       </motion.div>
@@ -153,12 +153,12 @@ export const Home: React.FC<HomeProps> = ({
             {lowStockItems[0].name.toUpperCase()} {t.stock.lowStockNotice}
           </p>
           <p className="text-[11px] text-amber-800 font-medium">
-            सिर्फ {lowStockItems[0].current_stock} {lowStockItems[0].unit} बाकी ({lowStockItems[0].days_stock_left} दिन का माल)
+            {lowStockItems[0].current_stock} {lowStockItems[0].unit} ({lowStockItems[0].days_stock_left} {t.home.daysLeftRemaining})
           </p>
         </div>
       </div>
       <span className="text-[11px] font-black text-amber-900 bg-amber-200/80 px-2.5 py-1 rounded-lg border border-amber-300">
-        सप्लायर लिस्ट
+        {t.home.supplierList}
       </span>
     </motion.div>
   );
@@ -340,7 +340,7 @@ export const Home: React.FC<HomeProps> = ({
                 animate={{ opacity: 1 }}
                 className="text-xs text-slate-500 font-medium leading-relaxed"
               >
-                बोलें: <span className="font-bold text-slate-800">"रमेश को ₹500 उधार"</span> या <span className="font-bold text-slate-800">"2 पैकेट दूध नकद"</span>
+                {t.home.speakExample}
               </motion.p>
             )}
           </AnimatePresence>
@@ -354,9 +354,9 @@ export const Home: React.FC<HomeProps> = ({
       <div className="flex items-center justify-between mb-2.5 px-1">
         <span className="text-xs font-black text-slate-600 uppercase tracking-wider flex items-center">
           <Sparkles className="w-3.5 h-3.5 mr-1.5 text-accent" />
-          त्वरित बोलें (1-Tap Fast Speak)
+          {t.home.quickActionsTitle}
         </span>
-        <span className="text-[11px] font-bold text-primary">टैप करें ⚡</span>
+        <span className="text-[11px] font-bold text-primary">{t.home.tapHere} ⚡</span>
       </div>
 
       <div className="flex space-x-2.5 overflow-x-auto pb-1.5 no-scrollbar">
@@ -400,7 +400,7 @@ export const Home: React.FC<HomeProps> = ({
         type="submit"
         disabled={!manualText.trim()}
         className="p-2.5 bg-primary hover:bg-emerald-800 disabled:opacity-30 text-white rounded-xl shadow-xs transition-all flex-shrink-0"
-        title="Submit entry"
+        title={t.home.submitEntry}
       >
         <Send className="w-4 h-4" />
       </motion.button>
@@ -413,7 +413,7 @@ export const Home: React.FC<HomeProps> = ({
         <span className="text-xs font-black text-slate-600 uppercase tracking-wider">
           {t.voice.recentSuggestions}
         </span>
-        <span className="text-[11px] font-bold text-slate-400">उधार खाता</span>
+        <span className="text-[11px] font-bold text-slate-400">{t.home.customerKhata}</span>
       </div>
 
       <div className="flex space-x-2.5 overflow-x-auto pb-1 no-scrollbar">
@@ -434,11 +434,11 @@ export const Home: React.FC<HomeProps> = ({
               <span className="block leading-tight font-black">{cust.name}</span>
               {cust.balance_owed > 0 ? (
                 <span className="text-[10px] font-black text-owed block mt-0.5">
-                  ₹{cust.balance_owed} बाकी
+                  ₹{cust.balance_owed} {t.ledger.customerBalanceOwed}
                 </span>
               ) : (
                 <span className="text-[10px] font-semibold text-emerald-600 block mt-0.5">
-                  चुकता
+                  {t.ledger.accountSettled}
                 </span>
               )}
             </div>
@@ -455,17 +455,17 @@ export const Home: React.FC<HomeProps> = ({
           <div className="w-6 h-6 rounded-lg bg-emerald-100 text-primary flex items-center justify-center">
             <Clock className="w-3.5 h-3.5 stroke-[2.5]" />
           </div>
-          <h2 className="text-sm font-black text-slate-900">हाल के सौदे (Recent Feed)</h2>
+          <h2 className="text-sm font-black text-slate-900">{t.home.recentActivity}</h2>
         </div>
         <span className="text-xs font-bold text-slate-500 bg-gray-100 px-2.5 py-0.5 rounded-full">
-          {recentTxs.length} सौदे
+          {recentTxs.length} {t.today.totalDeals}
         </span>
       </div>
 
       <div className="divide-y divide-gray-100">
         {recentTxs.length === 0 ? (
           <div className="py-8 text-center text-slate-400 text-xs font-medium">
-            अभी कोई लेन-देन नहीं हुआ
+            {t.home.noActivity}
           </div>
         ) : (
           recentTxs.map((tx, idx) => {
@@ -512,11 +512,11 @@ export const Home: React.FC<HomeProps> = ({
 
                   <div className="truncate">
                     <p className="text-sm font-black text-slate-900 truncate">
-                      {customer ? customer.name : isSale ? 'नकद बिक्री' : 'दुकान खर्चा'}
+                      {customer ? customer.name : isSale ? t.today.cashSaleLabel : t.today.shopExpenseLabel}
                     </p>
                     <p className="text-xs text-slate-500 truncate max-w-[170px] sm:max-w-xs mt-0.5 font-medium">
                       {tx.voice_transcript ||
-                        (tx.items?.map((i) => i.name).join(', ') ?? 'लेन-देन')}
+                        (tx.items?.map((i) => i.name).join(', ') ?? t.today.txCount)}
                     </p>
                   </div>
                 </div>
