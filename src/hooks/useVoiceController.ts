@@ -323,6 +323,11 @@ export function useVoiceController({
   const handleConfirmSave = useCallback(() => {
     if (!pendingConfirmation) return;
 
+    if (sttProviderRef.current) {
+      sttProviderRef.current.stopListening();
+    }
+    setIsListening(false);
+
     triggerHaptic('success');
     playAudioCue('success');
 
@@ -376,6 +381,11 @@ export function useVoiceController({
 
   // Cancel pending confirmation
   const handleCancelConfirmation = useCallback(() => {
+    if (sttProviderRef.current) {
+      sttProviderRef.current.stopListening();
+    }
+    setIsListening(false);
+
     triggerHaptic('stop');
     playAudioCue('cancel');
     setPendingConfirmation(null);
@@ -406,6 +416,69 @@ export function useVoiceController({
     [pendingConfirmation]
   );
 
+  // Start listening specifically for the confirmation card reply ("Haan" / "Yes" or "Nahi" / "No")
+  const startListeningForReply = useCallback(() => {
+    if (sttProviderRef.current) {
+      try {
+        sttProviderRef.current.stopListening();
+      } catch {}
+    }
+    setErrorMessage(null);
+    setLiveTranscript('');
+    setIsListening(true);
+    setVoiceState('listening');
+
+    const provider = createSTTProvider();
+    sttProviderRef.current = provider;
+
+    provider.startListening(
+      {
+        language,
+        continuous: false,
+        interimResults: true,
+      },
+      {
+        onResult: (res) => {
+          setLiveTranscript(res.transcript);
+          const raw = res.transcript.trim().toLowerCase();
+
+          // Rapid intent detection even on interim results for snappy, instant response
+          const isYes = /\b(haan|ha|haa|aaho|yes|yeah|yup|ok|okay|confirm|likh\s*do|likh\s*deo|theek\s*hai|theek|save\s*kar\s*do|kar\s*do|bilkul|ho|sari|aam|avunu|haudu|athe)\b/i.test(raw);
+          const isNo = /\b(nahi|nahin|na|no|nope|cancel|stop|ruko|mat likho|mat karo|chhad do|na karo|don't|dont|nakko|venda|beda|illai|vaddu)\b/i.test(raw);
+
+          if (isYes && !isNo) {
+            if (sttProviderRef.current) {
+              try { sttProviderRef.current.stopListening(); } catch {}
+            }
+            setIsListening(false);
+            handleConfirmSave();
+            return;
+          }
+          if (isNo) {
+            if (sttProviderRef.current) {
+              try { sttProviderRef.current.stopListening(); } catch {}
+            }
+            setIsListening(false);
+            handleCancelConfirmation();
+            return;
+          }
+
+          if (res.isFinal) {
+            stopListening();
+            processInput(res.transcript);
+          }
+        },
+        onError: () => {
+          setIsListening(false);
+          setVoiceState('idle');
+        },
+        onStateChange: (state) => {
+          if (state === 'idle') setIsListening(false);
+        },
+      }
+    );
+  }, [language, stopListening, handleConfirmSave, handleCancelConfirmation, processInput]);
+
   return {
     isListening,
     voiceState,
@@ -415,6 +488,7 @@ export function useVoiceController({
     pendingConfirmation,
     disambiguationCustomers,
     startListening,
+    startListeningForReply,
     stopListening,
     processInput,
     handleConfirmSave,

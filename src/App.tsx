@@ -329,6 +329,8 @@ export const AppContent: React.FC = () => {
         onConfirm={voice.handleConfirmSave}
         onCancel={voice.handleCancelConfirmation}
         isListeningForReply={voice.isListening}
+        onStartListeningForReply={voice.startListeningForReply}
+        onStopListeningForReply={voice.stopListening}
       />
 
       {/* Disambiguation Modal ("Kaunsa Ramesh?") */}

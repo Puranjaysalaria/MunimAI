@@ -21,6 +21,7 @@ import {
 import { triggerHaptic, playAudioCue } from '../lib/sound';
 import { LiveWaveform } from '../components/Voice/LiveWaveform';
 import { CustomerAvatar } from '../components/CustomerAvatar';
+import { getLocalizedCustomerName, getLocalizedTransactionDesc } from '../lib/nameTranslation';
 
 interface HomeProps {
   onStartVoice: () => void;
@@ -513,9 +514,9 @@ export const Home: React.FC<HomeProps> = ({
             }}
             className="flex-shrink-0 px-3.5 py-2.5 bg-white hover:bg-emerald-50/40 border border-gray-200 rounded-2xl text-xs font-bold text-slate-800 shadow-xs flex items-center space-x-2.5 card-hover-elevate"
           >
-            <CustomerAvatar name={cust.name} size="sm" trustScore={cust.trust_score} />
+            <CustomerAvatar name={getLocalizedCustomerName(cust.name, language)} size="sm" trustScore={cust.trust_score} />
             <div className="text-left">
-              <span className="block leading-tight font-black">{cust.name}</span>
+              <span className="block leading-tight font-black">{getLocalizedCustomerName(cust.name, language)}</span>
               {cust.balance_owed > 0 ? (
                 <span className="text-[10px] font-black text-owed block mt-0.5">
                   ₹{cust.balance_owed} {t.ledger.customerBalanceOwed}
@@ -569,7 +570,7 @@ export const Home: React.FC<HomeProps> = ({
                 <div className="flex items-center space-x-3 overflow-hidden">
                   {customer ? (
                     <CustomerAvatar
-                      name={customer.name}
+                      name={getLocalizedCustomerName(customer.name, language)}
                       size="md"
                       trustScore={customer.trust_score}
                       showBadge
@@ -596,11 +597,10 @@ export const Home: React.FC<HomeProps> = ({
 
                   <div className="truncate">
                     <p className="text-sm font-black text-slate-900 truncate">
-                      {customer ? customer.name : isSale ? t.today.cashSaleLabel : t.today.shopExpenseLabel}
+                      {customer ? getLocalizedCustomerName(customer.name, language) : isSale ? t.today.cashSaleLabel : t.today.shopExpenseLabel}
                     </p>
                     <p className="text-xs text-slate-500 truncate max-w-[170px] sm:max-w-xs mt-0.5 font-medium">
-                      {tx.voice_transcript ||
-                        (tx.items?.map((i) => i.name).join(', ') ?? t.today.txCount)}
+                      {getLocalizedTransactionDesc(tx, customer?.name, language)}
                     </p>
                   </div>
                 </div>

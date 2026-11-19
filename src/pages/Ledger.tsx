@@ -7,6 +7,7 @@ import { formatINR, formatRelativeTime } from '../lib/utils';
 import { exportLedgerToCSV, printCustomerStatement } from '../lib/exportService';
 import { calculateCustomerTrustScore } from '../lib/trustScore';
 import { firePaymentConfetti } from '../lib/celebration';
+import { getLocalizedCustomerName } from '../lib/nameTranslation';
 import {
   Search,
   UserCheck,
@@ -123,18 +124,18 @@ export const Ledger: React.FC<LedgerProps> = ({
         <div className="flex items-center justify-between pb-3 border-b border-gray-100">
           <div className="flex items-center space-x-3">
             <CustomerAvatar
-              name={cust.name}
+              name={getLocalizedCustomerName(cust.name, language)}
               size="lg"
               trustScore={cust.trust_score}
               showBadge
             />
             <div>
               <h2 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">
-                {cust.name}
+                {getLocalizedCustomerName(cust.name, language)}
               </h2>
               <p className="text-xs text-slate-500 flex items-center mt-0.5 font-medium">
                 <MapPin className="w-3.5 h-3.5 mr-1 text-slate-400" />
-                {cust.address_note || cust.name}
+                {cust.address_note || getLocalizedCustomerName(cust.name, language)}
               </p>
             </div>
           </div>
@@ -448,7 +449,7 @@ export const Ledger: React.FC<LedgerProps> = ({
                     <div className="flex items-start justify-between">
                       <div className="flex items-start space-x-3">
                         <CustomerAvatar
-                          name={cust.name}
+                          name={getLocalizedCustomerName(cust.name, language)}
                           size="md"
                           trustScore={cust.trust_score}
                           showBadge
@@ -456,7 +457,7 @@ export const Ledger: React.FC<LedgerProps> = ({
 
                         <div>
                           <h3 className="font-black text-lg text-slate-900 leading-tight flex items-center space-x-1.5">
-                            <span>{cust.name}</span>
+                            <span>{getLocalizedCustomerName(cust.name, language)}</span>
                           </h3>
 
                           <div className="flex items-center space-x-2 mt-1">

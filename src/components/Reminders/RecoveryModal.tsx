@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Customer, Shop } from '../../types/schema';
 import { DraftReminder, buildDraftReminders } from '../../lib/reminderService';
+import { getLocalizedCustomerName } from '../../lib/nameTranslation';
 import { formatINR } from '../../lib/utils';
 import { triggerHaptic, playAudioCue } from '../../lib/sound';
 import { speechSynthesizer } from '../../tts/speechSynthesizer';
@@ -166,7 +167,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                     <div>
                       <div className="flex items-center space-x-1.5">
                         <h4 className="font-bold text-base text-app-text">
-                          {draft.customer.name}
+                          {getLocalizedCustomerName(draft.customer.name, language)}
                         </h4>
                         <span className="text-[10px] uppercase px-1.5 py-0.2 rounded font-mono font-bold bg-gray-100 text-gray-600">
                           {draft.language}

@@ -14,10 +14,11 @@ import {
   ArrowDownLeft,
   AlertCircle,
   ArrowRight,
-  Sparkles,
+  Mic,
 } from 'lucide-react';
 import { triggerHaptic, playAudioCue } from '../../lib/sound';
 import { CustomerAvatar } from '../CustomerAvatar';
+import { getLocalizedCustomerName } from '../../lib/nameTranslation';
 
 export interface PendingConfirmation {
   intent: ParsedIntent;
@@ -38,6 +39,8 @@ interface ConfirmationCardProps {
   onConfirm: () => void;
   onCancel: () => void;
   isListeningForReply?: boolean;
+  onStartListeningForReply?: () => void;
+  onStopListeningForReply?: () => void;
 }
 
 export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
@@ -45,12 +48,18 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
   onConfirm,
   onCancel,
   isListeningForReply = false,
+  onStartListeningForReply,
+  onStopListeningForReply,
 }) => {
   const { language, t } = useI18n();
 
   const isCredit = pending?.intent === 'credit';
   const isPayment = pending?.intent === 'payment';
   const isSale = pending?.intent === 'sale';
+
+  const custDisplayName = pending
+    ? getLocalizedCustomerName(pending.customerName || pending.customer?.name, language)
+    : '';
 
   const amountInWords = pending
     ? amountToWords(
@@ -62,37 +71,47 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
   // Spoken sentence formulated for natural speech
   const spokenPrompt = pending
     ? language === 'en'
-      ? isCredit && pending.customerName
-        ? `${pending.customerName}, ${amountInWords} (₹${pending.amount}) credit udhaar. Should I record it?`
-        : isPayment && pending.customerName
-        ? `Record ${amountInWords} (₹${pending.amount}) payment from ${pending.customerName}?`
+      ? isCredit && custDisplayName
+        ? `${custDisplayName}, ${amountInWords} (₹${pending.amount}) credit udhaar. Should I record it?`
+        : isPayment && custDisplayName
+        ? `Record ${amountInWords} (₹${pending.amount}) payment from ${custDisplayName}?`
         : isSale && pending.itemName
         ? `Record ${pending.quantity ? pending.quantity + ' ' : ''}${pending.unit || ''} ${pending.itemName}, ${amountInWords} cash sale?`
         : `Record ₹${pending.amount} transaction?`
       : language === 'pa'
-      ? isCredit && pending.customerName
-        ? `${pending.customerName}, ${amountInWords} (${pending.amount}) ਰੁਪਏ ਉਧਾਰ। ਲਿਖ ਦਿਆਂ?`
-        : isPayment && pending.customerName
-        ? `${pending.customerName} ਤੋਂ ${amountInWords} (${pending.amount}) ਰੁਪਏ ਜਮ੍ਹਾ ਲਿਖ ਦਿਆਂ?`
+      ? isCredit && custDisplayName
+        ? `${custDisplayName}, ${amountInWords} (${pending.amount}) ਰੁਪਏ ਉਧਾਰ। ਲਿਖ ਦਿਆਂ?`
+        : isPayment && custDisplayName
+        ? `${custDisplayName} ਤੋਂ ${amountInWords} (${pending.amount}) ਰੁਪਏ ਜਮ੍ਹਾ ਲਿਖ ਦਿਆਂ?`
         : isSale && pending.itemName
         ? `${pending.quantity ? pending.quantity + ' ' : ''}${pending.unit || ''} ${pending.itemName}, ${amountInWords} ਨਕਦ ਵਿਕਰੀ। ਲਿਖ ਦਿਆਂ?`
         : `₹${pending.amount} ਦਾ ਲੈਣ-ਦੇਣ ਲਿਖ ਦਿਆਂ?`
       : pending.spokenReply ||
-        (isCredit && pending.customerName
-          ? `${pending.customerName}, ${amountInWords} (${pending.amount}) रुपये उधार। लिख दूँ?`
-          : isPayment && pending.customerName
-          ? `${pending.customerName} से ${amountInWords} (${pending.amount}) रुपये जमा लिख दूँ?`
+        (isCredit && custDisplayName
+          ? `${custDisplayName}, ${amountInWords} (${pending.amount}) रुपये उधार। लिख दूँ?`
+          : isPayment && custDisplayName
+          ? `${custDisplayName} से ${amountInWords} (${pending.amount}) रुपये जमा लिख दूँ?`
           : isSale && pending.itemName
           ? `${pending.quantity ? pending.quantity + ' ' : ''}${pending.unit || ''} ${pending.itemName}, ${amountInWords} रुपये नकद बिक्री। लिख दूँ?`
           : `रुपये ${pending.amount} का लेन-देन। लिख दूँ?`)
     : '';
 
-  // Speak out loud on mount so shopkeeper hears it
+  // Speak out loud on mount so shopkeeper hears it, then automatically start listening for "Haan" or "Nahi"
   useEffect(() => {
+    let active = true;
     if (pending && spokenPrompt) {
-      speechSynthesizer.speak(spokenPrompt, language);
+      speechSynthesizer.speak(spokenPrompt, language).then(() => {
+        if (active && pending) {
+          onStartListeningForReply?.();
+        }
+      });
     }
-  }, [pending, spokenPrompt, language]);
+    return () => {
+      active = false;
+      speechSynthesizer.stop();
+      onStopListeningForReply?.();
+    };
+  }, [pending, spokenPrompt, language, onStartListeningForReply, onStopListeningForReply]);
 
   return (
     <AnimatePresence>
@@ -219,7 +238,7 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                 <div className="flex items-center justify-between p-3.5 rounded-2xl bg-gray-50 border border-gray-100 shadow-xs">
                   <div className="flex items-center space-x-3">
                     <CustomerAvatar
-                      name={pending.customer?.name || pending.customerName || 'Customer'}
+                      name={custDisplayName || 'Customer'}
                       size="md"
                       trustScore={pending.customer?.trust_score}
                       showBadge
@@ -229,7 +248,7 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                         {t.confirmCard.customerLabel}
                       </span>
                       <span className="font-black text-slate-900 text-base leading-tight block">
-                        {pending.customer?.name || pending.customerName}
+                        {custDisplayName}
                       </span>
                     </div>
                   </div>
@@ -300,17 +319,59 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                 )}
             </div>
 
-            {/* Voice Response Hint */}
-            <div className="text-center mb-4">
-              <p className="text-xs font-bold text-slate-500 flex items-center justify-center">
-                <Sparkles className="w-3.5 h-3.5 mr-1 text-accent" />
-                <span>{t.confirmCard.speechPrompt}</span>
-                {isListeningForReply && (
-                  <span className="text-blue-600 font-black ml-1 animate-pulse">
-                    {t.confirmCard.listeningStatus}
+            {/* Interactive Voice Response Pill with live mic feedback */}
+            <div className="flex flex-col items-center justify-center mb-4">
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  triggerHaptic('light');
+                  if (isListeningForReply) {
+                    onStopListeningForReply?.();
+                  } else {
+                    speechSynthesizer.stop();
+                    onStartListeningForReply?.();
+                  }
+                }}
+                className={`px-4 py-2 rounded-2xl flex items-center space-x-2.5 border transition-all ${
+                  isListeningForReply
+                    ? 'bg-emerald-50 border-emerald-400 text-emerald-900 shadow-xs'
+                    : 'bg-gray-50 hover:bg-gray-100 border-gray-200 text-slate-700'
+                }`}
+                title={isListeningForReply ? 'Tap to pause microphone' : 'Tap to speak reply'}
+              >
+                <div
+                  className={`w-7 h-7 rounded-xl flex items-center justify-center ${
+                    isListeningForReply
+                      ? 'bg-emerald-500 text-white animate-pulse shadow-xs'
+                      : 'bg-gray-200 text-gray-700'
+                  }`}
+                >
+                  <Mic className="w-4 h-4 stroke-[2.5]" />
+                </div>
+                <div className="text-left">
+                  <div className="flex items-center space-x-1.5">
+                    <span className="text-xs font-black">
+                      {isListeningForReply
+                        ? (language === 'en' ? 'Listening...' : 'सुन रहे हैं...')
+                        : t.confirmCard.speechPrompt}
+                    </span>
+                    {isListeningForReply && (
+                      <span className="flex h-2 w-2 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-slate-500 font-bold block">
+                    {language === 'en'
+                      ? 'Say "Yes" to save or "No" to cancel'
+                      : language === 'pa'
+                      ? 'ਬੋਲੋ "ਹਾਂ" ਜਾਂ "ਨਹੀਂ"'
+                      : 'बोलें "हाँ" या "नहीं"'}
                   </span>
-                )}
-              </p>
+                </div>
+              </motion.button>
             </div>
 
             {/* Primary 64px Tap Action Buttons */}

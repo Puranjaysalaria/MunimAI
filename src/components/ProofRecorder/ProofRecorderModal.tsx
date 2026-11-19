@@ -4,6 +4,7 @@ import { useI18n } from '../../i18n';
 import { formatINR } from '../../lib/utils';
 import { storeCustomerProofClip } from '../../storage/proofStorage';
 import { triggerHaptic, playAudioCue } from '../../lib/sound';
+import { getLocalizedCustomerName } from '../../lib/nameTranslation';
 import {
   Mic,
   Square,
@@ -177,7 +178,7 @@ export const ProofRecorderModal: React.FC<ProofRecorderModalProps> = ({
   if (!isOpen || !transaction) return null;
 
   const targetAmount = transaction.amount;
-  const targetCustomerName = customer?.name || t.confirmCard.customerLabel;
+  const targetCustomerName = getLocalizedCustomerName(customer?.name || t.confirmCard.customerLabel, language);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-xs select-none">

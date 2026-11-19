@@ -6,6 +6,7 @@ import { formatINR } from '../../lib/utils';
 import { MapPin, X, Users, Sparkles } from 'lucide-react';
 import { triggerHaptic } from '../../lib/sound';
 import { CustomerAvatar } from '../CustomerAvatar';
+import { getLocalizedCustomerName } from '../../lib/nameTranslation';
 
 interface DisambiguationModalProps {
   isOpen: boolean;
@@ -20,7 +21,7 @@ export const DisambiguationModal: React.FC<DisambiguationModalProps> = ({
   onSelectCustomer,
   onCancel,
 }) => {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
 
   if (!isOpen || customers.length === 0) return null;
 
@@ -92,10 +93,10 @@ export const DisambiguationModal: React.FC<DisambiguationModalProps> = ({
                   <span className="w-6 h-6 rounded-full bg-primary/10 text-primary font-black text-xs flex items-center justify-center flex-shrink-0">
                     {idx + 1}
                   </span>
-                  <CustomerAvatar name={cust.name} size="sm" trustScore={cust.trust_score} />
+                  <CustomerAvatar name={getLocalizedCustomerName(cust.name, language)} size="sm" trustScore={cust.trust_score} />
                   <div>
                     <span className="text-base font-black text-slate-900 block leading-tight">
-                      {cust.name}
+                      {getLocalizedCustomerName(cust.name, language)}
                     </span>
                     {cust.address_note && (
                       <p className="text-xs text-slate-500 flex items-center mt-0.5 font-medium">

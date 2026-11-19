@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { triggerHaptic, playAudioCue } from '../lib/sound';
 import { CustomerAvatar } from '../components/CustomerAvatar';
+import { getLocalizedCustomerName, getLocalizedTransactionDesc } from '../lib/nameTranslation';
 
 interface TodayProps {
   onSpeakSummary: () => void;
@@ -247,7 +248,7 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
                 <div className="flex items-center space-x-3">
                   {customer ? (
                     <CustomerAvatar
-                      name={customer.name}
+                      name={getLocalizedCustomerName(customer.name, language)}
                       size="sm"
                       trustScore={customer.trust_score}
                     />
@@ -259,10 +260,10 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
 
                   <div>
                     <p className="text-sm font-black text-slate-900">
-                      {customer?.name || (tx.type === 'sale' ? t.today.cashSaleLabel : t.today.shopExpenseLabel)}
+                      {customer ? getLocalizedCustomerName(customer.name, language) : (tx.type === 'sale' ? t.today.cashSaleLabel : t.today.shopExpenseLabel)}
                     </p>
                     <p className="text-xs text-slate-500 font-medium">
-                      {tx.voice_transcript || tx.type}
+                      {getLocalizedTransactionDesc(tx, customer?.name, language)}
                     </p>
                   </div>
                 </div>
