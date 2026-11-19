@@ -99,6 +99,18 @@ export const INITIAL_CUSTOMERS: Customer[] = [
     trust_score: 68,
     created_at: new Date(Date.now() - 10 * 86400000).toISOString(),
   },
+  {
+    id: '11111111-0000-0000-0000-000000000009',
+    shop_id: DEMO_SHOP_ID,
+    name: 'Ankit',
+    phone: '+919811100009',
+    preferred_language: 'hi',
+    address_note: 'Main Bazaar',
+    credit_limit: 5000,
+    balance_owed: 200,
+    trust_score: 90,
+    created_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+  },
 ];
 
 export const INITIAL_ITEMS: Item[] = [

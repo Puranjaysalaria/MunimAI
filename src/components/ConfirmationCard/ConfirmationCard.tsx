@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Customer, Item, ParsedIntent } from '../../types/schema';
 import { useI18n } from '../../i18n';
@@ -96,22 +96,58 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
           : `रुपये ${pending.amount} का लेन-देन। लिख दूँ?`)
     : '';
 
-  // Speak out loud on mount so shopkeeper hears it, then automatically start listening for "Haan" or "Nahi"
+  const pendingKey = pending
+    ? `${pending.intent}_${pending.amount}_${pending.customer?.id || pending.customerName || ''}_${pending.itemName || ''}_${pending.rawText}`
+    : null;
+
+  const onStartListeningRef = useRef(onStartListeningForReply);
+  onStartListeningRef.current = onStartListeningForReply;
+
+  const onStopListeningRef = useRef(onStopListeningForReply);
+  onStopListeningRef.current = onStopListeningForReply;
+
+  const spokenPromptRef = useRef(spokenPrompt);
+  spokenPromptRef.current = spokenPrompt;
+
+  const languageRef = useRef(language);
+  languageRef.current = language;
+
+  const lastSpokenKeyRef = useRef<string | null>(null);
+
+  // Speak out loud once per pending transaction, then automatically start listening for "Haan" or "Nahi"
   useEffect(() => {
-    let active = true;
-    if (pending && spokenPrompt) {
-      speechSynthesizer.speak(spokenPrompt, language).then(() => {
-        if (active && pending) {
-          onStartListeningForReply?.();
-        }
-      });
+    if (!pendingKey) {
+      lastSpokenKeyRef.current = null;
+      speechSynthesizer.stop();
+      onStopListeningRef.current?.();
+      return;
     }
+
+    if (lastSpokenKeyRef.current === pendingKey) {
+      return;
+    }
+
+    lastSpokenKeyRef.current = pendingKey;
+    let active = true;
+
+    speechSynthesizer.speak(spokenPromptRef.current, languageRef.current).then(() => {
+      if (active && lastSpokenKeyRef.current === pendingKey) {
+        onStartListeningRef.current?.();
+      }
+    });
+
     return () => {
       active = false;
-      speechSynthesizer.stop();
-      onStopListeningForReply?.();
     };
-  }, [pending, spokenPrompt, language, onStartListeningForReply, onStopListeningForReply]);
+  }, [pendingKey]);
+
+  // Clean up on component unmount
+  useEffect(() => {
+    return () => {
+      speechSynthesizer.stop();
+      onStopListeningRef.current?.();
+    };
+  }, []);
 
   return (
     <AnimatePresence>
@@ -195,10 +231,13 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                 whileTap={{ scale: 0.92 }}
                 onClick={() => {
                   triggerHaptic('light');
+                  onStopListeningRef.current?.();
                   speechSynthesizer.speak(
                     spokenPrompt,
                     language === 'pa' ? 'pa' : language === 'en' ? 'en' : 'hi'
-                  );
+                  ).then(() => {
+                    onStartListeningRef.current?.();
+                  });
                 }}
                 className="p-3 rounded-2xl bg-gray-100 hover:bg-gray-200 text-primary shadow-xs transition-colors flex items-center space-x-1"
                 title="Repeat voice prompt"

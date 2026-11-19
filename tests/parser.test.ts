@@ -429,5 +429,43 @@ describe('Speech Parser - 30+ Multilingual Sentences Across All Intents', () => 
       expect(res.intent).toBe('sale');
       expect(res.item).toBe('doodh');
     });
+
+    it('49. parses payment with "has given" and "ruppees": "ankit has given 500 ruppees"', async () => {
+      const res = await parseSpeech('ankit has given 500 ruppees', testContext);
+      expect(res.intent).toBe('payment');
+      expect(res.amount).toBe(500);
+      expect(res.customer).toBe('Ankit');
+      expect(res.confidence).toBeGreaterThanOrEqual(0.85);
+    });
+
+    it('50. parses payment with "gave": "Ankit gave 500 rupees"', async () => {
+      const res = await parseSpeech('Ankit gave 500 rupees', testContext);
+      expect(res.intent).toBe('payment');
+      expect(res.amount).toBe(500);
+      expect(res.customer).toBe('Ankit');
+    });
+
+    it('51. parses payment with "given by": "500 given by Ankit"', async () => {
+      const res = await parseSpeech('500 given by Ankit', testContext);
+      expect(res.intent).toBe('payment');
+      expect(res.amount).toBe(500);
+      expect(res.customer).toBe('Ankit');
+    });
+
+    it('52. parses Devanagari yes/no confirmation: "हाँ" and "नहीं"', async () => {
+      const yesRes = await parseSpeech('हाँ', testContext);
+      expect(yesRes.intent).toBe('confirm_yes');
+
+      const noRes = await parseSpeech('नहीं', testContext);
+      expect(noRes.intent).toBe('confirm_no');
+    });
+
+    it('53. parses Gurmukhi yes/no confirmation: "ਹਾਂ" and "ਨਹੀਂ"', async () => {
+      const yesRes = await parseSpeech('ਹਾਂ', testContext);
+      expect(yesRes.intent).toBe('confirm_yes');
+
+      const noRes = await parseSpeech('ਨਹੀਂ', testContext);
+      expect(noRes.intent).toBe('confirm_no');
+    });
   });
 });

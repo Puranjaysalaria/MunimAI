@@ -83,13 +83,23 @@ export function parseWithRules(
 
   // Check if sentence is an active transaction request (has udhaar, khate mein, sale, payment keywords)
   const isCreditPhrase = /\b(udhaar|udhar|khate\s*mein|khate\s*me|naame|udharaan|loan|loans|credit|borrow|borrowed|lent|lend|on\s*credit|due)\b/i.test(lower);
-  const isPaymentPhrase = /\b(diye|diya|jama|lauta\s*diye|de\s*ditta|wapis\s*kite|pay\s*kitta|paid|pay|payment|repaid|repay|returned|received|cleared|settled)\b/i.test(lower);
+  const isPaymentPhrase = /\b(diye|diya|jama|lauta\s*diye|de\s*ditta|wapis\s*kite|pay\s*kitta|paid|pay|payment|repaid|repay|returned|received|cleared|settled|given|gave|give|gives|has\s+given|have\s+given|handed|sent|deposited|transferred)\b/i.test(lower) ||
+    /(दिए|दिया|जमा|वापिस|ਲੌਟਾ|ਦਿੱਤੇ|ਦਿੱਤਾ|ਜਮ੍ਹਾ)/.test(lower);
   const isSalePhrase = /\b(bechi|becha|bika|biki|vechi|vech|sale|sales|cash\s*sale|becho|sold|sell|selling)\b/i.test(lower);
 
-  // Confirmation YES: "Haan" / "Haan likh do" / "Aaho" (only if not an explicit credit entry or item/customer present)
-  const hasCustomerMarker = /\b(ko|ne|nu|ke\s*khate)\b/i.test(lower);
+  // Multi-lingual & multi-script Yes / No recognition
+  const isYesWord = (t: string) =>
+    /\b(haan|ha|haa|aaho|yes|yeah|yup|yep|sure|ok|okay|confirm|save|record|done|correct|right|likh\s*do|likh\s*deo|theek\s*hai|theek|save\s*kar\s*do|kar\s*do|bilkul|ho|sari|aam|avunu|haudu|athe)\b/i.test(t) ||
+    /(?:^|\s|[^\p{L}\p{N}])(हाँ|हां|हाँजी|जी\s*हाँ|लिख\s*दो|लिख\s*लो|कर\s*दो|ठीक\s*है|सही\s*है|ਹਾਂ|ਹਾਂਜੀ|ਜੀ\s*ਹਾਂ|ਆਹੋ|ਲਿਖ\s*ਦਿਓ|ਠੀਕ\s*ਹੈ|હા|होय|हो|হ্যাঁ|ஆம்|சரி|అవును|సరే|ಹೌದು|ಅതെ)(?:$|\s|[^\p{L}\p{N}])/u.test(t);
+
+  const isNoWord = (t: string) =>
+    /\b(nahi|nahin|na|no|nope|nah|cancel|stop|ruko|discard|back|mat\s*likho|mat\s*karo|chhad\s*do|na\s*karo|don't|dont|nakko|venda|beda|illai|vaddu|wait)\b/i.test(t) ||
+    /(?:^|\s|[^\p{L}\p{N}])(नहीं|ना|मत\s*लिखो|मत\s*करो|रद्द|कैंसिल|रुको|रहने\s*दो|ਨਹੀਂ|ਨਾ|ਨਾ\s*ਕਰੋ|ਛੱਡ\s*ਦਿਓ|ਰੱਦ|ਰੱਦ\s*ਕਰੋ|ਨਾਹੀ|नाही|नको|না|বাতিল|இல்லை|வேண்டாம்|వద్దు|కాదు|ಬೇಡ|വേണ്ട)(?:$|\s|[^\p{L}\p{N}])/u.test(t);
+
+  // Confirmation YES: "Haan" / "Haan likh do" / "Aaho" / "हाँ" (only if not an explicit credit entry or item/customer present)
+  const hasCustomerMarker = /\b(ko|ne|nu|ke\s*khate)\b/i.test(lower) || /(को|ने|ਨੂੰ)/.test(lower) || /(को|ने|ਨੂੰ)/.test(rawTrimmed);
   if (!isCreditPhrase && !isPaymentPhrase && !amount && !firstItem && !hasCustomerMarker) {
-    if (/\b(haan|ha|haa|aaho|yes|likh\s*do|likh\s*deo|theek\s*hai|save\s*kar\s*do|kar\s*do|bilkul)\b/i.test(lower) && !/\b(nahi|nahin|na|mat|no)\b/i.test(lower)) {
+    if ((isYesWord(lower) || isYesWord(rawTrimmed)) && !isNoWord(lower) && !isNoWord(rawTrimmed)) {
       return {
         intent: 'confirm_yes',
         confidence: 0.98,
@@ -105,8 +115,8 @@ export function parseWithRules(
     }
   }
 
-  // Confirmation NO: "Nahi" / "Ruko" / "Cancel"
-  if (/\b(nahi|nahin|ruko|cancel|mat likho|mat karo|chhad do|na karo|no)\b/i.test(lower) && !isCreditPhrase && !isPaymentPhrase) {
+  // Confirmation NO: "Nahi" / "Ruko" / "Cancel" / "नहीं"
+  if ((isNoWord(lower) || isNoWord(rawTrimmed)) && !isCreditPhrase && !isPaymentPhrase) {
     return {
       intent: 'confirm_no',
       confidence: 0.98,
@@ -228,13 +238,25 @@ export function parseWithRules(
     }
   }
 
-  // Next check English prepositions: for/to/from <name>
+  // Next check English prepositions: for/to/from/by <name>
   if (!matchedCustomerName) {
-    const prepPattern = /(?:^|\s)(?:for|to|from)\s+([a-zA-Z\u0900-\u097F]+)\b/i;
+    const prepPattern = /(?:^|\s)(?:for|to|from|by)\s+([a-zA-Z\u0900-\u097F]+)\b/i;
     const match = text.match(prepPattern);
     if (match) {
       const candidate = match[1].trim();
       if (!['aaj', 'kal', 'today', 'cash', 'loan', 'credit', 'me', 'him', 'her', 'store', 'the'].includes(candidate.toLowerCase())) {
+        matchedCustomerName = candidate;
+      }
+    }
+  }
+
+  // Next check English Subject + Verb pattern: e.g. "Ankit has given 500", "Ankit gave 500", "Ankit paid 500", "Ankit gave me 500"
+  if (!matchedCustomerName) {
+    const subjectVerbPattern = /^([a-zA-Z\u0900-\u097F]+)\s+(?:has\s+given|have\s+given|gave|gives|given|has\s+paid|have\s+paid|paid|pays|paying|handed|sent|deposited|transferred|took|taken|has\s+taken|borrowed|has\s+borrowed)(?:\s+me)?\b/i;
+    const match = text.trim().match(subjectVerbPattern);
+    if (match) {
+      const candidate = match[1].trim();
+      if (!['add', 'record', 'nava', 'new', 'send', 'aaj', 'kal', 'today', 'total', 'sale', 'cash', 'me', 'him', 'her', 'the', 'please', 'customer', 'supplier'].includes(candidate.toLowerCase())) {
         matchedCustomerName = candidate;
       }
     }

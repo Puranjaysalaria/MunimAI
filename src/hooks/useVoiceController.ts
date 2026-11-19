@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Customer, Item, Transaction } from '../types/schema';
 import { createSTTProvider, STTProvider } from '../stt';
 import { parseSpeech } from '../parser';
@@ -50,6 +50,11 @@ export function useVoiceController({
   const [disambiguationCustomers, setDisambiguationCustomers] = useState<Customer[]>([]);
 
   const sttProviderRef = useRef<STTProvider | null>(null);
+  const pendingConfirmationRef = useRef<PendingConfirmation | null>(null);
+
+  useEffect(() => {
+    pendingConfirmationRef.current = pendingConfirmation;
+  }, [pendingConfirmation]);
 
   // Stop listening
   const stopListening = useCallback(() => {
@@ -345,10 +350,13 @@ export function useVoiceController({
 
   // Confirm and save the pending transaction
   const handleConfirmSave = useCallback(() => {
-    if (!pendingConfirmation) return;
+    const pending = pendingConfirmationRef.current;
+    if (!pending) return;
 
     if (sttProviderRef.current) {
-      sttProviderRef.current.stopListening();
+      try {
+        sttProviderRef.current.stopListening();
+      } catch {}
     }
     setIsListening(false);
 
@@ -356,41 +364,41 @@ export function useVoiceController({
     playAudioCue('success');
 
     const txType =
-      pendingConfirmation.intent === 'credit'
+      pending.intent === 'credit'
         ? 'credit'
-        : pendingConfirmation.intent === 'payment'
+        : pending.intent === 'payment'
         ? 'payment'
-        : pendingConfirmation.intent === 'expense'
+        : pending.intent === 'expense'
         ? 'expense'
         : 'sale';
 
     // Construct items array
-    const txItems = pendingConfirmation.itemName
+    const txItems = pending.itemName
       ? [
           {
-            name: pendingConfirmation.itemName,
-            quantity: pendingConfirmation.quantity || 1,
-            unit: pendingConfirmation.unit || 'kilo',
-            price: pendingConfirmation.amount,
+            name: pending.itemName,
+            quantity: pending.quantity || 1,
+            unit: pending.unit || 'kilo',
+            price: pending.amount,
           },
         ]
       : [];
 
     onSaveTransaction({
       type: txType,
-      amount: pendingConfirmation.amount,
-      customer_id: pendingConfirmation.customer?.id || null,
+      amount: pending.amount,
+      customer_id: pending.customer?.id || null,
       items: txItems,
       confirmed_by_voice: true,
-      voice_transcript: pendingConfirmation.rawText,
+      voice_transcript: pending.rawText,
     });
 
     const successVoice =
       language === 'en'
-        ? `Transaction of ₹${pendingConfirmation.amount} recorded.`
+        ? `Transaction of ₹${pending.amount} recorded.`
         : language === 'pa'
         ? 'ਹਾਂ ਜੀ, ਸੌਦਾ ਲਿਖ ਦਿੱਤਾ ਗਿਆ ਹੈ'
-        : `हाँ, ₹${pendingConfirmation.amount} का लेन-देन लिख दिया गया है`;
+        : `हाँ, ₹${pending.amount} का लेन-देन लिख दिया गया है`;
 
     speechSynthesizer.speak(successVoice, language);
 
@@ -401,12 +409,14 @@ export function useVoiceController({
       setVoiceState('idle');
       setLiveTranscript('');
     }, 1200);
-  }, [pendingConfirmation, onSaveTransaction, language]);
+  }, [onSaveTransaction, language]);
 
   // Cancel pending confirmation
   const handleCancelConfirmation = useCallback(() => {
     if (sttProviderRef.current) {
-      sttProviderRef.current.stopListening();
+      try {
+        sttProviderRef.current.stopListening();
+      } catch {}
     }
     setIsListening(false);
 
@@ -458,7 +468,7 @@ export function useVoiceController({
     provider.startListening(
       {
         language,
-        continuous: false,
+        continuous: true,
         interimResults: true,
       },
       {
@@ -466,9 +476,15 @@ export function useVoiceController({
           setLiveTranscript(res.transcript);
           const raw = res.transcript.trim().toLowerCase();
 
-          // Rapid intent detection even on interim results for snappy, instant response
-          const isYes = /\b(haan|ha|haa|aaho|yes|yeah|yup|ok|okay|confirm|save|record|done|correct|right|likh\s*do|likh\s*deo|theek\s*hai|theek|save\s*kar\s*do|kar\s*do|bilkul|ho|sari|aam|avunu|haudu|athe)\b/i.test(raw);
-          const isNo = /\b(nahi|nahin|na|no|nope|cancel|stop|ruko|discard|back|mat\s*likho|mat\s*karo|chhad\s*do|na\s*karo|don't|dont|nakko|venda|beda|illai|vaddu)\b/i.test(raw);
+          // Rapid multi-lingual and multi-script yes/no intent detection
+          const latinYes = /\b(haan|ha|haa|aaho|yes|yeah|yup|yep|sure|ok|okay|confirm|save|record|done|correct|right|likh\s*do|likh\s*deo|theek\s*hai|theek|save\s*kar\s*do|kar\s*do|bilkul|ho|sari|aam|avunu|haudu|athe)\b/i;
+          const indicYes = /(?:^|\s|[^\p{L}\p{N}])(हाँ|हां|हाँजी|जी\s*हाँ|लिख\s*दो|लिख\s*लो|कर\s*दो|ठीक\s*है|सही\s*है|ਹਾਂ|ਹਾਂਜੀ|ਜੀ\s*ਹਾਂ|ਆਹੋ|ਲਿਖ\s*ਦਿਓ|ਠੀਕ\s*ਹੈ|ਹਾ|होय|हो|হ্যাঁ|ஆம்|சரி|అవును|సరే|ಹೌದು|ಅതെ)(?:$|\s|[^\p{L}\p{N}])/u;
+
+          const latinNo = /\b(nahi|nahin|na|no|nope|nah|cancel|stop|ruko|discard|back|mat\s*likho|mat\s*karo|chhad\s*do|na\s*karo|don't|dont|nakko|venda|beda|illai|vaddu|wait)\b/i;
+          const indicNo = /(?:^|\s|[^\p{L}\p{N}])(नहीं|ना|मत\s*लिखो|मत\s*करो|रद्द|कैंसिल|रुको|रहने\s*दो|ਨਹੀਂ|ਨਾ|ਨਾ\s*ਕਰੋ|ਛੱਡ\s*ਦਿਓ|ਰੱਦ|ਰੱਦ\s*ਕਰੋ|ਨਾਹੀ|नाही|नको|না|বাতিল|இல்லை|வேண்டாம்|వద్దు|కాదు|ಬೇಡ|വേണ്ട)(?:$|\s|[^\p{L}\p{N}])/u;
+
+          const isYes = latinYes.test(raw) || indicYes.test(raw);
+          const isNo = latinNo.test(raw) || indicNo.test(raw);
 
           if (isYes && !isNo) {
             if (sttProviderRef.current) {
@@ -488,8 +504,11 @@ export function useVoiceController({
           }
 
           if (res.isFinal) {
-            stopListening();
-            processInput(res.transcript);
+            if (isYes && !isNo) {
+              handleConfirmSave();
+            } else if (isNo) {
+              handleCancelConfirmation();
+            }
           }
         },
         onError: () => {
@@ -501,7 +520,7 @@ export function useVoiceController({
         },
       }
     );
-  }, [language, stopListening, handleConfirmSave, handleCancelConfirmation, processInput]);
+  }, [language, handleConfirmSave, handleCancelConfirmation]);
 
   return {
     isListening,
