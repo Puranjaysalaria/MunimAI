@@ -60,7 +60,7 @@ export interface Customer {
   shop_id: string;
   name: string;
   phone?: string;
-  preferred_language: CustomerLanguage;
+  preferred_language?: CustomerLanguage;
   address_note?: string;
   credit_limit: number;
   balance_owed: number;
@@ -128,6 +128,7 @@ export interface Supplier {
   shop_id: string;
   name: string;
   phone?: string;
+  preferred_language?: CustomerLanguage;
   category?: string;
   created_at?: string;
 }

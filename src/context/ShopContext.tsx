@@ -428,7 +428,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
           shop_id: shop.id,
           name: custData.name,
           phone: custData.phone || null,
-          preferred_language: custData.preferred_language || 'hi',
+          preferred_language: custData.preferred_language || null,
           address_note: custData.address_note || null,
           credit_limit: custData.credit_limit || 5000,
           balance_owed: custData.balance_owed || 0,

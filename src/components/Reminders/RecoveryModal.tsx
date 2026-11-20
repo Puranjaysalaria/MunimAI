@@ -1,11 +1,19 @@
 import React, { useState } from 'react';
 import { Customer, ReminderTone, Shop, DEFAULT_REMINDER_SETTINGS } from '../../types/schema';
-import { DraftReminder, buildDraftReminders, isQuietHours } from '../../lib/reminderService';
+import {
+  DraftReminder,
+  buildDraftReminders,
+  isQuietHours,
+  generateReminderMessage,
+  generateUPILink,
+  resolveMessageLanguage,
+} from '../../lib/reminderService';
+import { buildWhatsAppLink, buildSMSLink } from '../../lib/slipService';
 import { getLocalizedCustomerName } from '../../lib/nameTranslation';
 import { formatINR } from '../../lib/utils';
 import { triggerHaptic, playAudioCue } from '../../lib/sound';
 import { speechSynthesizer } from '../../tts/speechSynthesizer';
-import { LanguageCode, useI18n } from '../../i18n';
+import { LanguageCode, useI18n, availableLanguages } from '../../i18n';
 import {
   X,
   Bell,
@@ -22,6 +30,7 @@ import {
   BellOff,
   RotateCw,
   ArrowRight,
+  Languages,
 } from 'lucide-react';
 
 interface RecoveryModalProps {
@@ -50,6 +59,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
   const { t } = useI18n();
   const [sentMap, setSentMap] = useState<Record<string, boolean>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [cardLangOverrides, setCardLangOverrides] = useState<Record<string, LanguageCode>>({});
 
   const reminderSettings = {
     ...DEFAULT_REMINDER_SETTINGS,
@@ -67,8 +77,34 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
   );
 
   const draftReminders = React.useMemo(() => {
-    return buildDraftReminders(customers, shop, effectiveThreshold, undefined, now);
-  }, [customers, shop, effectiveThreshold]);
+    return buildDraftReminders(customers, shop, effectiveThreshold, undefined, now, language);
+  }, [customers, shop, effectiveThreshold, language]);
+
+  // Build message dynamically on demand (never rely on stale cached text)
+  const getMessageForDraft = (draft: DraftReminder): { messageText: string; lang: LanguageCode } => {
+    const overrideLang = cardLangOverrides[draft.customer.id];
+    const resolvedLang = resolveMessageLanguage(
+      overrideLang || draft.customer.preferred_language,
+      language
+    );
+    const resolvedTone: ReminderTone = draft.customer.reminder_tone_override || reminderSettings.message_tone;
+
+    const upiLink = reminderSettings.include_upi_link
+      ? generateUPILink(shop.upi_id, shop.name, draft.customer.balance_owed)
+      : null;
+
+    const messageText = generateReminderMessage({
+      customerName: draft.customer.name,
+      shopName: shop.name,
+      amount: draft.customer.balance_owed,
+      upiLink,
+      language: resolvedLang,
+      tone: resolvedTone,
+      customNote: reminderSettings.custom_note,
+    });
+
+    return { messageText, lang: resolvedLang };
+  };
 
   if (!isOpen) return null;
 
@@ -105,6 +141,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
     triggerHaptic('start');
     playAudioCue('success');
 
+    const { messageText } = getMessageForDraft(draft);
     const customerLocalized = getLocalizedCustomerName(draft.customer.name, language);
 
     // Provide voice confirmation feedback when triggered individually (matching queue voice)
@@ -122,8 +159,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
       speechSynthesizer.speak(confirmVoice, language);
     }
 
-    const phone = draft.customer.phone?.replace(/[^0-9]/g, '') || '';
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(draft.messageText)}`;
+    const url = buildWhatsAppLink(draft.customer.phone || '', messageText);
 
     // Slight delay so the audio chime and voice speech initialize before window blur
     setTimeout(() => {
@@ -138,6 +174,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
     triggerHaptic('start');
     playAudioCue('success');
 
+    const { messageText } = getMessageForDraft(draft);
     const customerLocalized = getLocalizedCustomerName(draft.customer.name, language);
     const remainingAfterThis = actionableReminders.filter(
       (d) => d.customer.id !== draft.customer.id
@@ -153,8 +190,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
             .replace('WhatsApp', 'SMS');
     speechSynthesizer.speak(confirmVoice, language);
 
-    const phone = draft.customer.phone?.replace(/[^0-9]/g, '') || '';
-    const smsUrl = `sms:${phone}?body=${encodeURIComponent(draft.messageText)}`;
+    const smsUrl = buildSMSLink(draft.customer.phone || '', messageText);
 
     setTimeout(() => {
       window.location.href = smsUrl;
@@ -299,6 +335,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
               const isSent = Boolean(sentMap[draft.customer.id] || draft.isSentToday);
               const isExpanded = expandedId === draft.customer.id;
               const isBlocked = Boolean(draft.isDoNotRemind);
+              const { messageText, lang: resolvedDraftLang } = getMessageForDraft(draft);
 
               return (
                 <div
@@ -318,9 +355,37 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                         <h4 className="font-bold text-base text-app-text">
                           {getLocalizedCustomerName(draft.customer.name, language)}
                         </h4>
-                        <span className="text-[10px] uppercase px-1.5 py-0.5 rounded font-mono font-bold bg-gray-100 text-gray-600">
-                          {draft.language}
-                        </span>
+                        
+                        {/* Per-card Language Selector Override */}
+                        <div className="flex items-center space-x-1 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                          <Languages className="w-3 h-3 text-gray-500" />
+                          <select
+                            value={cardLangOverrides[draft.customer.id] || draft.customer.preferred_language || ''}
+                            onChange={(e) => {
+                              const val = e.target.value as LanguageCode | '';
+                              setCardLangOverrides((prev) => {
+                                const next = { ...prev };
+                                if (val) {
+                                  next[draft.customer.id] = val;
+                                } else {
+                                  delete next[draft.customer.id];
+                                }
+                                return next;
+                              });
+                            }}
+                            aria-label={t.reminders.languageSelectorLabel || 'Message Language'}
+                            className="text-[10px] font-bold bg-transparent text-gray-700 focus:outline-none cursor-pointer"
+                          >
+                            <option value="">
+                              {t.reminders.sameAsShopLanguage || 'Shop'} ({language.toUpperCase()})
+                            </option>
+                            {availableLanguages.map((l) => (
+                              <option key={l.code} value={l.code}>
+                                {l.code.toUpperCase()} ({l.nativeLabel})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
 
                         {/* Tone Override / Current Tone Badge */}
                         <button
@@ -418,8 +483,14 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
 
                   {/* Expanded Message Preview */}
                   {isExpanded && (
-                    <div className="mt-2.5 p-3 rounded-xl bg-gray-50 border border-gray-200 text-xs font-mono whitespace-pre-line text-gray-700">
-                      {draft.messageText}
+                    <div className="mt-2.5 p-3 rounded-xl bg-gray-50 border border-gray-200 text-xs">
+                      <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-gray-200 text-[11px] text-gray-500">
+                        <span className="font-semibold">{t.reminders.previewTitle || 'Message Preview'}:</span>
+                        <span className="font-mono uppercase font-bold text-primary">[{resolvedDraftLang}]</span>
+                      </div>
+                      <div className="font-mono whitespace-pre-line text-gray-700">
+                        {messageText}
+                      </div>
                     </div>
                   )}
 

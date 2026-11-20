@@ -1,4 +1,5 @@
 import { Customer, Reminder, ReminderSettings, ReminderTone, Shop } from '../types/schema';
+import { LanguageCode } from '../i18n/types';
 
 export interface DraftReminder {
   customer: Customer;
@@ -10,6 +11,44 @@ export interface DraftReminder {
   isSentToday: boolean;
   isDoNotRemind: boolean;
   isHighTrustExempt: boolean;
+}
+
+const SUPPORTED_LANGUAGES: LanguageCode[] = [
+  'hi',
+  'en',
+  'pa',
+  'gu',
+  'mr',
+  'bn',
+  'ta',
+  'te',
+  'kn',
+  'ml',
+];
+
+/**
+ * Resolves message language based on priority hierarchy:
+ * 1. Target recipient's preferred language (Customer or Supplier)
+ * 2. Shop's active app language
+ * 3. Default fallback: 'hi' (Hindi)
+ */
+export function resolveMessageLanguage(
+  targetPreferredLang?: string | null,
+  shopAppLang?: string | null
+): LanguageCode {
+  if (targetPreferredLang && targetPreferredLang.trim()) {
+    const normalized = targetPreferredLang.trim().toLowerCase() as LanguageCode;
+    if (SUPPORTED_LANGUAGES.includes(normalized)) {
+      return normalized;
+    }
+  }
+  if (shopAppLang && shopAppLang.trim()) {
+    const normalized = shopAppLang.trim().toLowerCase() as LanguageCode;
+    if (SUPPORTED_LANGUAGES.includes(normalized)) {
+      return normalized;
+    }
+  }
+  return 'hi';
 }
 
 export const DEFAULT_REMINDER_SETTINGS: ReminderSettings = {
@@ -299,6 +338,9 @@ export function generateReminderMessage(params: {
     customNote,
   } = params;
 
+  if (!TEMPLATES[language]) {
+    console.warn(`[i18n] Missing reminder template for language "${language}", falling back to "hi"`);
+  }
   const langKey = TEMPLATES[language] ? language : 'hi';
   const toneKey: ReminderTone = ['polite', 'standard', 'firm'].includes(tone) ? tone : 'polite';
   const hasUpi = Boolean(upiLink && upiLink.trim().length > 0);
@@ -362,7 +404,8 @@ export function buildDraftReminders(
   shop: Shop,
   customThreshold?: number,
   overrideSettings?: Partial<ReminderSettings>,
-  now: Date = new Date()
+  now: Date = new Date(),
+  appLanguage?: LanguageCode | string
 ): DraftReminder[] {
   const settings: ReminderSettings = {
     ...DEFAULT_REMINDER_SETTINGS,
@@ -379,7 +422,10 @@ export function buildDraftReminders(
     // 1. Per-customer tone override takes priority over shop-wide tone
     const resolvedTone: ReminderTone = customer.reminder_tone_override || settings.message_tone;
 
-    // 2. UPI link: only if include_upi_link is true AND shop has a valid upi_id
+    // 2. Resolve language: customer preferred -> shop active -> 'hi'
+    const resolvedLanguage = resolveMessageLanguage(customer.preferred_language, appLanguage);
+
+    // 3. UPI link: only if include_upi_link is true AND shop has a valid upi_id
     const upiLink = settings.include_upi_link
       ? generateUPILink(shop.upi_id, shop.name, customer.balance_owed)
       : null;
@@ -389,7 +435,7 @@ export function buildDraftReminders(
       shopName: shop.name,
       amount: customer.balance_owed,
       upiLink,
-      language: customer.preferred_language || 'hi',
+      language: resolvedLanguage,
       tone: resolvedTone,
       customNote: settings.custom_note,
     });
@@ -399,7 +445,7 @@ export function buildDraftReminders(
       amount: customer.balance_owed,
       messageText,
       upiLink,
-      language: customer.preferred_language || 'hi',
+      language: resolvedLanguage,
       tone: resolvedTone,
       isSentToday: hasSentReminderToday(customer.last_reminded_at, now),
       isDoNotRemind: Boolean(customer.do_not_remind),

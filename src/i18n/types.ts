@@ -152,6 +152,8 @@ export interface Translations {
     credit: string;
     audioProof: string;
     deleteProofConfirm: string;
+    preferredLanguageLabel?: string;
+    sameAsShopLanguage?: string;
   };
   stock: {
     title: string;
@@ -263,6 +265,8 @@ export interface Translations {
   reminders: {
     title: string;
     previewTitle: string;
+    languageSelectorLabel?: string;
+    sameAsShopLanguage?: string;
     sendViaShare: string;
     sendViaSms: string;
     sendAllButton: string;
@@ -383,5 +387,24 @@ export interface Translations {
     section4Title: string;
     section4Desc: string;
     understood: string;
+  };
+  slips: {
+    slipTitle: string;
+    shopName: string;
+    date: string;
+    customer: string;
+    phone: string;
+    items: string;
+    total: string;
+    paid: string;
+    balance: string;
+    thankYou: string;
+    debitLabel: string;
+    creditLabel: string;
+    orderTitle: string;
+    supplierLabel: string;
+    totalEstimatedAmount: string;
+    dispatchPrompt: string;
+    orderThankYou: string;
   };
 }

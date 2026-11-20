@@ -5,6 +5,12 @@ import { triggerHaptic, playAudioCue } from '../../lib/sound';
 import { speechSynthesizer } from '../../tts/speechSynthesizer';
 import { LanguageCode, useI18n } from '../../i18n';
 import {
+  generateSupplierOrderSlip,
+  resolveMessageLanguage,
+  buildWhatsAppLink,
+  buildSMSLink,
+} from '../../lib/slipService';
+import {
   X,
   Truck,
   Plus,
@@ -81,42 +87,33 @@ export const SupplierOrdersModal: React.FC<SupplierOrdersModalProps> = ({
     );
   };
 
-  // Format message for WhatsApp / SMS
+  // Format message for WhatsApp / SMS using i18n slip builder
   const generateOrderMessage = (draft: SupplierOrderDraft): string => {
-    const today = new Date().toLocaleDateString(language === 'en' ? 'en-IN' : 'hi-IN', {
-      day: 'numeric',
-      month: 'short',
+    const targetLang = resolveMessageLanguage(
+      (draft.supplier as any).preferred_language,
+      language
+    );
+
+    return generateSupplierOrderSlip({
+      shopName,
+      supplierName: draft.supplier.name,
+      items: draft.items.map((it) => ({
+        name: it.item.name,
+        quantity: it.suggestedQty,
+        unit: it.unit,
+        unitCost: it.unitCost,
+        totalCost: it.totalCost,
+      })),
+      totalEstimatedCost: draft.totalEstimatedCost,
+      language: targetLang,
     });
-    const isEn = language === 'en';
-    const isPa = language === 'pa';
-    const header = isEn
-      ? `📦 *${shopName} - New Order (${today})*\nSupplier: ${draft.supplier.name}\n-----------------------------\n`
-      : isPa
-      ? `📦 *${shopName} - ਨਵਾਂ ਆਰਡਰ (${today})*\nਸਪਲਾਇਰ: ${draft.supplier.name}\n-----------------------------\n`
-      : `📦 *${shopName} - नया आर्डर (${today})*\nसप्लायर: ${draft.supplier.name}\n-----------------------------\n`;
-
-    const itemsList = draft.items
-      .map(
-        (it, idx) =>
-          `${idx + 1}. ${it.item.name}: *${it.suggestedQty} ${it.unit}* (@ ₹${it.unitCost} = ₹${it.totalCost})`
-      )
-      .join('\n');
-
-    const footer = isEn
-      ? `\n-----------------------------\n*Total Estimated Amount: ${formatINR(draft.totalEstimatedCost)}*\n\nPlease dispatch goods as soon as possible. Thank you!`
-      : isPa
-      ? `\n-----------------------------\n*ਕੁੱਲ ਅੰਦਾਜ਼ਨ ਰਕਮ: ${formatINR(draft.totalEstimatedCost)}*\n\nਕਿਰਪਾ ਕਰਕੇ ਸਾਮਾਨ ਜਲਦੀ ਤੋਂ ਜਲਦੀ ਭੇਜੋ। ਧੰਨਵਾਦ!`
-      : `\n-----------------------------\n*कुल अनुमानित रकम: ${formatINR(draft.totalEstimatedCost)}*\n\nकृपया सामान जल्द से जल्द भेजें। धन्यवाद!`;
-
-    return header + itemsList + footer;
   };
 
   // Share via WhatsApp
   const handleShareWhatsApp = (draft: SupplierOrderDraft) => {
     triggerHaptic('start');
     const msg = generateOrderMessage(draft);
-    const phone = draft.supplier.phone?.replace(/[^0-9]/g, '') || '';
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+    const url = buildWhatsAppLink(draft.supplier.phone || '', msg);
     window.open(url, '_blank');
     setOrderSentMap((prev) => ({ ...prev, [draft.supplier.id]: true }));
     onConfirmOrder(draft);
@@ -126,8 +123,7 @@ export const SupplierOrdersModal: React.FC<SupplierOrdersModalProps> = ({
   const handleShareSMS = (draft: SupplierOrderDraft) => {
     triggerHaptic('start');
     const msg = generateOrderMessage(draft);
-    const phone = draft.supplier.phone?.replace(/[^0-9]/g, '') || '';
-    const smsUrl = `sms:${phone}?body=${encodeURIComponent(msg)}`;
+    const smsUrl = buildSMSLink(draft.supplier.phone || '', msg);
     window.location.href = smsUrl;
     setOrderSentMap((prev) => ({ ...prev, [draft.supplier.id]: true }));
     onConfirmOrder(draft);

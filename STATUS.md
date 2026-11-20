@@ -63,3 +63,15 @@
   - Deferred WhatsApp/SMS `window.open` by 350ms to allow audio chime and voice feedback to initiate cleanly without window blur cutoff
   - Expanded `ConfirmationCard.tsx` and `numberToWords.ts` spoken prompts across all 10 languages
   - 113 tests passing across entire test suite (`vitest run`), 0 TypeScript errors (`tsc --noEmit`)
+- [x] **Step 9: Dynamic Pre-filled Message Language Resolution & Complete Slip i18n**
+  - **Language Hierarchy Rule**: `resolveMessageLanguage(customerOrSupplierLang, shopAppLang) -> targetPreferred ?? shopLanguage ?? 'hi'`.
+  - **Schema & Mock Data**: Made `preferred_language` optional on `Customer` and `Supplier`. Removed hardcoded `'hi'` from mock data (left unassigned by default, with diverse targets for testing).
+  - **Customer Form & Passbook**: Added "Same as shop language" (stored as unset) as the first option in customer creation and passbook dropdowns.
+  - **Dynamic Message Construction**: Zero message text caching; reminders, purchase slips, and supplier orders are built on demand at send/preview time.
+  - **Recovery Modal**: Added per-card language selector override dropdown allowing instant message preview rebuild before dispatching.
+  - **Full Slip & Statement i18n**: Extracted all slip labels (`slipTitle`, `shopName`, `date`, `customer`, `phone`, `items`, `total`, `paid`, `balance`, `thankYou`, `debitLabel`, `creditLabel`, `orderTitle`, `supplierLabel`, `totalEstimatedAmount`, `dispatchPrompt`, `orderThankYou`) into `src/i18n/` across all 10 languages (`en`, `hi`, `pa`, `gu`, `mr`, `bn`, `ta`, `te`, `kn`, `ml`).
+  - **Multi-Script Print Stylesheet**: Statement print window includes comprehensive Indic font stack covering Devanagari, Gurmukhi, Gujarati, Tamil, Telugu, Kannada, Malayalam, and Bengali scripts.
+  - **Link Normalization**: Standardized WhatsApp (`wa.me/91XXXXXXXXXX?text=...`) and SMS (`sms:+91XXXXXXXXXX?&body=...`) URLs with full `encodeURIComponent` preserving rupee symbols and script characters.
+  - **Western Numerals**: Enforced Western digits (`₹500`) across all languages.
+  - **Automated Translation Checking**: Added `scripts/check-translations.ts` runnable via `npm run check:i18n`, generating `TRANSLATIONS_TODO.md` with 100% coverage across 360 keys.
+  - **Test Suite**: Added `tests/slip.test.ts` (29 new tests). Entire suite now has 145 passing tests (`npx vitest run`) and 0 TypeScript errors (`npx tsc --noEmit`).

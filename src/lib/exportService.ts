@@ -1,5 +1,7 @@
 import { Customer, Shop, Transaction } from '../types/schema';
 import { formatINR } from './utils';
+import { locales } from '../i18n';
+import { resolveMessageLanguage } from './reminderService';
 
 /**
  * Exports Ledger transactions to standard Excel-compatible CSV with UTF-8 BOM
@@ -70,6 +72,7 @@ export function exportLedgerToCSV(
 
 /**
  * Generates and triggers printable Customer Bahi-Khata ledger statement
+ * Uses full i18n localization and universal Indic font-family support
  */
 export function printCustomerStatement(
   customer: Customer,
@@ -81,10 +84,11 @@ export function printCustomerStatement(
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
 
-  const isEn = language === 'en';
-  const isPa = language === 'pa';
+  const targetLang = resolveMessageLanguage(customer.preferred_language, language);
+  const locale = locales[targetLang] || locales.en;
+  const tSlip = locale.slips;
 
-  const todayStr = new Date().toLocaleDateString(isEn ? 'en-IN' : 'hi-IN', {
+  const todayStr = new Date().toLocaleDateString('en-IN', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -94,20 +98,8 @@ export function printCustomerStatement(
     .map(
       (tx) => `
       <tr style="border-bottom: 1px solid #e5e7eb;">
-        <td style="padding: 8px;">${new Date(tx.created_at).toLocaleDateString(isEn ? 'en-IN' : 'hi-IN')}</td>
-        <td style="padding: 8px;">${
-          tx.type === 'credit'
-            ? isEn
-              ? 'Credit (Udhaar)'
-              : isPa
-              ? 'ਉਧਾਰ'
-              : 'उधार'
-            : isEn
-            ? 'Payment (Jama)'
-            : isPa
-            ? 'ਜਮ੍ਹਾ'
-            : 'जमा (भुगतान)'
-        }</td>
+        <td style="padding: 8px;">${new Date(tx.created_at).toLocaleDateString('en-IN')}</td>
+        <td style="padding: 8px;">${tx.type === 'credit' ? tSlip.debitLabel : tSlip.creditLabel}</td>
         <td style="padding: 8px;">${tx.items?.map((it) => `${it.name} (${it.quantity})`).join(', ') || '-'}</td>
         <td style="padding: 8px; text-align: right; font-weight: bold; color: ${tx.type === 'credit' ? '#D64545' : '#1E9E5A'};">
           ${tx.type === 'credit' ? '+' : '-'}${formatINR(tx.amount)}
@@ -118,11 +110,21 @@ export function printCustomerStatement(
 
   const html = `
     <!DOCTYPE html>
-    <html>
+    <html lang="${targetLang}">
       <head>
-        <title>${isEn ? 'Ledger Statement' : 'बही-खाता रसीद'} - ${customer.name}</title>
+        <meta charset="utf-8" />
+        <title>${tSlip.slipTitle} - ${customer.name}</title>
         <style>
-          body { font-family: sans-serif; padding: 24px; color: #1f2937; max-width: 600px; margin: auto; }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans',
+              'Noto Sans Devanagari', 'Noto Sans Gurmukhi', 'Noto Sans Gujarati',
+              'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Kannada',
+              'Noto Sans Malayalam', 'Noto Sans Bengali', sans-serif;
+            padding: 24px;
+            color: #1f2937;
+            max-width: 600px;
+            margin: auto;
+          }
           .header { text-align: center; border-bottom: 2px solid #0B6E4F; padding-bottom: 12px; margin-bottom: 16px; }
           .shop-title { font-size: 24px; font-weight: 900; color: #0B6E4F; margin: 0; }
           .meta { font-size: 13px; color: #6b7280; margin-top: 4px; }
@@ -136,26 +138,26 @@ export function printCustomerStatement(
       <body>
         <div class="header">
           <h1 class="shop-title">${shop.name}</h1>
-          <div class="meta">${isEn ? 'Phone' : 'फोन'}: ${shop.owner_phone} • ${isEn ? 'Date' : 'तारीख'}: ${todayStr}</div>
+          <div class="meta">${tSlip.phone}: ${shop.owner_phone} • ${tSlip.date}: ${todayStr}</div>
         </div>
 
         <div class="customer-box">
           <div>
-            <strong>${isEn ? 'Customer' : 'ग्राहक'}: ${customer.name}</strong><br />
-            <small>${customer.address_note || (isEn ? 'No address' : 'पता दर्ज नहीं है')}</small>
+            <strong>${tSlip.customer}: ${customer.name}</strong><br />
+            <small>${customer.address_note || '-'}</small>
           </div>
           <div>
-            <small>${isEn ? 'Phone' : 'फोन'}: ${customer.phone || '-'}</small>
+            <small>${tSlip.phone}: ${customer.phone || '-'}</small>
           </div>
         </div>
 
         <table>
           <thead>
             <tr>
-              <th>${isEn ? 'Date' : 'तारीख'}</th>
-              <th>${isEn ? 'Type' : 'विवरण'}</th>
-              <th>${isEn ? 'Items' : 'सामान'}</th>
-              <th style="text-align: right;">${isEn ? 'Amount' : 'रकम'}</th>
+              <th>${tSlip.date}</th>
+              <th>${locale.ledger.details}</th>
+              <th>${tSlip.items}</th>
+              <th style="text-align: right;">${tSlip.total}</th>
             </tr>
           </thead>
           <tbody>
@@ -164,7 +166,7 @@ export function printCustomerStatement(
         </table>
 
         <div class="total-box">
-          <span style="font-size: 14px; font-weight: bold;">${isEn ? 'Total Balance Owed:' : 'कुल बकाया उधार:'}</span>
+          <span style="font-size: 14px; font-weight: bold;">${tSlip.balance}:</span>
           <div class="total-amount">${formatINR(customer.balance_owed)}</div>
         </div>
 

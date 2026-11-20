@@ -11,7 +11,7 @@ import { te } from './te';
 import { kn } from './kn';
 import { ml } from './ml';
 
-const translationsMap: Record<LanguageCode, Translations> = {
+export const translationsMap: Record<LanguageCode, Translations> = {
   hi,
   en,
   pa,
@@ -23,6 +23,8 @@ const translationsMap: Record<LanguageCode, Translations> = {
   kn,
   ml,
 };
+
+export const locales = translationsMap;
 
 export interface LanguageMeta {
   code: LanguageCode;

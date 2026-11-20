@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useShop } from '../context/ShopContext';
-import { useI18n } from '../i18n';
-import { Customer, Transaction, DEFAULT_REMINDER_SETTINGS } from '../types/schema';
+import { useI18n, availableLanguages } from '../i18n';
+import { Customer, Transaction, DEFAULT_REMINDER_SETTINGS, CustomerLanguage } from '../types/schema';
 import { formatINR, formatRelativeTime } from '../lib/utils';
 import { exportLedgerToCSV, printCustomerStatement } from '../lib/exportService';
 import { calculateCustomerTrustScore } from '../lib/trustScore';
 import { firePaymentConfetti } from '../lib/celebration';
 import { getLocalizedCustomerName } from '../lib/nameTranslation';
-import { generateReminderMessage, generateUPILink } from '../lib/reminderService';
+import { generateReminderMessage, generateUPILink, resolveMessageLanguage } from '../lib/reminderService';
+import { buildWhatsAppLink } from '../lib/slipService';
 import { speechSynthesizer } from '../tts/speechSynthesizer';
 import {
   Search,
@@ -28,6 +29,8 @@ import {
   FileSpreadsheet,
   Printer,
   Share2,
+  Languages,
+  UserPlus,
 } from 'lucide-react';
 import { triggerHaptic, playAudioCue } from '../lib/sound';
 import { CustomerAvatar } from '../components/CustomerAvatar';
@@ -49,7 +52,7 @@ export const Ledger: React.FC<LedgerProps> = ({
   onQuickAction,
   onRecordProofForTransaction,
 }) => {
-  const { customers, transactions, shop, attachProofClip, updateCustomer } = useShop();
+  const { customers, transactions, shop, attachProofClip, updateCustomer, addCustomer } = useShop();
   const { t, language } = useI18n();
 
   const [search, setSearch] = useState('');
@@ -67,6 +70,14 @@ export const Ledger: React.FC<LedgerProps> = ({
     return null;
   });
   const [playingTxId, setPlayingTxId] = useState<string | null>(null);
+
+  // Add Customer Modal form state
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newCustName, setNewCustName] = useState('');
+  const [newCustPhone, setNewCustPhone] = useState('');
+  const [newCustAddress, setNewCustAddress] = useState('');
+  const [newCustLimit, setNewCustLimit] = useState('5000');
+  const [newCustLang, setNewCustLang] = useState<CustomerLanguage | ''>('');
 
   React.useEffect(() => {
     if (selectedCustomerId) {
@@ -166,6 +177,34 @@ export const Ledger: React.FC<LedgerProps> = ({
                 <MapPin className="w-3.5 h-3.5 mr-1 text-slate-400" />
                 {cust.address_note || getLocalizedCustomerName(cust.name, language)}
               </p>
+
+              {/* Customer Preferred Language selector dropdown */}
+              <div className="flex items-center space-x-1.5 mt-2">
+                <Languages className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                <span className="text-[11px] font-semibold text-slate-500">
+                  {t.ledger.preferredLanguageLabel || 'Preferred Language'}:
+                </span>
+                <select
+                  value={cust.preferred_language || ''}
+                  onChange={(e) => {
+                    const val = (e.target.value as CustomerLanguage) || undefined;
+                    if (updateCustomer) {
+                      updateCustomer(cust.id, { preferred_language: val });
+                    }
+                  }}
+                  aria-label={t.ledger.preferredLanguageLabel || 'Preferred Language'}
+                  className="text-xs font-bold bg-white text-slate-700 border border-slate-200 rounded-lg px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs cursor-pointer"
+                >
+                  <option value="">
+                    {t.ledger.sameAsShopLanguage || 'Same as shop language'} ({language.toUpperCase()})
+                  </option>
+                  {availableLanguages.map((l) => (
+                    <option key={l.code} value={l.code}>
+                      {l.nativeLabel} ({l.label})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 
@@ -234,17 +273,18 @@ export const Ledger: React.FC<LedgerProps> = ({
                     ? generateUPILink(shop.upi_id, shop.name || 'Store', cust.balance_owed)
                     : null;
 
+                const resolvedLang = resolveMessageLanguage(cust.preferred_language, language);
+
                 const messageText = generateReminderMessage({
                   customerName: cust.name,
                   amount: cust.balance_owed,
                   shopName: shop.name || 'Store',
                   upiLink,
-                  language: cust.preferred_language || language,
+                  language: resolvedLang,
                   tone: targetTone,
                 });
 
-                const phone = cust.phone?.replace(/\D/g, '') || '';
-                const url = `https://wa.me/${phone}?text=${encodeURIComponent(messageText)}`;
+                const url = buildWhatsAppLink(cust.phone || '', messageText);
 
                 setTimeout(() => {
                   window.open(url, '_blank');
@@ -453,29 +493,43 @@ export const Ledger: React.FC<LedgerProps> = ({
               )}
             </div>
 
-            {/* Filter Pills */}
-            <div className="flex space-x-2">
-              {(['all', 'owed', 'settled'] as const).map((mode) => (
-                <motion.button
-                  key={mode}
-                  whileTap={{ scale: 0.94 }}
-                  onClick={() => {
-                    triggerHaptic('light');
-                    setFilter(mode);
-                  }}
-                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
-                    filter === mode
-                      ? 'bg-primary text-white shadow-xs'
-                      : 'bg-white text-slate-600 border border-gray-200 hover:bg-gray-50'
-                  }`}
-                >
-                  {mode === 'all'
-                    ? t.ledger.filterAll
-                    : mode === 'owed'
-                    ? t.ledger.filterOwed
-                    : t.ledger.filterSettled}
-                </motion.button>
-              ))}
+            {/* Filter Pills & Add Customer Button */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex space-x-2">
+                {(['all', 'owed', 'settled'] as const).map((mode) => (
+                  <motion.button
+                    key={mode}
+                    whileTap={{ scale: 0.94 }}
+                    onClick={() => {
+                      triggerHaptic('light');
+                      setFilter(mode);
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
+                      filter === mode
+                        ? 'bg-primary text-white shadow-xs'
+                        : 'bg-white text-slate-600 border border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    {mode === 'all'
+                      ? t.ledger.filterAll
+                      : mode === 'owed'
+                      ? t.ledger.filterOwed
+                      : t.ledger.filterSettled}
+                  </motion.button>
+                ))}
+              </div>
+              <motion.button
+                whileTap={{ scale: 0.94 }}
+                onClick={() => {
+                  triggerHaptic('start');
+                  setIsAddModalOpen(true);
+                }}
+                className="touch-target-64 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center space-x-1 shadow-xs"
+                title="Add Customer"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">+ Customer</span>
+              </motion.button>
             </div>
           </div>
 
@@ -705,6 +759,147 @@ export const Ledger: React.FC<LedgerProps> = ({
           </div>
         )}
       </AnimatePresence>
+
+      {/* Add Customer Modal with Preferred Language Option */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-surface w-full max-w-md rounded-3xl p-6 shadow-2xl animate-slide-up border border-gray-100">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+              <div className="flex items-center space-x-2">
+                <div className="p-2 rounded-xl bg-emerald-100 text-emerald-800">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg font-black text-slate-900">
+                  + Add Customer
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="p-2 text-gray-400 hover:text-gray-700 rounded-full"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!newCustName.trim()) return;
+                triggerHaptic('success');
+                playAudioCue('success');
+
+                const created = await addCustomer({
+                  name: newCustName.trim(),
+                  phone: newCustPhone.trim() || undefined,
+                  address_note: newCustAddress.trim() || undefined,
+                  credit_limit: Number(newCustLimit) || 5000,
+                  balance_owed: 0,
+                  trust_score: 80,
+                  preferred_language: (newCustLang as CustomerLanguage) || undefined,
+                });
+
+                setNewCustName('');
+                setNewCustPhone('');
+                setNewCustAddress('');
+                setNewCustLimit('5000');
+                setNewCustLang('');
+                setIsAddModalOpen(false);
+                setSelectedCustomer(created);
+              }}
+              className="mt-4 space-y-3.5"
+            >
+              <div>
+                <label className="text-xs font-bold text-slate-600 block mb-1">
+                  Customer Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newCustName}
+                  onChange={(e) => setNewCustName(e.target.value)}
+                  placeholder="e.g. Ramesh Kumar"
+                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 block mb-1">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  value={newCustPhone}
+                  onChange={(e) => setNewCustPhone(e.target.value)}
+                  placeholder="e.g. 9811100001"
+                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 block mb-1">
+                  Address / Landmark
+                </label>
+                <input
+                  type="text"
+                  value={newCustAddress}
+                  onChange={(e) => setNewCustAddress(e.target.value)}
+                  placeholder="e.g. Near Temple"
+                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 block mb-1">
+                  Credit Limit (₹)
+                </label>
+                <input
+                  type="number"
+                  value={newCustLimit}
+                  onChange={(e) => setNewCustLimit(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 block mb-1">
+                  {t.ledger.preferredLanguageLabel || 'Preferred Language'}
+                </label>
+                <select
+                  value={newCustLang}
+                  onChange={(e) => setNewCustLang(e.target.value as CustomerLanguage | '')}
+                  className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+                >
+                  <option value="">
+                    {t.ledger.sameAsShopLanguage || 'Same as shop language'} ({language.toUpperCase()})
+                  </option>
+                  {availableLanguages.map((l) => (
+                    <option key={l.code} value={l.code}>
+                      {l.nativeLabel} ({l.label})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                >
+                  Save Customer
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
