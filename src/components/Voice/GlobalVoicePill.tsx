@@ -109,7 +109,7 @@ export const GlobalVoicePill: React.FC<GlobalVoicePillProps> = ({
 
   return (
     <div
-      className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 select-none pointer-events-none flex flex-col items-center"
+      className="fixed bottom-20 left-1/2 -translate-x-1/2 md:bottom-6 md:right-8 md:left-auto md:translate-x-0 z-40 select-none pointer-events-none flex flex-col items-center md:items-end"
       style={{
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}
@@ -122,7 +122,7 @@ export const GlobalVoicePill: React.FC<GlobalVoicePillProps> = ({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.95 }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
-            className="mb-2 max-w-[85vw] sm:max-w-md bg-slate-950/90 text-white px-3.5 py-1.5 rounded-2xl shadow-dock border border-slate-700/80 backdrop-blur-md pointer-events-auto text-center"
+            className="mb-2 max-w-[85vw] sm:max-w-md bg-slate-950/90 text-white px-3.5 py-1.5 rounded-2xl shadow-dock border border-slate-700/80 backdrop-blur-md pointer-events-auto text-center md:text-right"
           >
             <p className="text-xs font-semibold text-slate-200 line-clamp-2">
               {liveTranscript ? `"${liveTranscript}"` : getStatusLabel()}
@@ -148,16 +148,16 @@ export const GlobalVoicePill: React.FC<GlobalVoicePillProps> = ({
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
           aria-label={getStatusLabel()}
-          className={`touch-target-64 relative flex items-center justify-center transition-all duration-200 rounded-full border shadow-sheet ${
+          className={`relative flex items-center justify-center transition-all duration-200 rounded-full border shadow-dock hover:scale-105 active:scale-95 cursor-pointer before:absolute before:-inset-2 before:content-[''] ${
             voiceState === 'listening'
-              ? 'bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 text-white border-emerald-300 ring-4 ring-emerald-400/40 px-5 py-2.5 min-w-[190px] h-[52px]'
+              ? 'bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 text-white border-emerald-300 ring-4 ring-emerald-400/40 px-5 py-2.5 min-w-[190px] h-12 shadow-emerald-500/25'
               : voiceState === 'thinking'
-              ? 'bg-gradient-to-r from-indigo-700 via-indigo-600 to-purple-600 text-white border-indigo-400 ring-2 ring-indigo-400/30 px-5 py-2.5 min-w-[190px] h-[52px]'
+              ? 'bg-gradient-to-r from-indigo-700 via-indigo-600 to-purple-600 text-white border-indigo-400 ring-2 ring-indigo-400/30 px-5 py-2.5 min-w-[190px] h-12 shadow-indigo-500/25'
               : voiceState === 'success'
-              ? 'bg-emerald-600 text-white border-emerald-400 px-4 py-2 min-w-[140px] h-[48px]'
+              ? 'bg-emerald-600 text-white border-emerald-400 px-4 py-2 min-w-[140px] h-11'
               : voiceState === 'error'
-              ? 'bg-rose-600 text-white border-rose-400 px-4 py-2 min-w-[140px] h-[48px]'
-              : 'bg-slate-900/95 text-slate-100 hover:text-white hover:bg-slate-900 border-slate-700/90 hover:border-slate-500 px-4 py-2 min-w-[130px] h-[46px] backdrop-blur-md'
+              ? 'bg-rose-600 text-white border-rose-400 px-4 py-2 min-w-[140px] h-11'
+              : 'bg-slate-900/95 text-slate-100 hover:text-white hover:bg-slate-900 border-slate-700/90 hover:border-slate-500 px-4 py-2 min-w-[136px] h-11 backdrop-blur-md shadow-slate-900/40'
           }`}
         >
           {/* Active Listening Waveform Animation */}
