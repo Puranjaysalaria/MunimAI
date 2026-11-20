@@ -25,6 +25,9 @@ interface UseVoiceControllerProps {
   onOpenDailySummary?: () => void;
   onOpenRecovery?: (threshold: number) => void;
   onOpenReminderSettings?: () => void;
+  onOpenBillScan?: () => void;
+  onUpdateItemPrice?: (itemNameOrId: string, updates: { selling_price?: number; cost_price?: number }) => { success: boolean; previousItem?: Item; updatedItem?: Item };
+  onPriceActionConfirmed?: (action: { item: Item; priceType: 'selling' | 'cost'; oldPrice: number; newPrice: number; unit: string }) => void;
 }
 
 export function useVoiceController({
@@ -39,6 +42,9 @@ export function useVoiceController({
   onOpenDailySummary,
   onOpenRecovery,
   onOpenReminderSettings,
+  onOpenBillScan,
+  onUpdateItemPrice,
+  onPriceActionConfirmed,
 }: UseVoiceControllerProps) {
   const { language, t } = useI18n();
 
@@ -215,6 +221,67 @@ export function useVoiceController({
           return;
         }
 
+        // Navigation Intents (Direct Voice Navigation)
+        if (result.intent === 'open_bill_scan') {
+          setVoiceState('success');
+          speechSynthesizer.speak(t.navigation.billScanVoice, language);
+          if (onOpenBillScan) {
+            onOpenBillScan();
+          }
+          setTimeout(() => setVoiceState('idle'), 1500);
+          return;
+        }
+
+        if (result.intent === 'open_stock') {
+          setVoiceState('success');
+          onNavigateTab('stock');
+          speechSynthesizer.speak(t.navigation.openingStockVoice, language);
+          setTimeout(() => setVoiceState('idle'), 1500);
+          return;
+        }
+
+        if (result.intent === 'open_ledger') {
+          setVoiceState('success');
+          onNavigateTab('ledger');
+          speechSynthesizer.speak(t.navigation.openingLedgerVoice, language);
+          setTimeout(() => setVoiceState('idle'), 1500);
+          return;
+        }
+
+        if (result.intent === 'open_today') {
+          setVoiceState('success');
+          onNavigateTab('today');
+          speechSynthesizer.speak(t.navigation.openingTodayVoice, language);
+          setTimeout(() => setVoiceState('idle'), 1500);
+          return;
+        }
+
+        // Price Action Intents (set_selling_price / set_cost_price)
+        if (result.intent === 'set_selling_price' || result.intent === 'set_cost_price') {
+          const priceType: 'selling' | 'cost' = result.intent === 'set_cost_price' ? 'cost' : 'selling';
+          const matchedItem = result.matchedItem || items.find((i) => i.name.toLowerCase() === (result.item || '').toLowerCase());
+          const oldPrice = result.oldPrice !== undefined && result.oldPrice !== null
+            ? result.oldPrice
+            : matchedItem
+            ? (priceType === 'cost' ? matchedItem.cost_price : matchedItem.selling_price)
+            : null;
+
+          setPendingConfirmation({
+            intent: result.intent,
+            amount: result.amount || 0,
+            item: matchedItem || null,
+            itemName: matchedItem?.name || result.item || 'Item',
+            unit: result.unit || matchedItem?.unit || 'unit',
+            oldPrice,
+            priceType,
+            rawText: text,
+            spokenReply: result.spokenReply,
+          });
+
+          setVoiceState('idle');
+          return;
+        }
+
         // 3. Low confidence / Unknown
         if (result.confidence < 0.7 || result.intent === 'unknown') {
           triggerHaptic('warning');
@@ -299,6 +366,8 @@ export function useVoiceController({
       onOpenSupplierOrders,
       onOpenDailySummary,
       onOpenRecovery,
+      onOpenReminderSettings,
+      onOpenBillScan,
     ]
   );
 
@@ -381,6 +450,69 @@ export function useVoiceController({
     triggerHaptic('success');
     playAudioCue('success');
 
+    // Handle price update confirmation (set_selling_price / set_cost_price)
+    if (pending.intent === 'set_selling_price' || pending.intent === 'set_cost_price') {
+      const priceType: 'selling' | 'cost' = pending.intent === 'set_cost_price' ? 'cost' : 'selling';
+      const targetName = pending.itemName || pending.item?.name || 'Item';
+      const newPrice = pending.amount;
+      const oldPrice = pending.oldPrice ?? (pending.item ? (priceType === 'cost' ? pending.item.cost_price : pending.item.selling_price) : 0);
+      const unit = pending.unit || pending.item?.unit || 'unit';
+
+      let updatedItem = pending.item;
+      if (onUpdateItemPrice) {
+        const res = onUpdateItemPrice(targetName, {
+          [priceType === 'selling' ? 'selling_price' : 'cost_price']: newPrice,
+        });
+        if (res.updatedItem) {
+          updatedItem = res.updatedItem;
+        }
+      }
+
+      // Speak one short sentence
+      const template = priceType === 'cost'
+        ? t.priceAction.costPriceSetVoice
+        : t.priceAction.sellingPriceSetVoice;
+
+      const spokenSentence = template
+        .replace('{item}', targetName)
+        .replace('{price}', String(newPrice))
+        .replace('{unit}', unit);
+
+      speechSynthesizer.speak(spokenSentence, language);
+
+      const itemObj: Item = updatedItem || pending.item || {
+        id: `item-${Date.now()}`,
+        shop_id: 'default-shop',
+        name: targetName,
+        synonyms: [],
+        current_stock: 10,
+        min_threshold: 3,
+        cost_price: priceType === 'cost' ? newPrice : 0,
+        selling_price: priceType === 'selling' ? newPrice : 0,
+        unit: (unit as any) || 'kilo',
+        created_at: new Date().toISOString(),
+      };
+
+      if (onPriceActionConfirmed) {
+        onPriceActionConfirmed({
+          item: itemObj,
+          priceType,
+          oldPrice,
+          newPrice,
+          unit,
+        });
+      }
+
+      setPendingConfirmation(null);
+      setDisambiguationCustomers([]);
+      setVoiceState('success');
+      setTimeout(() => {
+        setVoiceState('idle');
+        setLiveTranscript('');
+      }, 1200);
+      return;
+    }
+
     const txType =
       pending.intent === 'credit'
         ? 'credit'
@@ -427,7 +559,7 @@ export function useVoiceController({
       setVoiceState('idle');
       setLiveTranscript('');
     }, 1200);
-  }, [onSaveTransaction, language]);
+  }, [onSaveTransaction, language, t, onUpdateItemPrice, onPriceActionConfirmed]);
 
   // Cancel pending confirmation
   const handleCancelConfirmation = useCallback(() => {

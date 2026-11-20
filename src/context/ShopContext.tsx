@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Customer, Item, Shop, Supplier, Transaction, User, UserRole } from '../types/schema';
+import { Customer, Item, Shop, Supplier, Transaction, User, UserRole, LastPriceChange } from '../types/schema';
 import {
   DEMO_SHOP_ID,
   INITIAL_CUSTOMERS,
@@ -23,6 +23,7 @@ interface ShopContextType {
   suppliers: Supplier[];
   transactions: Transaction[];
   lastTransaction: Transaction | null;
+  lastPriceChange: LastPriceChange | null;
   isLocked: boolean;
   isLoggedIn: boolean;
   hasPin: boolean;
@@ -37,6 +38,11 @@ interface ShopContextType {
   lockApp: () => void;
   addTransaction: (tx: Omit<Transaction, 'id' | 'shop_id' | 'created_at'>) => Transaction;
   undoLastTransaction: () => { success: boolean; message: string };
+  updateItemPrice: (
+    itemNameOrId: string,
+    updates: { selling_price?: number; cost_price?: number }
+  ) => { success: boolean; previousItem?: Item; updatedItem?: Item };
+  undoLastPriceChange: () => { success: boolean; message: string; restoredItem?: Item };
   updateCustomerBalance: (customerId: string, amountChange: number) => void;
   updateItemStock: (itemNameOrId: string, quantitySold: number) => void;
   attachProofClip: (transactionId: string, proofClipPath: string) => void;
@@ -116,6 +122,15 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
+  const [lastPriceChange, setLastPriceChange] = useState<LastPriceChange | null>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}last_price_change`);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {}
+    }
+    return null;
+  });
   const [offlinePendingCount, setOfflinePendingCount] = useState<number>(0);
 
   // Initialize and monitor offline queue count
@@ -418,6 +433,61 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
+  // Update item price (selling or cost price)
+  const updateItemPrice = (
+    itemNameOrId: string,
+    updates: { selling_price?: number; cost_price?: number }
+  ): { success: boolean; previousItem?: Item; updatedItem?: Item } => {
+    let prevItem: Item | undefined;
+    let nextItem: Item | undefined;
+
+    setItems((prev) =>
+      prev.map((item) => {
+        if (
+          item.id === itemNameOrId ||
+          item.name.toLowerCase() === itemNameOrId.toLowerCase() ||
+          item.synonyms.some((s) => s.toLowerCase() === itemNameOrId.toLowerCase())
+        ) {
+          prevItem = { ...item };
+          const priceType: 'selling' | 'cost' =
+            updates.selling_price !== undefined ? 'selling' : 'cost';
+          const oldPrice =
+            priceType === 'selling' ? item.selling_price : item.cost_price;
+          const newPrice =
+            priceType === 'selling' ? updates.selling_price! : updates.cost_price!;
+
+          nextItem = {
+            ...item,
+            ...updates,
+          };
+
+          const priceRecord: LastPriceChange = {
+            item: prevItem,
+            priceType,
+            oldPrice,
+            newPrice,
+            timestamp: Date.now(),
+          };
+          setLastPriceChange(priceRecord);
+          try {
+            localStorage.setItem(
+              `${STORAGE_KEY_PREFIX}last_price_change`,
+              JSON.stringify(priceRecord)
+            );
+          } catch {}
+
+          return nextItem;
+        }
+        return item;
+      })
+    );
+
+    if (prevItem && nextItem) {
+      return { success: true, previousItem: prevItem, updatedItem: nextItem };
+    }
+    return { success: false };
+  };
+
   // Add Customer (Local + Cloud)
   const addCustomer = async (custData: Omit<Customer, 'id' | 'shop_id' | 'created_at' | 'updated_at'>): Promise<Customer> => {
     let cloudId: string | null = null;
@@ -535,8 +605,55 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return newTx;
   };
 
-  // Undo Last Transaction ("Wapas karo")
-  const undoLastTransaction = (): { success: boolean; message: string } => {
+  // Undo Last Price Change ("Wapas karo")
+  const undoLastPriceChange = (): {
+    success: boolean;
+    message: string;
+    restoredItem?: Item;
+  } => {
+    if (!lastPriceChange) {
+      return { success: false, message: 'No recent price change to undo' };
+    }
+
+    const { item, priceType, oldPrice } = lastPriceChange;
+    let restored: Item | undefined;
+
+    setItems((prev) =>
+      prev.map((it) => {
+        if (it.id === item.id) {
+          restored = {
+            ...it,
+            [priceType === 'selling' ? 'selling_price' : 'cost_price']: oldPrice,
+          };
+          return restored;
+        }
+        return it;
+      })
+    );
+
+    setLastPriceChange(null);
+    try {
+      localStorage.removeItem(`${STORAGE_KEY_PREFIX}last_price_change`);
+    } catch {}
+
+    return {
+      success: true,
+      message: `${item.name} price restored to ₹${oldPrice}`,
+      restoredItem: restored || item,
+    };
+  };
+
+  // Undo Last Transaction or Price Change ("Wapas karo")
+  const undoLastTransaction = (): { success: boolean; message: string; restoredItem?: Item } => {
+    // If a price change was performed more recently than last transaction, undo price change
+    if (
+      lastPriceChange &&
+      (!lastTransaction ||
+        lastPriceChange.timestamp > (new Date(lastTransaction.created_at).getTime() || 0))
+    ) {
+      return undoLastPriceChange();
+    }
+
     if (!lastTransaction) {
       return { success: false, message: 'No recent transaction to undo' };
     }
@@ -664,6 +781,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         suppliers,
         transactions,
         lastTransaction,
+        lastPriceChange,
         isLocked,
         isLoggedIn,
         hasPin: Boolean(shop.pin_hash),
@@ -679,6 +797,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addTransaction,
         addCustomer,
         undoLastTransaction,
+        updateItemPrice,
+        undoLastPriceChange,
         updateCustomerBalance,
         updateItemStock,
         attachProofClip,

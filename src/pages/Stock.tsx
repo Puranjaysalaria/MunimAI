@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useShop } from '../context/ShopContext';
 import { useI18n } from '../i18n';
-import { Item } from '../types/schema';
+import { Item, LastPriceChange } from '../types/schema';
 import { formatINR } from '../lib/utils';
 import { compute14DayStockAnalysis } from '../lib/stockAnalytics';
 import { getSeasonalStockInsights } from '../lib/seasonalInsights';
@@ -20,13 +20,36 @@ import { triggerHaptic, playAudioCue } from '../lib/sound';
 interface StockProps {
   onOpenSupplierOrders: () => void;
   onQuickStockOrder: (item: Item) => void;
+  highlightedItemId?: string | null;
+  priceChangeInfo?: LastPriceChange | null;
 }
 
-export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStockOrder }) => {
+export const Stock: React.FC<StockProps> = ({
+  onOpenSupplierOrders,
+  onQuickStockOrder,
+  highlightedItemId,
+  priceChangeInfo,
+}) => {
   const { items, transactions, user } = useShop();
   const { t, language } = useI18n();
 
   const [filter, setFilter] = useState<'all' | 'low'>('all');
+
+  // Auto-scroll to highlighted item with reduced-motion support
+  useEffect(() => {
+    if (highlightedItemId) {
+      const prefersReducedMotion =
+        typeof window !== 'undefined' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const el = document.getElementById(`item-${highlightedItemId}`);
+      if (el) {
+        el.scrollIntoView({
+          behavior: prefersReducedMotion ? 'auto' : 'smooth',
+          block: 'center',
+        });
+      }
+    }
+  }, [highlightedItemId]);
 
   // Seasonal smart recommendations
   const seasonalInsights = useMemo(() => getSeasonalStockInsights(), []);
@@ -175,15 +198,24 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
               Math.round((item.current_stock / (item.min_threshold * 2.5 || 10)) * 100)
             );
 
+            const isHighlighted = highlightedItemId === item.id;
+
             return (
               <motion.div
                 key={item.id}
+                id={`item-${item.id}`}
                 initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                  scale: isHighlighted ? 1.02 : 1,
+                }}
                 transition={{ delay: idx * 0.03, duration: 0.25 }}
                 whileHover={{ y: -2 }}
                 className={`bg-white rounded-[28px] p-5 shadow-card border transition-all space-y-3.5 card-hover-elevate flex flex-col justify-between ${
-                  isCritical
+                  isHighlighted
+                    ? 'border-amber-400 ring-4 ring-amber-400/80 bg-amber-50/50 shadow-2xl'
+                    : isCritical
                     ? 'border-rose-300 ring-2 ring-rose-100 bg-rose-50/20'
                     : isLow
                     ? 'border-amber-200 bg-amber-50/10'
@@ -193,9 +225,15 @@ export const Stock: React.FC<StockProps> = ({ onOpenSupplierOrders, onQuickStock
                 <div>
                   <div className="flex items-start justify-between">
                     <div>
-                      <h3 className="font-black text-base sm:text-lg text-slate-900 capitalize flex items-center space-x-2">
+                      <h3 className="font-black text-base sm:text-lg text-slate-900 capitalize flex flex-wrap items-center gap-1.5">
                         <span>{item.name}</span>
-                        {isLow && (
+                        {isHighlighted && priceChangeInfo && (
+                          <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-950 flex items-center shadow-xs">
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            ₹{priceChangeInfo.oldPrice} ➔ ₹{priceChangeInfo.newPrice}
+                          </span>
+                        )}
+                        {isLow && !isHighlighted && (
                           <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-100 text-owed flex items-center">
                             <AlertTriangle className="w-3 h-3 mr-0.5" />
                             {t.stock.stockLowBadge}

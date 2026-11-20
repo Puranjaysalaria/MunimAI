@@ -179,7 +179,21 @@ export type ParsedIntent =
   | 'confirm_no'
   | 'undo'
   | 'reminder_settings'
+  | 'set_selling_price'
+  | 'set_cost_price'
+  | 'open_bill_scan'
+  | 'open_stock'
+  | 'open_ledger'
+  | 'open_today'
   | 'unknown';
+
+export interface LastPriceChange {
+  item: Item;
+  priceType: 'selling' | 'cost';
+  oldPrice: number;
+  newPrice: number;
+  timestamp: number;
+}
 
 export interface ParseResult {
   intent: ParsedIntent;
@@ -191,6 +205,8 @@ export interface ParseResult {
   matchedItem?: Item | null;
   quantity?: number | null;
   unit?: string | null;
+  oldPrice?: number | null;
+  targetTab?: 'home' | 'ledger' | 'stock' | 'today' | 'bill_scan' | null;
   language: 'hi' | 'pa' | 'en';
   confidence: number;
   rawText: string;

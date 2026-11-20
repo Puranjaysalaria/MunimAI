@@ -407,4 +407,31 @@ export interface Translations {
     dispatchPrompt: string;
     orderThankYou: string;
   };
+  navigation: {
+    openingStockVoice: string;
+    openingLedgerVoice: string;
+    openingTodayVoice: string;
+    billScanVoice: string;
+  };
+  billScan: {
+    title: string;
+    subtitle: string;
+    takePhotoBtn: string;
+    uploadFromGallery: string;
+    photoCaptured: string;
+    tipText: string;
+    close: string;
+  };
+  priceAction: {
+    sellingPriceSetVoice: string;
+    costPriceSetVoice: string;
+    sellingPriceConfirm: string;
+    costPriceConfirm: string;
+    priceChangeToast: string;
+    viewButton: string;
+    undoButton: string;
+    priceRestoredVoice: string;
+    priceUpdatedBadge: string;
+    oldToNew: string;
+  };
 }

@@ -147,8 +147,93 @@ export function parseWithRules(
     };
   }
 
+  // Navigation: Open Bill Scan ("Bill scan karo", "Bill se price update karo", "Bill ki photo lagani hai")
+  if (
+    /\b(bill\s*scan|scan\s*bill|bill\s*se\s*price|bill\s*ki\s*photo|bill\s*di\s*photo|bill\s*photo|parcha\s*scan|photo\s*of\s*bill|scan\s*invoice|invoice\s*scan|bill\s*se\s*rate|bill\s*camera|camera\s*bill|open\s*bill\s*camera)\b/i.test(lower) ||
+    /(ਬਿੱਲ\s*ਸਕੈਨ|ਬਿੱਲ\s*ਦੀ\s*ਫੋਟੋ|ਬਿਲ\s*ਸਕੈਨ)/.test(rawTrimmed) ||
+    /(बिल\s*स्कैन|बिल\s*की\s*फोटो|बिल\s*से\s*रेट|बिल\s*से\s*प्राइस|पर्चा\s*स्कैन)/.test(rawTrimmed)
+  ) {
+    return {
+      intent: 'open_bill_scan',
+      targetTab: 'bill_scan',
+      confidence: 0.98,
+      language: detectedLang,
+      rawText: text,
+      spokenReply:
+        detectedLang === 'en'
+          ? 'Please take a photo of the bill'
+          : detectedLang === 'pa'
+          ? 'ਬਿੱਲ ਦੀ ਫੋਟੋ ਖਿੱਚੋ'
+          : 'बिल की फोटो खींचिए',
+    };
+  }
+
+  // Navigation: Open Stock Inventory ("Stock kholo", "Stock dikhao", "Dukaan ka stock")
+  if (
+    /\b(stock\s*kholo|stock\s*dikhao|dukaan\s*ka\s*stock|dukan\s*da\s*stock|open\s*stock|show\s*stock|open\s*inventory|show\s*inventory|go\s*to\s*stock|stock\s*screen|stock\s*tab)\b/i.test(lower) ||
+    /(ਸਟਾਕ\s*ਖੋਲ੍ਹੋ|ਸਟਾਕ\s*ਦਿਖਾਓ|ਦੁਕਾਨ\s*ਦਾ\s*ਸਟਾਕ)/.test(rawTrimmed) ||
+    /(स्टॉक\s*खोलो|स्टॉक\s*दिखाओ|दुकान\s*का\s*स्टॉक)/.test(rawTrimmed)
+  ) {
+    return {
+      intent: 'open_stock',
+      targetTab: 'stock',
+      confidence: 0.98,
+      language: detectedLang,
+      rawText: text,
+      spokenReply:
+        detectedLang === 'en'
+          ? 'Opening stock inventory'
+          : detectedLang === 'pa'
+          ? 'ਸਟਾਕ ਖੋਲ੍ਹਿਆ ਗਿਆ'
+          : 'स्टॉक खोला गया',
+    };
+  }
+
+  // Navigation: Open Customer Ledger ("Ledger kholo", "Khata kholo", "Udhaar khata dikhao")
+  if (
+    /\b(ledger\s*kholo|khata\s*kholo|udhaar\s*khata\s*dikhao|udhaar\s*khata\s*kholo|udhar\s*khata\s*dikhao|udhar\s*khata\s*kholo|bahi\s*khata\s*kholo|bahi\s*khata\s*open|open\s*(?:customer\s*)?ledger|show\s*(?:customer\s*)?ledger|go\s*to\s*(?:customer\s*)?ledger|go\s*to\s*khata|show\s*khata|open\s*khata|ledger\s*screen|ledger\s*tab)\b/i.test(lower) ||
+    /(ਖਾਤਾ\s*ਖੋਲ੍ਹੋ|ਬਹੀ[- ]?ਖਾਤਾ\s*ਖੋਲ੍ਹੋ|ਉਧਾਰ\s*ਖਾਤਾ\s*ਦਿਖਾਓ|ਉਧਾਰ\s*ਖਾਤਾ\s*ਖੋਲ੍ਹੋ)/.test(rawTrimmed) ||
+    /(खाता\s*खोलो|बही[- ]?खाता\s*खोलो|उधार\s*खाता\s*दिखाओ|उधार\s*खाता\s*खोलो|लेजर\s*खोलो)/.test(rawTrimmed)
+  ) {
+    return {
+      intent: 'open_ledger',
+      targetTab: 'ledger',
+      confidence: 0.98,
+      language: detectedLang,
+      rawText: text,
+      spokenReply:
+        detectedLang === 'en'
+          ? 'Opening customer ledger'
+          : detectedLang === 'pa'
+          ? 'ਬਹੀ-ਖਾਤਾ ਖੋਲ੍ਹਿਆ ਗਿਆ'
+          : 'खाता खोला गया',
+    };
+  }
+
+  // Navigation: Open Today's Summary ("Today kholo", "Aaj ka hisaab", "Open today", "Today screen")
+  if (
+    /\b(today\s*kholo|today\s*screen|today\s*tab|open\s*today|show\s*today|go\s*to\s*today|open\s*today\s*summary|today\s*summary)\b/i.test(lower) ||
+    /\b(aaj\s*ka\s*hisaab|aj\s*da\s*hisaab|aaj\s*ka\s*page|aj\s*da\s*page|aaj\s*ka\s*din)\b/i.test(lower) ||
+    /(ਅੱਜ\s*ਦਾ\s*ਹਿਸਾਬ|ਅੱਜ\s*ਦਾ\s*ਪੇਜ|ਅੱਜ\s*ਦਾ\s*ਦਿਨ)/.test(rawTrimmed) ||
+    /(आज\s*का\s*हिसाब|आज\s*का\s*पेज|टुडे\s*खोलो)/.test(rawTrimmed)
+  ) {
+    return {
+      intent: 'open_today',
+      targetTab: 'today',
+      confidence: 0.98,
+      language: detectedLang,
+      rawText: text,
+      spokenReply:
+        detectedLang === 'en'
+          ? "Opening today's summary"
+          : detectedLang === 'pa'
+          ? 'ਅੱਜ ਦਾ ਹਿਸਾਬ ਖੋਲ੍ਹਿਆ ਗਿਆ'
+          : 'आज का हिसाब खोला गया',
+    };
+  }
+
   // Summary Intent: "Aaj kitni kamai hui?" / "Aj da kul hisaab"
-  if (/\b(kamai|kamayi|hisaab|hisab|kitni kamai|total sale|kul bikri|summary|din bhar ka|din bhar ki)\b/i.test(lower)) {
+  if (/\b(kamai|kamayi|kitni kamai|total sale|kul bikri|summary|din bhar ka|din bhar ki)\b/i.test(lower) || /\b(kul hisaab|hisab kitna|hisaab kitna)\b/i.test(lower)) {
     return {
       intent: 'summary',
       confidence: 0.95,
@@ -198,6 +283,73 @@ export function parseWithRules(
           ? 'ਯਾਦ-ਪੱਤਰ ਸੈਟਿੰਗਾਂ ਖੋਲ੍ਹੀਆਂ ਜਾ ਰਹੀਆਂ ਹਨ'
           : 'तगादा सेटिंग्स खोली जा रही हैं',
     };
+  }
+
+  // Price Actions: set_cost_price and set_selling_price
+  const matchedItemForPrice = context.items?.find((it) => {
+    const clean = it.name.toLowerCase();
+    return (
+      lower.includes(clean) ||
+      it.synonyms.some((s) => lower.includes(s.toLowerCase()))
+    );
+  });
+  const targetItemName = matchedItemForPrice?.name || firstItem;
+
+  const isCostKeyword =
+    /\b(khareed\s*rate|kharid\s*rate|cost\s*price|cost|buy\s*price|purchase\s*price|khareed\s*mul|kharid\s*mul|khareed\s*bhav|kharid\s*bhav|me\s*khareeda|vich\s*khareedya|vich\s*khareed|buy\s*rate|buying\s*price)\b/i.test(lower) ||
+    /(ਖਰੀਦ|खरीद)/.test(rawTrimmed);
+
+  const isPriceKeyword =
+    /\b(rate|bhav|mul|selling\s*price|sell\s*price|sale\s*price|bechna|vechna|set\s*karo|kardo|kar\s*deo|set\s*price|change\s*price|update\s*price)\b/i.test(lower) ||
+    /(ਰੇਟ|रेट|सेलिंग|ਵੇਚਣਾ|बेचना)/.test(rawTrimmed);
+
+  if (
+    targetItemName &&
+    amount &&
+    !isCreditPhrase &&
+    !isPaymentPhrase &&
+    !hasCustomerMarker &&
+    (isCostKeyword || isPriceKeyword)
+  ) {
+    const unit = qtyInfo.unit || matchedItemForPrice?.unit || 'litre';
+
+    if (isCostKeyword) {
+      const oldPrice = matchedItemForPrice ? matchedItemForPrice.cost_price : null;
+      return {
+        intent: 'set_cost_price',
+        item: targetItemName,
+        amount,
+        unit,
+        oldPrice,
+        confidence: 0.96,
+        language: detectedLang,
+        rawText: text,
+        spokenReply:
+          detectedLang === 'en'
+            ? `Set ${targetItemName} cost price to ₹${amount} per ${unit}?`
+            : detectedLang === 'pa'
+            ? `${targetItemName} ਦਾ ਖਰੀਦ ਰੇਟ ₹${amount}/${unit} ਸੈੱਟ ਕਰੀਏ?`
+            : `${targetItemName} का खरीद रेट ₹${amount}/${unit} सेट करें?`,
+      };
+    } else {
+      const oldPrice = matchedItemForPrice ? matchedItemForPrice.selling_price : null;
+      return {
+        intent: 'set_selling_price',
+        item: targetItemName,
+        amount,
+        unit,
+        oldPrice,
+        confidence: 0.96,
+        language: detectedLang,
+        rawText: text,
+        spokenReply:
+          detectedLang === 'en'
+            ? `Set ${targetItemName} selling price to ₹${amount} per ${unit}?`
+            : detectedLang === 'pa'
+            ? `${targetItemName} ਦਾ ਰੇਟ ₹${amount}/${unit} ਸੈੱਟ ਕਰੀਏ?`
+            : `${targetItemName} का सेलिंग रेट ₹${amount}/${unit} सेट करें?`,
+      };
+    }
   }
 
   // Recovery Intent: "Jinka 1000 se zyada baaki hai, unko yaad dilao"

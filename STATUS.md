@@ -75,3 +75,22 @@
   - **Western Numerals**: Enforced Western digits (`₹500`) across all languages.
   - **Automated Translation Checking**: Added `scripts/check-translations.ts` runnable via `npm run check:i18n`, generating `TRANSLATIONS_TODO.md` with 100% coverage across 360 keys.
   - **Test Suite**: Added `tests/slip.test.ts` (29 new tests). Entire suite now has 145 passing tests (`npx vitest run`) and 0 TypeScript errors (`npx tsc --noEmit`).
+- [x] **Step 10: Voice-Driven Navigation After Price Actions & Navigation Intents**
+  - **Price Actions (`set_selling_price`, `set_cost_price`)**:
+    - Distinguishes selling price changes ("Doodh ka rate 66 rupaye litre kardo") from cost price changes ("Doodh ka khareed rate 55 rupaye litre kardo") in Hinglish, Punjabi, and English.
+    - Formulates natural spoken confirmation: "Doodh ka rate 66 rupaye litre set ho gaya" / "Doodh ka khareed rate 55 rupaye litre set ho gaya" across all 10 languages.
+    - Safe navigation rule: If shopkeeper is on Home or Stock and not inside an unfinished flow (sale, credit, confirmation, modal), navigates to Stock screen, scrolls to the item, highlights it for 2 seconds (`prefers-reduced-motion` compliant), and displays old to new price (`₹44 ➔ ₹66`).
+    - Unfinished flow protection: If shopkeeper is in the middle of another flow or screen, stays put and displays a toast with a "Dekhein" (View) button.
+  - **Undo Toast ("Wapas karo")**:
+    - Displays a 10-second countdown toast after every price change with "Wapas karo" button wired to undo (`undoLastPriceChange` in `ShopContext`).
+    - Supports tap-to-undo restoring previous item price.
+  - **Navigation Intents**:
+    - `open_bill_scan`: speaks "Bill ki photo kheenchiye" (localized), navigates to `BillScanModal` with large $\ge 64$px touch target button ("Photo kheenchein"). Does not auto-trigger browser camera/file input without user tap.
+    - `open_stock`, `open_ledger`, `open_today`: direct hands-free navigation across Hinglish, Punjabi, and English variants.
+    - Navigation invariant: navigation never saves or changes data by itself; pending unconfirmed transactions are strictly preserved.
+  - **Design & i18n**:
+    - 100% translation coverage across all 10 Indic languages (`381` keys $\times$ 10 locales).
+    - Minimum 64px tap targets (`touch-target-64`) on all interactive buttons.
+  - **Test Suite**:
+    - Added `tests/navigation.test.ts` (31 new tests) testing $>15$ navigation phrases across Hinglish, Punjabi, and English, price action parsing, navigation invariant, unfinished flow detection, 2-second highlight, 10-second toast timer, and undo.
+    - Total test suite: 176 tests passing across 9 test files (`npx vitest run`), 0 TypeScript errors (`npx tsc --noEmit`), and 100% translation coverage (`npm run check:i18n`).

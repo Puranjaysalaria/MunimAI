@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useShop } from './context/ShopContext';
 import { Header } from './components/Navigation/Header';
@@ -19,9 +19,11 @@ import { SupplierOrdersModal } from './components/SupplierOrder/SupplierOrdersMo
 import { DailySummaryModal } from './components/Summary/DailySummaryModal';
 import { RecoveryModal } from './components/Reminders/RecoveryModal';
 import { ReminderSettingsModal } from './components/Reminders/ReminderSettingsModal';
+import { BillScanModal } from './components/BillScan/BillScanModal';
+import { PriceChangeToast } from './components/Voice/PriceChangeToast';
 import { PWAInstallPrompt } from './components/PWA/PWAInstallPrompt';
 import { useVoiceController } from './hooks/useVoiceController';
-import { Customer, Transaction } from './types/schema';
+import { Customer, Transaction, LastPriceChange } from './types/schema';
 import { speechSynthesizer } from './tts/speechSynthesizer';
 import { getPlayableProofUrl } from './storage/proofStorage';
 import {
@@ -51,6 +53,8 @@ export const AppContent: React.FC = () => {
     syncOfflineData,
     updateCustomer,
     updateShopSettings,
+    updateItemPrice,
+    undoLastPriceChange,
   } = useShop();
 
   const { language, t } = useI18n();
@@ -66,6 +70,13 @@ export const AppContent: React.FC = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showUndoToast, setShowUndoToast] = useState(false);
   const [selectedLedgerCustomerId, setSelectedLedgerCustomerId] = useState<string | null>(null);
+
+  // Bill Scan & Voice Price Navigation States
+  const [isBillScanOpen, setIsBillScanOpen] = useState(false);
+  const [highlightedStockItemId, setHighlightedStockItemId] = useState<string | null>(null);
+  const [priceChangeInfo, setPriceChangeInfo] = useState<LastPriceChange | null>(null);
+  const [showPriceToast, setShowPriceToast] = useState(false);
+  const [priceToastShowView, setPriceToastShowView] = useState(false);
 
   // Customer Proof Recording States
   const [proofTargetTx, setProofTargetTx] = useState<Transaction | null>(null);
@@ -122,6 +133,22 @@ export const AppContent: React.FC = () => {
     }
   }, [lastTransaction, customers]);
 
+  // Track activeTab and unfinished flow states in refs for voice price action callback
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+
+  const isUnfinishedFlow =
+    isSupplierOrdersOpen ||
+    isDailySummaryOpen ||
+    isRecoveryOpen ||
+    isSettingsOpen ||
+    isReminderSettingsOpen ||
+    showProofPrompt ||
+    isBillScanOpen ||
+    selectedLedgerCustomerId !== null;
+  const isUnfinishedFlowRef = useRef(isUnfinishedFlow);
+  isUnfinishedFlowRef.current = isUnfinishedFlow;
+
   // Voice Flow Controller Hook
   const voice = useVoiceController({
     customers,
@@ -146,6 +173,37 @@ export const AppContent: React.FC = () => {
       setIsRecoveryOpen(true);
     },
     onOpenReminderSettings: () => setIsReminderSettingsOpen(true),
+    onOpenBillScan: () => setIsBillScanOpen(true),
+    onUpdateItemPrice: updateItemPrice,
+    onPriceActionConfirmed: (change) => {
+      const priceRecord: LastPriceChange = {
+        item: change.item,
+        priceType: change.priceType,
+        oldPrice: change.oldPrice,
+        newPrice: change.newPrice,
+        timestamp: Date.now(),
+      };
+      setPriceChangeInfo(priceRecord);
+
+      const isHomeOrStock = activeTabRef.current === 'home' || activeTabRef.current === 'stock';
+      const inUnfinished = isUnfinishedFlowRef.current;
+
+      if (isHomeOrStock && !inUnfinished) {
+        // Navigate to stock screen, scroll to item & highlight for 2 seconds
+        setActiveTab('stock');
+        setHighlightedStockItemId(change.item.id);
+        setShowPriceToast(true);
+        setPriceToastShowView(false);
+
+        setTimeout(() => {
+          setHighlightedStockItemId(null);
+        }, 2000);
+      } else {
+        // In the middle of another flow or screen: stay put and show toast with "Dekhein" button
+        setShowPriceToast(true);
+        setPriceToastShowView(true);
+      }
+    },
   });
 
   if (!isLoggedIn) {
@@ -279,6 +337,8 @@ export const AppContent: React.FC = () => {
               <Stock
                 onOpenSupplierOrders={() => setIsSupplierOrdersOpen(true)}
                 onQuickStockOrder={(_item) => setIsSupplierOrdersOpen(true)}
+                highlightedItemId={highlightedStockItemId}
+                priceChangeInfo={priceChangeInfo}
               />
             </motion.div>
           )}
@@ -416,6 +476,37 @@ export const AppContent: React.FC = () => {
             },
           })
         }
+      />
+
+      {/* Bill Scan Modal (Voice-driven photo OCR for bill prices) */}
+      <BillScanModal
+        isOpen={isBillScanOpen}
+        onClose={() => setIsBillScanOpen(false)}
+        onPricesExtracted={(extracted) => {
+          if (extracted && extracted.length > 0) {
+            const first = extracted[0];
+            updateItemPrice(first.name, { selling_price: first.price });
+          }
+        }}
+      />
+
+      {/* Price Change Toast Notification (10-second undo & view) */}
+      <PriceChangeToast
+        priceChange={showPriceToast ? priceChangeInfo : null}
+        showViewButton={priceToastShowView}
+        onView={() => {
+          setActiveTab('stock');
+          if (priceChangeInfo) {
+            setHighlightedStockItemId(priceChangeInfo.item.id);
+            setTimeout(() => setHighlightedStockItemId(null), 2000);
+          }
+          setPriceToastShowView(false);
+        }}
+        onUndo={() => {
+          undoLastPriceChange();
+          setShowPriceToast(false);
+        }}
+        onDismiss={() => setShowPriceToast(false)}
       />
 
       {/* PWA Home Screen Install Prompt Banner */}

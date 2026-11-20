@@ -15,6 +15,7 @@ import {
   AlertCircle,
   ArrowRight,
   Mic,
+  Tag,
 } from 'lucide-react';
 import { triggerHaptic, playAudioCue } from '../../lib/sound';
 import { CustomerAvatar } from '../CustomerAvatar';
@@ -32,6 +33,8 @@ export interface PendingConfirmation {
   rawText: string;
   spokenReply?: string;
   questionToAsk?: string | null;
+  oldPrice?: number | null;
+  priceType?: 'selling' | 'cost' | null;
 }
 
 interface ConfirmationCardProps {
@@ -56,6 +59,8 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
   const isCredit = pending?.intent === 'credit';
   const isPayment = pending?.intent === 'payment';
   const isSale = pending?.intent === 'sale';
+  const isPriceAction = pending?.intent === 'set_selling_price' || pending?.intent === 'set_cost_price';
+  const isCostPrice = pending?.intent === 'set_cost_price';
 
   const custDisplayName = pending
     ? getLocalizedCustomerName(pending.customerName || pending.customer?.name, language)
@@ -67,7 +72,14 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
 
   // Spoken sentence formulated for natural speech across all 10 languages
   const spokenPrompt = pending
-    ? language === 'en'
+    ? isPriceAction
+      ? pending.spokenReply ||
+        (language === 'en'
+          ? `Set ${pending.itemName} ${isCostPrice ? 'cost' : 'selling'} price to ₹${pending.amount}${pending.unit ? ' per ' + pending.unit : ''}?`
+          : language === 'pa'
+          ? `${pending.itemName} ਦਾ ${isCostPrice ? 'ਖਰੀਦ ' : ''}ਰੇਟ ₹${pending.amount} ${pending.unit || ''} ਸੈੱਟ ਕਰਨਾ ਹੈ?`
+          : `${pending.itemName} का ${isCostPrice ? 'खरीद ' : ''}रेट ₹${pending.amount} ${pending.unit || ''} सेट करना है?`)
+      : language === 'en'
       ? isCredit && custDisplayName
         ? `${custDisplayName}, ${amountInWords} (₹${pending.amount}) credit loan. Should I record it?`
         : isPayment && custDisplayName
@@ -247,14 +259,18 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
               <div className="flex items-center space-x-3">
                 <div
                   className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-xs ${
-                    isCredit
+                    isPriceAction
+                      ? 'bg-amber-100 text-amber-700'
+                      : isCredit
                       ? 'bg-rose-100 text-owed'
                       : isPayment
                       ? 'bg-emerald-100 text-received'
                       : 'bg-emerald-100 text-primary'
                   }`}
                 >
-                  {isCredit ? (
+                  {isPriceAction ? (
+                    <Tag className="w-6 h-6 stroke-[2.5]" />
+                  ) : isCredit ? (
                     <ArrowUpRight className="w-6 h-6 stroke-[2.5]" />
                   ) : isPayment ? (
                     <ArrowDownLeft className="w-6 h-6 stroke-[2.5]" />
@@ -267,7 +283,9 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                     {t.confirmCard.title}
                   </span>
                   <h2 className="text-base font-black text-slate-900 leading-tight">
-                    {isCredit
+                    {isPriceAction
+                      ? (isCostPrice ? t.priceAction.costPriceConfirm : t.priceAction.sellingPriceConfirm)
+                      : isCredit
                       ? t.confirmCard.creditConfirm
                       : isPayment
                       ? t.confirmCard.paymentConfirm
@@ -303,24 +321,39 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
             {/* Central Hero Amount Display (>=32px per design guidelines) */}
             <div
               className={`py-5 px-4 text-center rounded-3xl my-4 border relative overflow-hidden ${
-                isCredit
+                isPriceAction
+                  ? 'bg-gradient-to-b from-amber-50/90 to-white border-amber-200/90'
+                  : isCredit
                   ? 'bg-gradient-to-b from-rose-50/90 to-white border-rose-200/90'
                   : 'bg-gradient-to-b from-emerald-50/90 to-white border-emerald-200/90'
               }`}
             >
               <span className="text-xs uppercase tracking-wider text-slate-500 font-black block mb-1">
-                {t.confirmCard.amountLabel}
+                {isPriceAction
+                  ? (isCostPrice ? t.priceAction.costPriceConfirm : t.priceAction.sellingPriceConfirm)
+                  : t.confirmCard.amountLabel}
               </span>
               <div
                 className={`amount-hero tracking-tight font-black ${
-                  isCredit ? 'text-owed' : 'text-received'
+                  isPriceAction
+                    ? 'text-amber-800'
+                    : isCredit
+                    ? 'text-owed'
+                    : 'text-received'
                 }`}
               >
                 {formatINR(pending.amount)}
+                {isPriceAction && pending.unit ? ` / ${pending.unit}` : ''}
               </div>
-              <p className="text-sm font-bold text-slate-700 mt-1 capitalize">
-                "{amountInWords}"
-              </p>
+              {isPriceAction && pending.oldPrice !== null && pending.oldPrice !== undefined ? (
+                <p className="text-sm font-bold text-slate-700 mt-1">
+                  ₹{pending.oldPrice} ➔ ₹{pending.amount}
+                </p>
+              ) : (
+                <p className="text-sm font-bold text-slate-700 mt-1 capitalize">
+                  "{amountInWords}"
+                </p>
+              )}
             </div>
 
             {/* Key Fields Breakdown */}
