@@ -107,10 +107,18 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
 
     const customerLocalized = getLocalizedCustomerName(draft.customer.name, language);
 
-    // Provide voice confirmation feedback when triggered individually
+    // Provide voice confirmation feedback when triggered individually (matching queue voice)
     if (!fromQueue) {
-      const voiceTemplate = t.reminders.openingWhatsAppVoice || 'Opening WhatsApp reminder for {name}.';
-      const confirmVoice = voiceTemplate.replace('{name}', customerLocalized);
+      const remainingAfterThis = actionableReminders.filter(
+        (d) => d.customer.id !== draft.customer.id
+      ).length;
+      const confirmVoice =
+        remainingAfterThis > 0
+          ? (t.reminders.queueNextVoice || 'Opening WhatsApp for {name}. {remaining} remaining.')
+              .replace('{name}', customerLocalized)
+              .replace('{remaining}', String(remainingAfterThis))
+          : (t.reminders.queueCompleteVoice || 'Opening WhatsApp for {name}. All complete.')
+              .replace('{name}', customerLocalized);
       speechSynthesizer.speak(confirmVoice, language);
     }
 
@@ -131,8 +139,18 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
     playAudioCue('success');
 
     const customerLocalized = getLocalizedCustomerName(draft.customer.name, language);
-    const voiceTemplate = t.reminders.openingSmsVoice || 'Opening SMS reminder for {name}.';
-    const confirmVoice = voiceTemplate.replace('{name}', customerLocalized);
+    const remainingAfterThis = actionableReminders.filter(
+      (d) => d.customer.id !== draft.customer.id
+    ).length;
+    const confirmVoice =
+      remainingAfterThis > 0
+        ? (t.reminders.queueNextVoice || 'Opening SMS for {name}. {remaining} remaining.')
+            .replace('{name}', customerLocalized)
+            .replace('{remaining}', String(remainingAfterThis))
+            .replace('WhatsApp', 'SMS')
+        : (t.reminders.queueCompleteVoice || 'Opening SMS for {name}. All complete.')
+            .replace('{name}', customerLocalized)
+            .replace('WhatsApp', 'SMS');
     speechSynthesizer.speak(confirmVoice, language);
 
     const phone = draft.customer.phone?.replace(/[^0-9]/g, '') || '';

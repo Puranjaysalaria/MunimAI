@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useShop } from '../context/ShopContext';
 import { useI18n } from '../i18n';
-import { Customer, Transaction } from '../types/schema';
+import { Customer, Transaction, DEFAULT_REMINDER_SETTINGS } from '../types/schema';
 import { formatINR, formatRelativeTime } from '../lib/utils';
 import { exportLedgerToCSV, printCustomerStatement } from '../lib/exportService';
 import { calculateCustomerTrustScore } from '../lib/trustScore';
 import { firePaymentConfetti } from '../lib/celebration';
 import { getLocalizedCustomerName } from '../lib/nameTranslation';
+import { generateReminderMessage, generateUPILink } from '../lib/reminderService';
+import { speechSynthesizer } from '../tts/speechSynthesizer';
 import {
   Search,
   UserCheck,
@@ -47,7 +49,7 @@ export const Ledger: React.FC<LedgerProps> = ({
   onQuickAction,
   onRecordProofForTransaction,
 }) => {
-  const { customers, transactions, shop, attachProofClip } = useShop();
+  const { customers, transactions, shop, attachProofClip, updateCustomer } = useShop();
   const { t, language } = useI18n();
 
   const [search, setSearch] = useState('');
@@ -207,19 +209,56 @@ export const Ledger: React.FC<LedgerProps> = ({
         {/* Action Buttons: WhatsApp Reminder & Print */}
         <div className="grid grid-cols-2 gap-2.5">
           {cust.balance_owed > 0 && (
-            <motion.a
+            <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.95 }}
-              href={`https://wa.me/${cust.phone?.replace(/\D/g, '') || ''}?text=${encodeURIComponent(
-                `${shop.name}: ₹${cust.balance_owed} ${t.ledger.customerBalanceOwed}.`
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
+              onClick={() => {
+                triggerHaptic('start');
+                playAudioCue('success');
+
+                const customerLocalized = getLocalizedCustomerName(cust.name, language);
+
+                // Voice confirmation matching the reminder experience
+                const voiceTemplate = t.reminders.openingWhatsAppVoice || 'Opening WhatsApp reminder for {name}.';
+                const confirmVoice = voiceTemplate.replace('{name}', customerLocalized);
+                speechSynthesizer.speak(confirmVoice, language);
+
+                const reminderSettings = {
+                  ...DEFAULT_REMINDER_SETTINGS,
+                  ...(shop.settings?.reminder_settings || {}),
+                };
+
+                const targetTone = cust.reminder_tone_override || reminderSettings.message_tone;
+                const upiLink =
+                  reminderSettings.include_upi_link && shop.upi_id?.trim()
+                    ? generateUPILink(shop.upi_id, shop.name || 'Store', cust.balance_owed)
+                    : null;
+
+                const messageText = generateReminderMessage({
+                  customerName: cust.name,
+                  amount: cust.balance_owed,
+                  shopName: shop.name || 'Store',
+                  upiLink,
+                  language: cust.preferred_language || language,
+                  tone: targetTone,
+                });
+
+                const phone = cust.phone?.replace(/\D/g, '') || '';
+                const url = `https://wa.me/${phone}?text=${encodeURIComponent(messageText)}`;
+
+                setTimeout(() => {
+                  window.open(url, '_blank');
+                }, 350);
+
+                if (updateCustomer) {
+                  updateCustomer(cust.id, { last_reminded_at: new Date().toISOString() });
+                }
+              }}
               className="touch-target-64 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-2xl flex items-center justify-center space-x-1.5 shadow-xs"
             >
               <Share2 className="w-4 h-4 text-emerald-100" />
               <span>{t.ledger.sendWhatsAppReminder}</span>
-            </motion.a>
+            </motion.button>
           )}
 
           <motion.button
