@@ -134,12 +134,13 @@ export const GlobalVoicePill: React.FC<GlobalVoicePillProps> = ({
 
   return (
     <div
-      className="fixed left-3 sm:left-5 md:left-6 top-1/2 -translate-y-1/2 z-40 select-none pointer-events-none flex items-center"
+      className="fixed bottom-22 md:bottom-8 right-4 sm:right-6 md:right-8 z-40 select-none pointer-events-none flex items-center flex-row-reverse"
       style={{
-        paddingLeft: 'env(safe-area-inset-left, 0px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        paddingRight: 'env(safe-area-inset-right, 0px)',
       }}
     >
-      {/* Floating Circular Mic Button (Left Middle Chatbot/Assistant Style) */}
+      {/* Floating Circular Mic Button (Bottom Right Corner Chatbot/Assistant Style) */}
       <motion.div
         layout
         animate={{ scale: isHolding ? 1.08 : 1 }}
@@ -209,15 +210,15 @@ export const GlobalVoicePill: React.FC<GlobalVoicePillProps> = ({
         </button>
       </motion.div>
 
-      {/* Floating Transcript & Soundbars (Expands smoothly to the right of the mic icon) */}
+      {/* Floating Transcript & Soundbars (Expands smoothly to the left of the mic icon) */}
       <AnimatePresence>
         {(liveTranscript || isExpanded) && (
           <motion.div
-            initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, x: -16, scale: 0.95 }}
+            initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, x: 16, scale: 0.95 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, x: -12, scale: 0.95 }}
+            exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, x: 12, scale: 0.95 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="ml-3 max-w-[70vw] sm:max-w-xs md:max-w-md bg-slate-950/95 text-white p-3 rounded-2xl shadow-2xl border border-slate-700/80 backdrop-blur-md pointer-events-auto flex items-center space-x-3"
+            className="mr-3 max-w-[70vw] sm:max-w-xs md:max-w-md bg-slate-950/95 text-white p-3 rounded-2xl shadow-2xl border border-slate-700/80 backdrop-blur-md pointer-events-auto flex items-center space-x-3"
           >
             {/* Live audio soundbars when listening */}
             {voiceState === 'listening' && (
