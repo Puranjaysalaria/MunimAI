@@ -21,6 +21,7 @@ import { RecoveryModal } from './components/Reminders/RecoveryModal';
 import { ReminderSettingsModal } from './components/Reminders/ReminderSettingsModal';
 import { BillScanModal } from './components/BillScan/BillScanModal';
 import { PriceChangeToast } from './components/Voice/PriceChangeToast';
+import { GlobalVoicePill } from './components/Voice/GlobalVoicePill';
 import { PWAInstallPrompt } from './components/PWA/PWAInstallPrompt';
 import { useVoiceController } from './hooks/useVoiceController';
 import { Customer, Transaction, LastPriceChange, Item } from './types/schema';
@@ -546,6 +547,29 @@ export const AppContent: React.FC = () => {
           onDismiss={() => setShowUndoToast(false)}
         />
       )}
+
+      {/* Global Floating Voice Pill (All screens except Home, Wispr Flow style) */}
+      <GlobalVoicePill
+        visible={
+          activeTab !== 'home' &&
+          !voice.pendingConfirmation &&
+          !isBillScanOpen &&
+          !isSupplierOrdersOpen &&
+          !isDailySummaryOpen &&
+          !isRecoveryOpen &&
+          !isSettingsOpen &&
+          !isReminderSettingsOpen &&
+          !isPrivacyOpen &&
+          !showProofPrompt &&
+          !proofTargetTx
+        }
+        isListening={voice.isListening}
+        voiceState={voice.voiceState}
+        liveTranscript={voice.liveTranscript}
+        errorMessage={voice.errorMessage}
+        onStartListening={voice.startListening}
+        onStopListening={voice.stopListening}
+      />
 
       {/* Fixed Bottom Tab Navigation */}
       <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} />

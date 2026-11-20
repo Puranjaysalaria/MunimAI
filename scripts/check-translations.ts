@@ -113,8 +113,12 @@ function main() {
     mdContent += `\n`;
   }
 
-  fs.writeFileSync(todoPath, mdContent, 'utf-8');
-  console.log(`📄 Wrote translation review report to ${path.relative(process.cwd(), todoPath)}`);
+  try {
+    fs.writeFileSync(todoPath, mdContent, 'utf-8');
+    console.log(`📄 Wrote translation review report to ${path.relative(process.cwd(), todoPath)}`);
+  } catch (err) {
+    console.warn(`Could not write ${path.relative(process.cwd(), todoPath)}: ${(err as Error).message}`);
+  }
 
   console.log('\n📊 Summary:');
   console.log(`Total Keys: ${totalEnKeys}`);
