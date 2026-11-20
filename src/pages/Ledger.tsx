@@ -519,16 +519,16 @@ export const Ledger: React.FC<LedgerProps> = ({
                 ))}
               </div>
               <motion.button
-                whileTap={{ scale: 0.94 }}
+                whileTap={{ scale: 0.92 }}
                 onClick={() => {
                   triggerHaptic('start');
                   setIsAddModalOpen(true);
                 }}
-                className="touch-target-64 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center space-x-1 shadow-xs"
+                className="touch-target-64 p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-xs flex items-center justify-center transition-all"
                 title="Add Customer"
+                aria-label="Add Customer"
               >
-                <UserPlus className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">+ Customer</span>
+                <UserPlus className="w-4 h-4" />
               </motion.button>
             </div>
           </div>
