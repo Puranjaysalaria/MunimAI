@@ -485,7 +485,44 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (prevItem && nextItem) {
       return { success: true, previousItem: prevItem, updatedItem: nextItem };
     }
-    return { success: false };
+
+    // Auto-create item in inventory if not already present
+    const priceType: 'selling' | 'cost' =
+      updates.selling_price !== undefined ? 'selling' : 'cost';
+    const costPrice = updates.cost_price ?? (updates.selling_price ? Math.round(updates.selling_price * 0.8) : 0);
+    const sellingPrice = updates.selling_price ?? (updates.cost_price ? Math.round(updates.cost_price * 1.15) : 0);
+
+    const createdItem: Item = {
+      id: `item-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      shop_id: shop.id,
+      name: itemNameOrId,
+      synonyms: [itemNameOrId.toLowerCase()],
+      unit: 'piece',
+      cost_price: costPrice,
+      selling_price: sellingPrice,
+      current_stock: 10,
+      min_threshold: 3,
+      created_at: new Date().toISOString(),
+    };
+
+    setItems((prev) => [createdItem, ...prev]);
+
+    const priceRecord: LastPriceChange = {
+      item: createdItem,
+      priceType,
+      oldPrice: 0,
+      newPrice: priceType === 'selling' ? sellingPrice : costPrice,
+      timestamp: Date.now(),
+    };
+    setLastPriceChange(priceRecord);
+    try {
+      localStorage.setItem(
+        `${STORAGE_KEY_PREFIX}last_price_change`,
+        JSON.stringify(priceRecord)
+      );
+    } catch {}
+
+    return { success: true, updatedItem: createdItem };
   };
 
   // Add Customer (Local + Cloud)

@@ -421,6 +421,14 @@ export interface Translations {
     photoCaptured: string;
     tipText: string;
     close: string;
+    scanningBadge: string;
+    itemsDetected: string;
+    totalBill: string;
+    applyButton: string;
+    retakeBtn: string;
+    priceTypeCost: string;
+    priceTypeSell: string;
+    billUpdatedVoice: string;
   };
   priceAction: {
     sellingPriceSetVoice: string;

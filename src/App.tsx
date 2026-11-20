@@ -23,7 +23,7 @@ import { BillScanModal } from './components/BillScan/BillScanModal';
 import { PriceChangeToast } from './components/Voice/PriceChangeToast';
 import { PWAInstallPrompt } from './components/PWA/PWAInstallPrompt';
 import { useVoiceController } from './hooks/useVoiceController';
-import { Customer, Transaction, LastPriceChange } from './types/schema';
+import { Customer, Transaction, LastPriceChange, Item } from './types/schema';
 import { speechSynthesizer } from './tts/speechSynthesizer';
 import { getPlayableProofUrl } from './storage/proofStorage';
 import {
@@ -484,8 +484,29 @@ export const AppContent: React.FC = () => {
         onClose={() => setIsBillScanOpen(false)}
         onPricesExtracted={(extracted) => {
           if (extracted && extracted.length > 0) {
-            const first = extracted[0];
-            updateItemPrice(first.name, { selling_price: first.price });
+            let lastUpdatedItem: Item | undefined;
+
+            extracted.forEach((item) => {
+              const res = updateItemPrice(item.name, {
+                [item.priceType === 'cost' ? 'cost_price' : 'selling_price']: item.price,
+              });
+              if (res.updatedItem) {
+                lastUpdatedItem = res.updatedItem;
+              }
+            });
+
+            // Spoken voice feedback
+            const voiceMsg = t.billScan.billUpdatedVoice.replace('{count}', String(extracted.length));
+            speechSynthesizer.speak(voiceMsg, language);
+
+            // Close modal & navigate to stock screen
+            setIsBillScanOpen(false);
+            setActiveTab('stock');
+
+            if (lastUpdatedItem) {
+              setHighlightedStockItemId(lastUpdatedItem.id);
+              setTimeout(() => setHighlightedStockItemId(null), 2500);
+            }
           }
         }}
       />
