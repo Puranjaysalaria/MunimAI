@@ -134,7 +134,7 @@ export const GlobalVoicePill: React.FC<GlobalVoicePillProps> = ({
 
   return (
     <div
-      className="fixed bottom-22 md:bottom-8 right-4 sm:right-6 md:right-8 z-40 select-none pointer-events-none flex items-center flex-row-reverse"
+      className="fixed bottom-20 md:bottom-6 right-3 sm:right-4 md:right-5 z-40 select-none pointer-events-none flex items-center flex-row-reverse"
       style={{
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         paddingRight: 'env(safe-area-inset-right, 0px)',
@@ -172,7 +172,7 @@ export const GlobalVoicePill: React.FC<GlobalVoicePillProps> = ({
           }}
           aria-label={getStatusLabel()}
           title={getStatusLabel()}
-          className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer shadow-2xl relative touch-target-64 before:absolute before:-inset-2 before:content-[''] ${
+          className={`w-12 h-12 sm:w-13 sm:h-13 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer shadow-2xl relative touch-target-64 before:absolute before:-inset-2 before:content-[''] ${
             voiceState === 'listening'
               ? 'bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 text-white ring-4 ring-emerald-400/50 shadow-emerald-500/40 border-2 border-white/80'
               : voiceState === 'thinking'
@@ -187,19 +187,19 @@ export const GlobalVoicePill: React.FC<GlobalVoicePillProps> = ({
           {/* Active Listening Ripple / Wave Animation */}
           {voiceState === 'listening' ? (
             <div className="relative flex items-center justify-center">
-              <span className="animate-ping absolute inline-flex h-8 w-8 rounded-full bg-white/40" />
-              <Mic className="w-6 h-6 stroke-[2.6] text-white relative z-10" />
+              <span className="animate-ping absolute inline-flex h-7 w-7 rounded-full bg-white/40" />
+              <Mic className="w-5 h-5 stroke-[2.6] text-white relative z-10" />
             </div>
           ) : voiceState === 'thinking' ? (
-            <Loader2 className="w-6 h-6 animate-spin stroke-[2.6] text-white" />
+            <Loader2 className="w-5 h-5 animate-spin stroke-[2.6] text-white" />
           ) : voiceState === 'success' ? (
-            <Check className="w-6 h-6 stroke-[3] text-white" />
+            <Check className="w-5 h-5 stroke-[3] text-white" />
           ) : voiceState === 'error' ? (
-            <AlertCircle className="w-6 h-6 stroke-[2.6] text-white" />
+            <AlertCircle className="w-5 h-5 stroke-[2.6] text-white" />
           ) : (
             /* Idle: Crisp Mic Icon with subtle ready indicator */
             <div className="relative flex items-center justify-center">
-              <Mic className="w-6 h-6 stroke-[2.4]" />
+              <Mic className="w-5 h-5 stroke-[2.4]" />
               {/* Ready green dot badge */}
               <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />

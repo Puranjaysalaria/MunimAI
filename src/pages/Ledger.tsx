@@ -494,8 +494,8 @@ export const Ledger: React.FC<LedgerProps> = ({
             </div>
 
             {/* Filter Pills & Add Customer Button */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex space-x-2">
+            <div className="flex items-center justify-between gap-2 w-full">
+              <div className="flex items-center space-x-1.5 sm:space-x-2 overflow-x-auto no-scrollbar flex-1 py-0.5">
                 {(['all', 'owed', 'settled'] as const).map((mode) => (
                   <motion.button
                     key={mode}
@@ -504,7 +504,7 @@ export const Ledger: React.FC<LedgerProps> = ({
                       triggerHaptic('light');
                       setFilter(mode);
                     }}
-                    className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
+                    className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-black transition-all flex-shrink-0 ${
                       filter === mode
                         ? 'bg-primary text-white shadow-xs'
                         : 'bg-white text-slate-600 border border-gray-200 hover:bg-gray-50'
@@ -524,11 +524,11 @@ export const Ledger: React.FC<LedgerProps> = ({
                   triggerHaptic('start');
                   setIsAddModalOpen(true);
                 }}
-                className="touch-target-64 p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-xs flex items-center justify-center transition-all"
+                className="h-9 w-9 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs flex items-center justify-center transition-all flex-shrink-0 ml-auto relative before:absolute before:-inset-2 before:content-['']"
                 title="Add Customer"
                 aria-label="Add Customer"
               >
-                <UserPlus className="w-4 h-4" />
+                <UserPlus className="w-3.5 h-3.5 stroke-[2.3]" />
               </motion.button>
             </div>
           </div>
