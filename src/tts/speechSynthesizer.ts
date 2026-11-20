@@ -155,6 +155,270 @@ export function indicToDevanagari(text: string, lang: string): string {
 }
 
 /**
+ * Brahmic / Devanagari vowel and consonant mappings to Roman phonetics
+ */
+const DEVA_VOWELS: Record<string, string> = {
+  '\u0905': 'a',
+  '\u0906': 'aa',
+  '\u0907': 'i',
+  '\u0908': 'ee',
+  '\u0909': 'u',
+  '\u090A': 'oo',
+  '\u090B': 'ri',
+  '\u090F': 'e',
+  '\u0910': 'ai',
+  '\u0913': 'o',
+  '\u0914': 'au',
+};
+
+const DEVA_MATRAS: Record<string, string> = {
+  '\u093E': 'aa',
+  '\u093F': 'i',
+  '\u0940': 'ee',
+  '\u0941': 'u',
+  '\u0942': 'oo',
+  '\u0943': 'ri',
+  '\u0947': 'e',
+  '\u0948': 'ai',
+  '\u094B': 'o',
+  '\u094C': 'au',
+  '\u094D': '', // Halant (suppresses inherent 'a')
+};
+
+const DEVA_CONSONANTS: Record<string, string> = {
+  '\u0915': 'k',
+  '\u0916': 'kh',
+  '\u0917': 'g',
+  '\u0918': 'gh',
+  '\u0919': 'ng',
+  '\u091A': 'ch',
+  '\u091B': 'chh',
+  '\u091C': 'j',
+  '\u091D': 'jh',
+  '\u091E': 'ny',
+  '\u091F': 't',
+  '\u0920': 'th',
+  '\u0921': 'd',
+  '\u0922': 'dh',
+  '\u0923': 'n',
+  '\u0924': 't',
+  '\u0925': 'th',
+  '\u0926': 'd',
+  '\u0927': 'dh',
+  '\u0928': 'n',
+  '\u092A': 'p',
+  '\u092B': 'ph',
+  '\u092C': 'b',
+  '\u092D': 'bh',
+  '\u092E': 'm',
+  '\u092F': 'y',
+  '\u0930': 'r',
+  '\u0932': 'l',
+  '\u0935': 'v',
+  '\u0936': 'sh',
+  '\u0937': 'sh',
+  '\u0938': 's',
+  '\u0939': 'h',
+  '\u0958': 'q',
+  '\u0959': 'kh',
+  '\u095A': 'gh',
+  '\u095B': 'z',
+  '\u095C': 'r',
+  '\u095D': 'rh',
+  '\u095E': 'f',
+  '\u0933': 'l',
+};
+
+/**
+ * Transliterates Devanagari text to Roman phonetic text with modern Indic schwa-deletion.
+ */
+export function devanagariToRomanPhonetic(str: string): string {
+  let out = '';
+  const s = str.normalize('NFC');
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (DEVA_VOWELS[ch]) {
+      out += DEVA_VOWELS[ch];
+    } else if (DEVA_MATRAS[ch] !== undefined) {
+      out += DEVA_MATRAS[ch];
+    } else if (ch === '\u0902' || ch === '\u0901') {
+      out += 'n';
+    } else if (DEVA_CONSONANTS[ch]) {
+      const base = DEVA_CONSONANTS[ch];
+      const next = i + 1 < s.length ? s[i + 1] : '';
+      if (DEVA_MATRAS[next] !== undefined) {
+        out += base;
+      } else if (i + 1 === s.length || /\s|[.,!?|।]/.test(next)) {
+        // Schwa deletion at end of words
+        out += base;
+      } else {
+        out += base + 'a';
+      }
+    } else if (ch === '।') {
+      out += '.';
+    } else {
+      out += ch;
+    }
+  }
+  return out;
+}
+
+/**
+ * High-frequency phrase dictionaries for Indic languages.
+ * When speaking through an English/Indian-English voice (like Microsoft Heera or Ravi on Windows),
+ * these ensure conversational clarity and authentic Indic pronunciation.
+ */
+const INDIC_PHRASE_DICTIONARY: Record<string, [string, string][]> = {
+  pa: [
+    ['ਲਈ', 'layi'],
+    ['ਖੋਲ੍ਹਿਆ ਗਿਆ', 'kholya gaya'],
+    ['ਖੋਲ੍ਹਿਆ ਜਾ ਰਿਹਾ ਹੈ', 'kholya ja reha hai'],
+    ['ਯਾਦ-ਪੱਤਰ', 'reminder'],
+    ['ਕਤਾਰ ਵਿੱਚ', 'kataar vich'],
+    ['ਬਾਕੀ ਹਨ', 'baaki han'],
+    ['ਬਾਕੀ ਹੈ', 'baaki hai'],
+    ['ਸਾਰੇ ਤਿਆਰ ਹਨ', 'saare taiyaar han'],
+    ['ਸਾਰੇ ਪੂਰੇ ਹੋ ਚੁੱਕੇ ਹਨ', 'saare poore ho chuke han'],
+    ['ਸਿੰਘ', 'singh'],
+    ['ਕੁਮਾਰ', 'kumar'],
+    ['ਰੁਪਏ', 'rupaye'],
+    ['ਉਧਾਰ', 'udhaar'],
+    ['ਖਾਤੇ ਵਿੱਚ', 'khaate vich'],
+    ['ਦਰਜ ਹੋ ਗਿਆ', 'daraj ho gaya'],
+    ['ਅਵਾਜ਼ ਸਾਫ਼ ਨਹੀਂ ਆਈ', 'awaaz saaf nahi aayi'],
+    ['ਦੁਬਾਰਾ ਬੋਲੋ', 'dubara bolo'],
+    ['ਅੱਜ ਦੀ ਕੁੱਲ ਵਿਕਰੀ', 'ajj di kul vikri'],
+  ],
+  gu: [
+    ['માટે', 'maate'],
+    ['ખોલવામાં આવી રહ્યો છે', 'kholvaama aavi rahyo chhe'],
+    ['ખુલ્યું', 'khulyu'],
+    ['તગાદો', 'tagaado'],
+    ['કતારમાં', 'katar ma'],
+    ['બાકી છે', 'baaki chhe'],
+    ['બધા તગાદા પૂર્ણ થયા', 'badha tagaada poorna thaya'],
+    ['રૂપિયા', 'rupiya'],
+    ['ઉધાર', 'udhaar'],
+    ['ખાતામાં નોંધાઈ ગયું', 'khaata ma nondhai gayu'],
+    ['અવાજ સ્પષ્ટ નથી', 'awaaz spasht nathi'],
+    ['ફરીથી બોલો', 'farithi bolo'],
+  ],
+  ta: [
+    ['க்காக', 'kkaaga'],
+    ['திறக்கப்படுகிறது', 'thirakkappadugiradhu'],
+    ['திறக்கப்பட்டது', 'thirakkappattathu'],
+    ['நினைவூட்டல்', 'reminder'],
+    ['வரிசையில்', 'varisaiyil'],
+    ['பேர் உள்ளனர்', 'per ullanar'],
+    ['மீதம் உள்ளன', 'meedham ullana'],
+    ['அனைத்தும் முடிந்தது', 'anaithum mudindhadhu'],
+    ['ரூபாய்', 'roobai'],
+    ['கடன்', 'kadan'],
+    ['கணக்கில்', 'kanakkil'],
+    ['பதிவு செய்யப்பட்டது', 'padhivu seyyappattathu'],
+  ],
+  te: [
+    ['కోసం', 'koraku'],
+    ['తెరవబడుతోంది', 'theravabaduthondi'],
+    ['తెరవబడింది', 'theruvabadindi'],
+    ['రిమైండర్', 'reminder'],
+    ['క్యూలో', 'queue lo'],
+    ['మంది మిగిలి ఉన్నారు', 'mandi migili vunnaru'],
+    ['మిగిలి ఉన్నాయి', 'migili vunnayi'],
+    ['అన్ని రిమైండర్‌లు పూర్తయ్యాయి', 'anni reminderlu poorthi ayyayi'],
+    ['రూపాయలు', 'roopaayalu'],
+    ['అప్పు', 'appu'],
+    ['ఖాతాలో', 'khaata lo'],
+    ['నమోదు చేయబడింది', 'namodu cheyabadindi'],
+  ],
+  hi: [
+    ['के लिए', 'ke liye'],
+    ['खोला जा रहा है', 'khola ja raha hai'],
+    ['खोला गया', 'khola gaya'],
+    ['तगादा', 'tagaada'],
+    ['कतार में', 'kataar mein'],
+    ['बाकी हैं', 'baaki hain'],
+    ['बाकी है', 'baaki hai'],
+    ['सभी तैयार हैं', 'sabhi taiyaar hain'],
+    ['सभी पूरे हो गए', 'sabhi poore ho gaye'],
+    ['रुपये', 'rupaye'],
+    ['उधार', 'udhaar'],
+    ['खाते में लिखें', 'khaate mein likhein'],
+    ['दर्ज हो गया', 'daraj ho gaya'],
+  ],
+  bn: [
+    ['এর জন্য', 'er jonno'],
+    ['খোলা হয়েছে', 'khola hoyechhe'],
+    ['খোলা হচ্ছে', 'khola hochhe'],
+    ['তালিকায়', 'talikay'],
+    ['বাকি আছে', 'baaki achhe'],
+    ['সব শেষ হয়েছে', 'sob shesh hoyechhe'],
+    ['টাকা', 'taka'],
+    ['বাকি', 'baaki'],
+  ],
+  mr: [
+    ['साठी', 'saathi'],
+    ['उघडले गेले', 'ughadale gele'],
+    ['उघडले जात आहे', 'ughadale jaat aahe'],
+    ['रांगेत', 'ranget'],
+    ['बाकी आहेत', 'baaki aahet'],
+    ['सर्व पूर्ण झाले', 'sarva poorna zhaale'],
+    ['रुपये', 'rupaye'],
+    ['नोंदवले गेले', 'nondavale gele'],
+  ],
+  kn: [
+    ['ಅವರಿಗಾಗಿ', 'avarigagi'],
+    ['ತೆರೆಯಲಾಗಿದೆ', 'thereyalaagide'],
+    ['ತೆರೆಯಲಾಗುತ್ತಿದೆ', 'thereyalaaguthide'],
+    ['ಸಾಲಿನಲ್ಲಿ', 'saalinalli'],
+    ['ಬಾಕಿ ಇದೆ', 'baaki ide'],
+    ['ಎಲ್ಲವೂ ಪೂರ್ಣಗೊಂಡಿದೆ', 'ellavoo poornagondide'],
+  ],
+  ml: [
+    ['ഇനായി', 'inayi'],
+    ['തുറന്നു', 'thuranu'],
+    ['തുറക്കുന്നു', 'thurakkunnu'],
+    ['വരിയിൽ', 'variyil'],
+    ['ബാക്കി ഉണ്ട്', 'baakki unde'],
+    ['എല്ലാം പൂർത്തിയായി', 'ellam poorthiyaayi'],
+  ],
+};
+
+/**
+ * Converts any Indic text to Romanized phonetic script for clear pronunciation via English / Indian-English voices.
+ */
+export function indicToRomanPhonetic(text: string, lang: string): string {
+  let res = text;
+  const dict = INDIC_PHRASE_DICTIONARY[lang];
+  if (dict) {
+    for (const [k, v] of dict) {
+      res = res.split(k).join(' ' + v + ' ');
+    }
+  }
+  const deva = indicToDevanagari(res, lang);
+  const roman = devanagariToRomanPhonetic(deva);
+  return roman
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([.,!?])/g, '$1')
+    .trim();
+}
+
+const LANG_NAME_KEYWORDS: Record<string, string[]> = {
+  hi: ['hindi', 'kalpana', 'hemant'],
+  pa: ['punjabi', 'panjabi', 'gurmukhi', 'harpreet'],
+  gu: ['gujarati', 'dhwani', 'niranjan'],
+  mr: ['marathi', 'aarohi', 'manohar'],
+  bn: ['bengali', 'bangla', 'tapan', 'bashkar'],
+  ta: ['tamil', 'valluvar'],
+  te: ['telugu', 'chitra', 'mohan'],
+  kn: ['kannada', 'gagan', 'sapna'],
+  ml: ['malayalam', 'midhun', 'sobha'],
+  en: ['english', 'heera', 'ravi', 'david', 'mark', 'zira'],
+};
+
+export type VoiceMode = 'native' | 'devanagari' | 'roman';
+
+/**
  * SpeechSynthesis Wrapper for Spoken Replies
  * Voices responses across all 10 Indic languages with intelligent voice matching and phonetic fallback.
  */
@@ -197,25 +461,37 @@ export class SpeechSynthesizer {
     }
   }
 
-  private resolveBestVoice(lang: string): { voice: SpeechSynthesisVoice | null; voiceLang: string; useDevanagari: boolean } {
+  resolveBestVoice(lang: string): {
+    voice: SpeechSynthesisVoice | null;
+    voiceLang: string;
+    mode: VoiceMode;
+  } {
     const voices = this.loadVoices();
     if (!voices || voices.length === 0) {
-      return { voice: null, voiceLang: 'en-IN', useDevanagari: false };
+      return {
+        voice: null,
+        voiceLang: 'en-IN',
+        mode: lang === 'en' ? 'native' : 'roman',
+      };
     }
 
     const targetPrefix = lang.toLowerCase().slice(0, 2);
+    const keywords = LANG_NAME_KEYWORDS[targetPrefix] || [];
 
-    // 1. Direct match for target language
-    const directVoice = voices.find(
-      (v) =>
-        v.lang.toLowerCase().startsWith(targetPrefix) ||
-        v.name.toLowerCase().includes(lang.toLowerCase())
-    );
+    // 1. Direct match for target language (Native voice pack installed)
+    const directVoice = voices.find((v) => {
+      const vLang = v.lang.toLowerCase();
+      const vName = v.name.toLowerCase();
+      return (
+        vLang.startsWith(targetPrefix) ||
+        keywords.some((kw) => vName.includes(kw))
+      );
+    });
     if (directVoice) {
-      return { voice: directVoice, voiceLang: directVoice.lang, useDevanagari: false };
+      return { voice: directVoice, voiceLang: directVoice.lang, mode: 'native' };
     }
 
-    // 2. If target is an Indic language, fallback to Hindi voice (with Devanagari transliteration)
+    // 2. If target is an Indic language, check if a Hindi voice is installed (Devanagari transliteration)
     if (targetPrefix !== 'en') {
       const hindiVoice = voices.find(
         (v) =>
@@ -224,11 +500,12 @@ export class SpeechSynthesizer {
           v.name.toLowerCase().includes('kalpana')
       );
       if (hindiVoice) {
-        return { voice: hindiVoice, voiceLang: hindiVoice.lang, useDevanagari: true };
+        return { voice: hindiVoice, voiceLang: hindiVoice.lang, mode: 'devanagari' };
       }
     }
 
-    // 3. Indian English voice fallback
+    // 3. Indian English voice fallback (e.g. Microsoft Heera, Microsoft Ravi on Windows)
+    // English voices cannot parse Indic Unicode glyphs, so we romanize phonetically
     const indianEngVoice = voices.find(
       (v) =>
         v.lang.toLowerCase() === 'en-in' ||
@@ -237,17 +514,29 @@ export class SpeechSynthesizer {
         v.name.toLowerCase().includes('heera')
     );
     if (indianEngVoice) {
-      return { voice: indianEngVoice, voiceLang: indianEngVoice.lang, useDevanagari: false };
+      return {
+        voice: indianEngVoice,
+        voiceLang: indianEngVoice.lang,
+        mode: targetPrefix === 'en' ? 'native' : 'roman',
+      };
     }
 
-    // 4. Any English voice
+    // 4. Any English voice (e.g. David, Mark, Zira)
     const engVoice = voices.find((v) => v.lang.toLowerCase().startsWith('en'));
     if (engVoice) {
-      return { voice: engVoice, voiceLang: engVoice.lang, useDevanagari: false };
+      return {
+        voice: engVoice,
+        voiceLang: engVoice.lang,
+        mode: targetPrefix === 'en' ? 'native' : 'roman',
+      };
     }
 
-    // 5. First system voice
-    return { voice: voices[0], voiceLang: voices[0].lang, useDevanagari: false };
+    // 5. First system voice fallback
+    return {
+      voice: voices[0],
+      voiceLang: voices[0].lang,
+      mode: targetPrefix === 'en' ? 'native' : 'roman',
+    };
   }
 
   speak(text: string, lang: LanguageCode | string = 'hi'): Promise<void> {
@@ -263,16 +552,21 @@ export class SpeechSynthesizer {
         // Ignore cancel errors
       }
 
-      const { voice, voiceLang, useDevanagari } = this.resolveBestVoice(lang);
+      const { voice, voiceLang, mode } = this.resolveBestVoice(lang);
 
-      // If we fall back to a Hindi voice for a regional Indic language, transliterate text to Devanagari
+      // Transform text according to available voice mode:
+      // 'native'     -> Raw native script
+      // 'devanagari' -> Transliterated to Devanagari for Hindi voice
+      // 'roman'      -> Transliterated to Roman phonetics for English/Indian-English voice
       let spokenText = text;
-      if (useDevanagari) {
+      if (mode === 'devanagari') {
         spokenText = indicToDevanagari(text, lang);
+      } else if (mode === 'roman') {
+        spokenText = indicToRomanPhonetic(text, lang);
       }
 
       const utterance = new SpeechSynthesisUtterance(spokenText);
-      utterance.lang = voice ? voice.lang : (voiceLang || 'hi-IN');
+      utterance.lang = voice ? voice.lang : (voiceLang || 'en-IN');
       if (voice) {
         utterance.voice = voice;
       }
@@ -290,7 +584,7 @@ export class SpeechSynthesizer {
       utterance.onend = safeResolve;
       utterance.onerror = safeResolve;
 
-      // Chrome SpeechSynthesis watchdog to guarantee resolution
+      // Watchdog timeout to guarantee resolution
       const timeoutMs = Math.max(1500, Math.min(spokenText.length * 80 + 1200, 5000));
       setTimeout(safeResolve, timeoutMs);
 

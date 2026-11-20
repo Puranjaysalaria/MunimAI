@@ -382,5 +382,86 @@ describe('Reminder Service - Safety Rules & Template Engine', () => {
       const ta = indicToDevanagari('அங்கித் க்கான', 'ta');
       expect(ta).toContain('अङ्कित्');
     });
+
+    it('transliterates Indic scripts to Roman phonetics for English/Indian-English voices (Heera/Ravi)', async () => {
+      const { indicToRomanPhonetic } = await import('../src/tts/speechSynthesizer');
+
+      // Punjabi: Gurmukhi -> Roman phonetics
+      const paSpoken = indicToRomanPhonetic('ਅੰਕਿਤ ਲਈ WhatsApp ਖੋਲ੍ਹਿਆ ਗਿਆ। ਕਤਾਰ ਵਿੱਚ 2 ਬਾਕੀ ਹਨ।', 'pa');
+      expect(paSpoken).toContain('WhatsApp');
+      expect(paSpoken).toContain('layi');
+      expect(paSpoken).toContain('kholya gaya');
+      expect(paSpoken).toContain('kataar vich');
+      expect(paSpoken).toContain('baaki han');
+      // Must not contain Gurmukhi or Devanagari characters
+      expect(/[\u0900-\u0D7F]/.test(paSpoken)).toBe(false);
+
+      // Gujarati: Gujarati script -> Roman phonetics
+      const guSpoken = indicToRomanPhonetic('અંકિત માટે WhatsApp ખુલ્યું. કતારમાં 2 બાકી છે।', 'gu');
+      expect(guSpoken).toContain('WhatsApp');
+      expect(guSpoken).toContain('maate');
+      expect(guSpoken).toContain('khulyu');
+      expect(guSpoken).toContain('baaki chhe');
+      expect(/[\u0900-\u0D7F]/.test(guSpoken)).toBe(false);
+
+      // Tamil: Tamil script -> Roman phonetics
+      const taSpoken = indicToRomanPhonetic('அங்கித் க்காக WhatsApp திறக்கப்பட்டது. வரிசையில் 2 பேர் உள்ளனர்.', 'ta');
+      expect(taSpoken).toContain('WhatsApp');
+      expect(taSpoken).toContain('kkaaga');
+      expect(taSpoken).toContain('thirakkappattathu');
+      expect(taSpoken).toContain('varisaiyil');
+      expect(/[\u0900-\u0D7F]/.test(taSpoken)).toBe(false);
+
+      // Telugu: Telugu script -> Roman phonetics
+      const teSpoken = indicToRomanPhonetic('అంకిత్ కోసం WhatsApp తెరవబడింది. క్యూలో 2 మంది మిగిలి ఉన్నారు.', 'te');
+      expect(teSpoken).toContain('WhatsApp');
+      expect(teSpoken).toContain('koraku');
+      expect(teSpoken).toContain('theruvabadindi');
+      expect(teSpoken).toContain('queue lo');
+      expect(/[\u0900-\u0D7F]/.test(teSpoken)).toBe(false);
+
+      // Hindi: Devanagari -> Roman phonetics
+      const hiSpoken = indicToRomanPhonetic('अंकित के लिए WhatsApp खोला गया। कतार में 2 बाकी हैं।', 'hi');
+      expect(hiSpoken).toContain('WhatsApp');
+      expect(hiSpoken).toContain('ke liye');
+      expect(hiSpoken).toContain('khola gaya');
+      expect(hiSpoken).toContain('kataar mein');
+      expect(hiSpoken).toContain('baaki hain');
+      expect(/[\u0900-\u0D7F]/.test(hiSpoken)).toBe(false);
+    });
+
+    it('selects mode "roman" when client only has English/Indian-English voices installed', async () => {
+      const { SpeechSynthesizer } = await import('../src/tts/speechSynthesizer');
+      const synth = new SpeechSynthesizer();
+
+      // Mock installed voices on Windows (Heera, Ravi, David, Zira - no Indic voices)
+      const mockVoices = [
+        { name: 'Microsoft Heera - English (India)', lang: 'en-IN' },
+        { name: 'Microsoft Ravi - English (India)', lang: 'en-IN' },
+        { name: 'Microsoft David - English (United States)', lang: 'en-US' },
+        { name: 'Microsoft Zira - English (United States)', lang: 'en-US' },
+      ] as SpeechSynthesisVoice[];
+
+      (synth as any).loadVoices = () => mockVoices;
+
+      const paRes = synth.resolveBestVoice('pa');
+      expect(paRes.mode).toBe('roman');
+      expect(paRes.voice?.name).toContain('Heera');
+
+      const guRes = synth.resolveBestVoice('gu');
+      expect(guRes.mode).toBe('roman');
+
+      const taRes = synth.resolveBestVoice('ta');
+      expect(taRes.mode).toBe('roman');
+
+      const teRes = synth.resolveBestVoice('te');
+      expect(teRes.mode).toBe('roman');
+
+      const hiRes = synth.resolveBestVoice('hi');
+      expect(hiRes.mode).toBe('roman');
+
+      const enRes = synth.resolveBestVoice('en');
+      expect(enRes.mode).toBe('native');
+    });
   });
 });
