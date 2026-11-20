@@ -383,6 +383,32 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
                 </button>
               </div>
             )}
+
+            {/* 4. NO ITEMS DETECTED FALLBACK STATE */}
+            {previewImage && !isProcessing && extractedItems.length === 0 && (
+              <div className="space-y-4 py-4 text-center">
+                <div className="w-14 h-14 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto shadow-inner">
+                  <RotateCcw className="w-6 h-6 stroke-[2.5]" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-base font-black text-slate-900">
+                    No items could be read
+                  </h4>
+                  <p className="text-xs text-slate-500 font-medium max-w-xs mx-auto">
+                    Please take another clear photo with good lighting, or choose a clearer receipt image.
+                  </p>
+                </div>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleRetake}
+                  className="touch-target-64 min-h-[56px] w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-2xl shadow-md flex items-center justify-center space-x-2"
+                >
+                  <Camera className="w-5 h-5" />
+                  <span>{t.billScan.retakeBtn}</span>
+                </motion.button>
+              </div>
+            )}
           </div>
         </motion.div>
       </div>

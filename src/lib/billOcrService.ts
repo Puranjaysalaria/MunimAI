@@ -46,7 +46,7 @@ export async function parseBillPhotoWithGemini(imageDataUrl: string): Promise<Bi
   if (apiKey) {
     try {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -109,13 +109,17 @@ Return STRICT valid JSON without markdown fences matching:
             priceType: 'cost', // Bills from distributors / suppliers are cost prices by default
           }));
 
-          return {
-            success: true,
-            storeName: parsed.storeName || 'Supermarket / Store',
-            totalAmount: Number(parsed.totalAmount) || items.reduce((sum, i) => sum + i.price * i.quantity, 0),
-            items,
-          };
+          if (items.length > 0) {
+            return {
+              success: true,
+              storeName: parsed.storeName || 'Supermarket / Store',
+              totalAmount: Number(parsed.totalAmount) || items.reduce((sum, i) => sum + i.price * i.quantity, 0),
+              items,
+            };
+          }
         }
+      } else {
+        console.warn('Gemini Bill OCR API non-200 status:', response.status);
       }
     } catch (err: any) {
       console.warn('Gemini Bill OCR API failed, using fallback:', err);

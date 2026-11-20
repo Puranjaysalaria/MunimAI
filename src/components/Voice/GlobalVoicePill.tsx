@@ -26,8 +26,10 @@ export const GlobalVoicePill: React.FC<GlobalVoicePillProps> = ({
   const { t } = useI18n();
 
   const [isHolding, setIsHolding] = useState(false);
+  const isPointerDownRef = useRef(false);
+  const pointerStartTimeRef = useRef(0);
   const holdTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const holdTriggeredRef = useRef(false);
+  const isHoldModeRef = useRef(false);
 
   // Check prefers-reduced-motion
   const prefersReducedMotion =
@@ -45,63 +47,86 @@ export const GlobalVoicePill: React.FC<GlobalVoicePillProps> = ({
 
   if (!visible) return null;
 
-  const handlePointerDown = () => {
-    holdTriggeredRef.current = false;
-    if (isListening || voiceState === 'listening') return;
+  // Handles click and long-press reliably:
+  // Normal tap (< 450ms): instant 1-click toggle on/off (no double click bug)
+  // Long press (> 450ms): hold-to-talk (starts after 450ms, stops on pointerup)
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
 
-    holdTimerRef.current = setTimeout(() => {
-      holdTriggeredRef.current = true;
-      setIsHolding(true);
-      triggerHaptic('start');
-      playAudioCue('start');
-      onStartListening();
-    }, 220);
-  };
+    isPointerDownRef.current = true;
+    pointerStartTimeRef.current = Date.now();
+    isHoldModeRef.current = false;
 
-  const handlePointerUp = () => {
     if (holdTimerRef.current) {
       clearTimeout(holdTimerRef.current);
       holdTimerRef.current = null;
     }
 
-    if (holdTriggeredRef.current) {
-      // Completed hold-to-talk gesture
+    // If already active, pointerup will toggle off immediately
+    if (isListening || voiceState === 'listening') {
+      return;
+    }
+
+    holdTimerRef.current = setTimeout(() => {
+      if (isPointerDownRef.current) {
+        isHoldModeRef.current = true;
+        setIsHolding(true);
+        triggerHaptic('start');
+        playAudioCue('start');
+        onStartListening();
+      }
+    }, 450);
+  };
+
+  const handlePointerUp = () => {
+    if (!isPointerDownRef.current) return;
+    isPointerDownRef.current = false;
+
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+
+    if (isHoldModeRef.current) {
+      // Completed hold-to-talk
+      isHoldModeRef.current = false;
       setIsHolding(false);
-      holdTriggeredRef.current = false;
       triggerHaptic('stop');
       onStopListening();
     } else {
-      // Normal tap toggle
-      handleClickToggle();
+      // Normal single click toggle
+      setIsHolding(false);
+      if (isListening || voiceState === 'listening') {
+        triggerHaptic('stop');
+        playAudioCue('cancel');
+        onStopListening();
+      } else {
+        triggerHaptic('start');
+        playAudioCue('start');
+        onStartListening();
+      }
     }
   };
 
-  const handleClickToggle = () => {
-    if (isListening || voiceState === 'listening') {
-      triggerHaptic('stop');
-      playAudioCue('cancel');
+  const handlePointerCancel = () => {
+    isPointerDownRef.current = false;
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    if (isHoldModeRef.current) {
+      isHoldModeRef.current = false;
+      setIsHolding(false);
       onStopListening();
-    } else {
-      triggerHaptic('start');
-      playAudioCue('start');
-      onStartListening();
     }
   };
 
   // Localized status labels from i18n
   const getStatusLabel = () => {
-    if (voiceState === 'listening') {
-      return t.voice.listening;
-    }
-    if (voiceState === 'thinking') {
-      return t.voice.thinking;
-    }
-    if (voiceState === 'success') {
-      return t.voice.success;
-    }
-    if (voiceState === 'error') {
-      return errorMessage || t.voice.retry;
-    }
+    if (voiceState === 'listening') return t.voice.listening;
+    if (voiceState === 'thinking') return t.voice.thinking;
+    if (voiceState === 'success') return t.voice.success;
+    if (voiceState === 'error') return errorMessage || t.voice.retry;
     return t.voice.tapToSpeak;
   };
 
@@ -109,68 +134,95 @@ export const GlobalVoicePill: React.FC<GlobalVoicePillProps> = ({
 
   return (
     <div
-      className="fixed bottom-20 left-1/2 -translate-x-1/2 md:bottom-6 md:right-8 md:left-auto md:translate-x-0 z-40 select-none pointer-events-none flex flex-col items-center md:items-end"
+      className="fixed left-3 sm:left-5 md:left-6 top-1/2 -translate-y-1/2 z-40 select-none pointer-events-none flex items-center"
       style={{
-        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        paddingLeft: 'env(safe-area-inset-left, 0px)',
       }}
     >
-      {/* Live Transcript Line floating above pill when active */}
-      <AnimatePresence>
-        {(liveTranscript || isExpanded) && (
-          <motion.div
-            initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.95 }}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
-            className="mb-2 max-w-[85vw] sm:max-w-md bg-slate-950/90 text-white px-3.5 py-1.5 rounded-2xl shadow-dock border border-slate-700/80 backdrop-blur-md pointer-events-auto text-center md:text-right"
-          >
-            <p className="text-xs font-semibold text-slate-200 line-clamp-2">
-              {liveTranscript ? `"${liveTranscript}"` : getStatusLabel()}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Wispr Flow Expanding Pill Container */}
+      {/* Floating Circular Mic Button (Left Middle Chatbot/Assistant Style) */}
       <motion.div
         layout
-        animate={{ scale: isHolding ? 1.05 : 1 }}
+        animate={{ scale: isHolding ? 1.08 : 1 }}
         transition={
           prefersReducedMotion
             ? { duration: 0 }
             : { type: 'spring', damping: 25, stiffness: 340 }
         }
-        className="pointer-events-auto"
+        className="pointer-events-auto relative flex-shrink-0"
       >
         <button
           type="button"
           onPointerDown={handlePointerDown}
           onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
+          onPointerCancel={handlePointerCancel}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              if (isListening || voiceState === 'listening') {
+                triggerHaptic('stop');
+                playAudioCue('cancel');
+                onStopListening();
+              } else {
+                triggerHaptic('start');
+                playAudioCue('start');
+                onStartListening();
+              }
+            }
+          }}
           aria-label={getStatusLabel()}
-          className={`relative flex items-center justify-center transition-all duration-200 rounded-full border shadow-dock hover:scale-105 active:scale-95 cursor-pointer before:absolute before:-inset-2 before:content-[''] ${
+          title={getStatusLabel()}
+          className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer shadow-2xl relative touch-target-64 before:absolute before:-inset-2 before:content-[''] ${
             voiceState === 'listening'
-              ? 'bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 text-white border-emerald-300 ring-4 ring-emerald-400/40 px-5 py-2.5 min-w-[190px] h-12 shadow-emerald-500/25'
+              ? 'bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 text-white ring-4 ring-emerald-400/50 shadow-emerald-500/40 border-2 border-white/80'
               : voiceState === 'thinking'
-              ? 'bg-gradient-to-r from-indigo-700 via-indigo-600 to-purple-600 text-white border-indigo-400 ring-2 ring-indigo-400/30 px-5 py-2.5 min-w-[190px] h-12 shadow-indigo-500/25'
+              ? 'bg-gradient-to-tr from-indigo-700 via-indigo-600 to-purple-600 text-white ring-4 ring-indigo-400/40 shadow-indigo-500/40 border-2 border-indigo-300'
               : voiceState === 'success'
-              ? 'bg-emerald-600 text-white border-emerald-400 px-4 py-2 min-w-[140px] h-11'
+              ? 'bg-emerald-600 text-white border-2 border-emerald-400 shadow-emerald-600/30 ring-2 ring-emerald-400/40'
               : voiceState === 'error'
-              ? 'bg-rose-600 text-white border-rose-400 px-4 py-2 min-w-[140px] h-11'
-              : 'bg-slate-900/95 text-slate-100 hover:text-white hover:bg-slate-900 border-slate-700/90 hover:border-slate-500 px-4 py-2 min-w-[136px] h-11 backdrop-blur-md shadow-slate-900/40'
+              ? 'bg-rose-600 text-white border-2 border-rose-400 shadow-rose-600/30 ring-2 ring-rose-400/40'
+              : 'bg-slate-900/95 hover:bg-slate-900 text-emerald-400 hover:text-emerald-300 border-2 border-slate-700/90 hover:border-emerald-500/70 shadow-sheet hover:shadow-emerald-950/40 ring-1 ring-white/10 backdrop-blur-md hover:scale-105 active:scale-95'
           }`}
         >
-          {/* Active Listening Waveform Animation */}
+          {/* Active Listening Ripple / Wave Animation */}
           {voiceState === 'listening' ? (
-            <div className="flex items-center space-x-2.5">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
+            <div className="relative flex items-center justify-center">
+              <span className="animate-ping absolute inline-flex h-8 w-8 rounded-full bg-white/40" />
+              <Mic className="w-6 h-6 stroke-[2.6] text-white relative z-10" />
+            </div>
+          ) : voiceState === 'thinking' ? (
+            <Loader2 className="w-6 h-6 animate-spin stroke-[2.6] text-white" />
+          ) : voiceState === 'success' ? (
+            <Check className="w-6 h-6 stroke-[3] text-white" />
+          ) : voiceState === 'error' ? (
+            <AlertCircle className="w-6 h-6 stroke-[2.6] text-white" />
+          ) : (
+            /* Idle: Crisp Mic Icon with subtle ready indicator */
+            <div className="relative flex items-center justify-center">
+              <Mic className="w-6 h-6 stroke-[2.4]" />
+              {/* Ready green dot badge */}
+              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border border-slate-900" />
               </span>
+            </div>
+          )}
+        </button>
+      </motion.div>
 
-              {/* Animated audio bars */}
-              <div className="flex items-center space-x-1 h-5 px-1">
-                {[12, 22, 16, 26, 18, 14].map((maxH, i) => (
+      {/* Floating Transcript & Soundbars (Expands smoothly to the right of the mic icon) */}
+      <AnimatePresence>
+        {(liveTranscript || isExpanded) && (
+          <motion.div
+            initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, x: -16, scale: 0.95 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, x: -12, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="ml-3 max-w-[70vw] sm:max-w-xs md:max-w-md bg-slate-950/95 text-white p-3 rounded-2xl shadow-2xl border border-slate-700/80 backdrop-blur-md pointer-events-auto flex items-center space-x-3"
+          >
+            {/* Live audio soundbars when listening */}
+            {voiceState === 'listening' && (
+              <div className="flex items-center space-x-1 h-5 flex-shrink-0 px-1 border-r border-slate-800 pr-2.5">
+                {[10, 20, 14, 24, 16, 12].map((maxH, i) => (
                   <span
                     key={i}
                     style={{
@@ -180,45 +232,25 @@ export const GlobalVoicePill: React.FC<GlobalVoicePillProps> = ({
                         : `live-soundbar 0.65s ease-in-out infinite alternate`,
                       animationDelay: `${(i * 0.1).toFixed(2)}s`,
                     }}
-                    className="w-1 rounded-full bg-white shadow-xs inline-block"
+                    className="w-1 rounded-full bg-emerald-400 shadow-xs inline-block"
                   />
                 ))}
               </div>
+            )}
 
-              <span className="text-xs font-black tracking-wide">
-                {getStatusLabel()}
-              </span>
+            <div className="truncate">
+              <p className="text-xs font-bold text-slate-100 line-clamp-2">
+                {liveTranscript ? `"${liveTranscript}"` : getStatusLabel()}
+              </p>
+              {liveTranscript && (
+                <span className="text-[10px] text-emerald-400 font-semibold block mt-0.5">
+                  {getStatusLabel()}
+                </span>
+              )}
             </div>
-          ) : voiceState === 'thinking' ? (
-            <div className="flex items-center space-x-2">
-              <Loader2 className="w-4 h-4 animate-spin stroke-[2.5]" />
-              <span className="text-xs font-black tracking-wide">
-                {getStatusLabel()}
-              </span>
-            </div>
-          ) : voiceState === 'success' ? (
-            <div className="flex items-center space-x-1.5">
-              <Check className="w-4 h-4 stroke-[3]" />
-              <span className="text-xs font-black">{getStatusLabel()}</span>
-            </div>
-          ) : voiceState === 'error' ? (
-            <div className="flex items-center space-x-1.5">
-              <AlertCircle className="w-4 h-4 stroke-[2.5]" />
-              <span className="text-xs font-black">{getStatusLabel()}</span>
-            </div>
-          ) : (
-            /* Idle Pill: Minimalist floating pill */
-            <div className="flex items-center space-x-2">
-              <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                <Mic className="w-3.5 h-3.5 stroke-[2.5]" />
-              </div>
-              <span className="text-xs font-bold text-slate-200">
-                {getStatusLabel()}
-              </span>
-            </div>
-          )}
-        </button>
-      </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
