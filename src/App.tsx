@@ -205,6 +205,27 @@ export const AppContent: React.FC = () => {
         setPriceToastShowView(true);
       }
     },
+    onSelectCustomer: (customerId) => {
+      setSelectedLedgerCustomerId(customerId);
+      setActiveTab('ledger');
+    },
+    onCloseModals: () => {
+      setIsBillScanOpen(false);
+      setIsSupplierOrdersOpen(false);
+      setIsDailySummaryOpen(false);
+      setIsRecoveryOpen(false);
+      setIsSettingsOpen(false);
+      setIsReminderSettingsOpen(false);
+      setIsPrivacyOpen(false);
+      setShowProofPrompt(false);
+    },
+    onPlayProofClip: () => {
+      const recentProof = transactions.find((tx) => tx.proof_clip_path);
+      if (recentProof && recentProof.proof_clip_path) {
+        const audio = new Audio(recentProof.proof_clip_path);
+        audio.play().catch(() => {});
+      }
+    },
   });
 
   if (!isLoggedIn) {

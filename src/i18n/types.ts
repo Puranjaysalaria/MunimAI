@@ -442,4 +442,21 @@ export interface Translations {
     priceUpdatedBadge: string;
     oldToNew: string;
   };
+  voiceCommands: {
+    lowStockReply: string;
+    orderPreparedReply: string;
+    ledgerOpenedReply: string;
+    recentTransactionsReply: string;
+    topDebtorsReply: string;
+    monthlySummaryReply: string;
+    actionUndoneReply: string;
+    playProofReply: string;
+    cannotDeleteByVoice: string;
+    cannotSendByVoice: string;
+    customerVoiceConsent: string;
+    whichCustomer: string;
+    nextAction: string;
+    previousAction: string;
+    closed: string;
+  };
 }

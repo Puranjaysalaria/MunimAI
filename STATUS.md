@@ -94,3 +94,26 @@
   - **Test Suite**:
     - Added `tests/navigation.test.ts` (31 new tests) testing $>15$ navigation phrases across Hinglish, Punjabi, and English, price action parsing, navigation invariant, unfinished flow detection, 2-second highlight, 10-second toast timer, and undo.
     - Total test suite: 176 tests passing across 9 test files (`npx vitest run`), 0 TypeScript errors (`npx tsc --noEmit`), and 100% translation coverage (`npm run check:i18n`).
+- [x] **Step 11: Global Voice Pill & Multilingual Voice Commands Across 10 Indian Languages**
+  - **Phase 1: Global Voice Pill (`src/components/Voice/GlobalVoicePill.tsx`)**:
+    - Floating pill at bottom-center on every screen except Home (`activeTab !== 'home'`), clear of safe areas and above the bottom tab bar.
+    - Wispr Flow-style animated expansion with live 4-bar waveform driven by microphone input level, live transcript preview line above pill, and distinct states: `listening`, `thinking`, `success`, `error`.
+    - Supports both tap-to-toggle and hold-to-talk (220ms threshold) with short audio start/stop chimes and haptic feedback.
+    - Transitions under 300ms, respects `prefers-reduced-motion`, automatically collapses and hides when any confirmation sheet or modal opens.
+    - "Munim" wake word postponed: stubbed via `WakeWordProvider` and `StubWakeWordProvider` (`src/voice/wakeWord/types.ts`) with zero background mic listening and settings hidden.
+  - **Phase 2: Multilingual Intent Layer**:
+    - Phrase tables for all 10 languages (`src/voice/intents/` - `hi.ts`, `en.ts`, `pa.ts`, `gu.ts`, `mr.ts`, `bn.ts`, `ta.ts`, `te.ts`, `kn.ts`, `ml.ts`) with Unicode letter boundary matching `/(?:^|[^\p{L}\p{M}])...(?:$|[^\p{L}\p{M}])/iu`.
+    - Multilingual number words & units parser (`src/voice/multilingualNumbers.ts`): converts Indic numerals (`०-९`, `੦-੯`, `૦-૯`, `০-৯`, `௦-௯`, `౦-౯`, `೦-೯`, `൦-൯`) to Western digits, handles composite number words (`paanch sau`, `ਪੰਜ ਸੌ`, `ஐந்நூறு`, `ఐదు వందలు`, `ಐನೂರು`, `അഞ്ഞൂറ്`, `পাঁচশো`, `પાંચસો`, `पाचशे`, `five hundred`), and extracts quantities and kirana units (`kilo`, `gram`, `litre`, `packet`, `piece`, `dabba`, `bori`).
+    - Cross-script customer and item matcher (`src/voice/crossScriptMatcher.ts`): phonetic Latin base transliteration with inherent schwa modeling across 8 Brahmic scripts, token-level matching, Levenshtein distance matching, and relationship stop-word stripping (`"ਦਾ ਖਾਤਾ"`, `"का खाता"`, `"account"`, `"ledger"`), resolving `"Ramesh"`, `"रमेश"`, `"ਰਮੇਸ਼"`, `"ரமேஷ்"`, `"రమేష్"`, `"ರಮೇಶ್"`, `"രമേഷ്"`, `"রমেশ"`, `"રમેશ"` to the exact same customer (`c-1`).
+    - Hybrid Intent Router (`src/voice/intentRouter.ts`): fast rule/phrase matching first, secondary English/Hinglish fallback for code-mixed speech, and LLM intent classifier fallback (`src/voice/llmIntentClassifier.ts`) with strict zod validation.
+    - Implemented intents: `show_low_stock`, `order_item`, `build_order_list`, `send_order`, `show_customer_ledger`, `recent_transactions` (with count extraction), `top_debtors`, `monthly_credit_summary`, `next`, `previous`, `repeat`, `back`, `close`, `today`, `yesterday`, `this_week`, `open_stock`, `open_ledger`, `open_today`, `open_bill_scan`, `play_proof`, and regional undo ("Wapas karo").
+  - **Phase 3: Localized Spoken & Shown Replies (i18n)**:
+    - Added `voiceCommands` object with 15 localized phrases to `Translations` and all 10 language files (`src/i18n/*.ts`).
+    - 100% translation coverage across all 404 keys (0 missing keys) verified via `npm run check:i18n`. All new translated strings marked as "needs native review" in `TRANSLATIONS_TODO.md`.
+    - No silent Hindi fallback: missing keys or unknown speech trigger localized prompts in the active language.
+  - **Phase 4: Manual Consent & Safety Invariants**:
+    - Destructive or external actions strictly require physical tap on large ($\ge 64$px) buttons: starting customer voice recording (`ProofRecorderModal.tsx` shows legal consent notice), deleting entries/clips/bills, sending orders or reminders externally. Voice can navigate to review and prepare actions only.
+  - **Phase 5: Testing & Real-Device Matrix**:
+    - Added `tests/multilingualIntents.test.ts` with 294 tests across all 10 languages (>=25 sentences per language), numbers, cross-script names, safety invariants, and full `parseSpeech` pipeline.
+    - Full test suite: 470 tests passing across 10 test files (`npx vitest run`), 0 TypeScript errors (`npx tsc --noEmit`), and 100% translation coverage (`npm run check:i18n`).
+    - Recorded Android Chrome real-device test matrix in `DECISIONS.md` (`DECISION-025`) rating all 10 languages on speech recognition accuracy, active TTS mode, and server speech provider recommendations.

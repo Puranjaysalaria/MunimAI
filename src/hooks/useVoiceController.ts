@@ -28,6 +28,9 @@ interface UseVoiceControllerProps {
   onOpenBillScan?: () => void;
   onUpdateItemPrice?: (itemNameOrId: string, updates: { selling_price?: number; cost_price?: number }) => { success: boolean; previousItem?: Item; updatedItem?: Item };
   onPriceActionConfirmed?: (action: { item: Item; priceType: 'selling' | 'cost'; oldPrice: number; newPrice: number; unit: string }) => void;
+  onSelectCustomer?: (customerId: string) => void;
+  onCloseModals?: () => void;
+  onPlayProofClip?: (clipPath?: string) => void;
 }
 
 export function useVoiceController({
@@ -45,8 +48,12 @@ export function useVoiceController({
   onOpenBillScan,
   onUpdateItemPrice,
   onPriceActionConfirmed,
+  onSelectCustomer,
+  onCloseModals,
+  onPlayProofClip,
 }: UseVoiceControllerProps) {
   const { language, t } = useI18n();
+  const lastSpokenTextRef = useRef<string>('');
 
   const [isListening, setIsListening] = useState(false);
   const [voiceState, setVoiceState] = useState<'idle' | 'listening' | 'thinking' | 'success' | 'error'>('idle');
@@ -252,6 +259,139 @@ export function useVoiceController({
           setVoiceState('success');
           onNavigateTab('today');
           speechSynthesizer.speak(t.navigation.openingTodayVoice, language);
+          setTimeout(() => setVoiceState('idle'), 1500);
+          return;
+        }
+
+        // Multilingual Voice Intents
+        if (result.intent === 'show_low_stock') {
+          setVoiceState('success');
+          onNavigateTab('stock');
+          const reply = t.voiceCommands.lowStockReply;
+          lastSpokenTextRef.current = reply;
+          speechSynthesizer.speak(reply, language);
+          setTimeout(() => setVoiceState('idle'), 1500);
+          return;
+        }
+
+        if (result.intent === 'order_item' || result.intent === 'build_order_list') {
+          setVoiceState('success');
+          onNavigateTab('stock');
+          if (onOpenSupplierOrders) onOpenSupplierOrders();
+          const reply = t.voiceCommands.orderPreparedReply;
+          lastSpokenTextRef.current = reply;
+          speechSynthesizer.speak(reply, language);
+          setTimeout(() => setVoiceState('idle'), 1500);
+          return;
+        }
+
+        if (result.intent === 'send_order') {
+          // Manual Consent & Safety Invariant: Voice opens review screen only, never dispatches externally
+          setVoiceState('success');
+          if (onOpenSupplierOrders) onOpenSupplierOrders();
+          const reply = t.voiceCommands.cannotSendByVoice;
+          lastSpokenTextRef.current = reply;
+          speechSynthesizer.speak(reply, language);
+          setTimeout(() => setVoiceState('idle'), 1500);
+          return;
+        }
+
+        if (result.intent === 'show_customer_ledger') {
+          setVoiceState('success');
+          onNavigateTab('ledger');
+          if (result.matchedCustomer && onSelectCustomer) {
+            onSelectCustomer(result.matchedCustomer.id);
+          }
+          const reply = t.voiceCommands.ledgerOpenedReply;
+          lastSpokenTextRef.current = reply;
+          speechSynthesizer.speak(reply, language);
+          setTimeout(() => setVoiceState('idle'), 1500);
+          return;
+        }
+
+        if (result.intent === 'recent_transactions') {
+          setVoiceState('success');
+          onNavigateTab('today');
+          const reply = t.voiceCommands.recentTransactionsReply;
+          lastSpokenTextRef.current = reply;
+          speechSynthesizer.speak(reply, language);
+          setTimeout(() => setVoiceState('idle'), 1500);
+          return;
+        }
+
+        if (result.intent === 'top_debtors') {
+          setVoiceState('success');
+          onNavigateTab('ledger');
+          if (onOpenRecovery) onOpenRecovery(500);
+          const reply = t.voiceCommands.topDebtorsReply;
+          lastSpokenTextRef.current = reply;
+          speechSynthesizer.speak(reply, language);
+          setTimeout(() => setVoiceState('idle'), 1500);
+          return;
+        }
+
+        if (result.intent === 'monthly_credit_summary') {
+          setVoiceState('success');
+          onNavigateTab('today');
+          const reply = t.voiceCommands.monthlySummaryReply;
+          lastSpokenTextRef.current = reply;
+          speechSynthesizer.speak(reply, language);
+          setTimeout(() => setVoiceState('idle'), 1500);
+          return;
+        }
+
+        if (result.intent === 'next') {
+          setVoiceState('success');
+          const reply = t.voiceCommands.nextAction;
+          lastSpokenTextRef.current = reply;
+          speechSynthesizer.speak(reply, language);
+          setTimeout(() => setVoiceState('idle'), 1200);
+          return;
+        }
+
+        if (result.intent === 'previous') {
+          setVoiceState('success');
+          const reply = t.voiceCommands.previousAction;
+          lastSpokenTextRef.current = reply;
+          speechSynthesizer.speak(reply, language);
+          setTimeout(() => setVoiceState('idle'), 1200);
+          return;
+        }
+
+        if (result.intent === 'repeat') {
+          setVoiceState('success');
+          const reply = lastSpokenTextRef.current || t.voice.tapToSpeak;
+          speechSynthesizer.speak(reply, language);
+          setTimeout(() => setVoiceState('idle'), 1500);
+          return;
+        }
+
+        if (result.intent === 'back' || result.intent === 'close') {
+          setVoiceState('success');
+          if (onCloseModals) onCloseModals();
+          const reply = t.voiceCommands.closed;
+          lastSpokenTextRef.current = reply;
+          speechSynthesizer.speak(reply, language);
+          setTimeout(() => setVoiceState('idle'), 1200);
+          return;
+        }
+
+        if (result.intent === 'today' || result.intent === 'yesterday' || result.intent === 'this_week') {
+          setVoiceState('success');
+          onNavigateTab('today');
+          const reply = t.navigation.openingTodayVoice;
+          lastSpokenTextRef.current = reply;
+          speechSynthesizer.speak(reply, language);
+          setTimeout(() => setVoiceState('idle'), 1500);
+          return;
+        }
+
+        if (result.intent === 'play_proof') {
+          setVoiceState('success');
+          const reply = t.voiceCommands.playProofReply;
+          lastSpokenTextRef.current = reply;
+          speechSynthesizer.speak(reply, language);
+          if (onPlayProofClip) onPlayProofClip();
           setTimeout(() => setVoiceState('idle'), 1500);
           return;
         }

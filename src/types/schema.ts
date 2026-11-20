@@ -185,6 +185,23 @@ export type ParsedIntent =
   | 'open_stock'
   | 'open_ledger'
   | 'open_today'
+  | 'show_low_stock'
+  | 'order_item'
+  | 'build_order_list'
+  | 'send_order'
+  | 'show_customer_ledger'
+  | 'recent_transactions'
+  | 'top_debtors'
+  | 'monthly_credit_summary'
+  | 'next'
+  | 'previous'
+  | 'repeat'
+  | 'back'
+  | 'close'
+  | 'today'
+  | 'yesterday'
+  | 'this_week'
+  | 'play_proof'
   | 'unknown';
 
 export interface LastPriceChange {
@@ -206,8 +223,10 @@ export interface ParseResult {
   quantity?: number | null;
   unit?: string | null;
   oldPrice?: number | null;
-  targetTab?: 'home' | 'ledger' | 'stock' | 'today' | 'bill_scan' | null;
-  language: 'hi' | 'pa' | 'en';
+  count?: number | null;
+  timeframe?: 'today' | 'yesterday' | 'this_week' | 'month' | null;
+  targetTab?: 'home' | 'ledger' | 'stock' | 'today' | 'bill_scan' | 'supplier_orders' | 'recovery' | null;
+  language: 'hi' | 'en' | 'pa' | 'gu' | 'mr' | 'bn' | 'ta' | 'te' | 'kn' | 'ml';
   confidence: number;
   rawText: string;
   spokenReply?: string;
