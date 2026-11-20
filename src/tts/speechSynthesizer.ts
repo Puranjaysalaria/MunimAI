@@ -73,12 +73,84 @@ export function bengaliToDevanagari(str: string): string {
 }
 
 /**
+ * Transliterates Telugu text to Devanagari Unicode (0x300 offset).
+ */
+export function teluguToDevanagari(str: string): string {
+  let res = '';
+  const s = str.normalize('NFC');
+  for (let i = 0; i < s.length; i++) {
+    const code = s.charCodeAt(i);
+    if (code >= 0x0C00 && code <= 0x0C7F) {
+      res += String.fromCharCode(code - 0x300);
+    } else {
+      res += s[i];
+    }
+  }
+  return res;
+}
+
+/**
+ * Transliterates Kannada text to Devanagari Unicode (0x380 offset).
+ */
+export function kannadaToDevanagari(str: string): string {
+  let res = '';
+  const s = str.normalize('NFC');
+  for (let i = 0; i < s.length; i++) {
+    const code = s.charCodeAt(i);
+    if (code >= 0x0C80 && code <= 0x0CFF) {
+      res += String.fromCharCode(code - 0x380);
+    } else {
+      res += s[i];
+    }
+  }
+  return res;
+}
+
+/**
+ * Transliterates Malayalam text to Devanagari Unicode (0x400 offset).
+ */
+export function malayalamToDevanagari(str: string): string {
+  let res = '';
+  const s = str.normalize('NFC');
+  for (let i = 0; i < s.length; i++) {
+    const code = s.charCodeAt(i);
+    if (code >= 0x0D00 && code <= 0x0D7F) {
+      res += String.fromCharCode(code - 0x400);
+    } else {
+      res += s[i];
+    }
+  }
+  return res;
+}
+
+/**
+ * Transliterates Tamil text to Devanagari Unicode (0x280 offset).
+ */
+export function tamilToDevanagari(str: string): string {
+  let res = '';
+  const s = str.normalize('NFC');
+  for (let i = 0; i < s.length; i++) {
+    const code = s.charCodeAt(i);
+    if (code >= 0x0B80 && code <= 0x0BFF) {
+      res += String.fromCharCode(code - 0x280);
+    } else {
+      res += s[i];
+    }
+  }
+  return res;
+}
+
+/**
  * Transliterates Indic text to Devanagari for playback via Hindi TTS voice.
  */
 export function indicToDevanagari(text: string, lang: string): string {
   if (lang === 'pa') return gurmukhiToDevanagari(text);
   if (lang === 'gu') return gujaratiToDevanagari(text);
   if (lang === 'bn') return bengaliToDevanagari(text);
+  if (lang === 'te') return teluguToDevanagari(text);
+  if (lang === 'kn') return kannadaToDevanagari(text);
+  if (lang === 'ml') return malayalamToDevanagari(text);
+  if (lang === 'ta') return tamilToDevanagari(text);
   return text;
 }
 

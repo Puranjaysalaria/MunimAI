@@ -363,5 +363,24 @@ describe('Reminder Service - Safety Rules & Template Engine', () => {
       expect(output).toContain('रमेश कुमार');
       expect(output).toContain('माटे');
     });
+
+    it('transliterates Bengali, Telugu, Kannada, Malayalam, Tamil for Indic TTS fallback', async () => {
+      const { indicToDevanagari } = await import('../src/tts/speechSynthesizer');
+
+      const bn = indicToDevanagari('রমেশ কুমারের জন্য WhatsApp তাগাদা', 'bn');
+      expect(bn).toContain('रमेश कुमारेर');
+
+      const te = indicToDevanagari('అంకిత్ కొరకు వాట్సాప్', 'te');
+      expect(te).toContain('अंकित्');
+
+      const kn = indicToDevanagari('ಅಂಕಿತ್ ಅವರಿಗಾಗಿ', 'kn');
+      expect(kn).toContain('अंकित्');
+
+      const ml = indicToDevanagari('അങ്കിതിനായി', 'ml');
+      expect(ml).toContain('अङ्कितिनायि');
+
+      const ta = indicToDevanagari('அங்கித் க்கான', 'ta');
+      expect(ta).toContain('अङ्कित्');
+    });
   });
 });
