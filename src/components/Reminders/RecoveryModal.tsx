@@ -109,18 +109,19 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
 
     // Provide voice confirmation feedback when triggered individually
     if (!fromQueue) {
-      const confirmVoice =
-        language === 'en'
-          ? `Opening WhatsApp reminder for ${customerLocalized}.`
-          : language === 'pa'
-          ? `${customerLocalized} ਲਈ WhatsApp ਯਾਦ-ਪੱਤਰ ਖੋਲ੍ਹਿਆ ਜਾ ਰਿਹਾ ਹੈ।`
-          : `${customerLocalized} के लिए WhatsApp तगादा खोला जा रहा है।`;
+      const voiceTemplate = t.reminders.openingWhatsAppVoice || 'Opening WhatsApp reminder for {name}.';
+      const confirmVoice = voiceTemplate.replace('{name}', customerLocalized);
       speechSynthesizer.speak(confirmVoice, language);
     }
 
     const phone = draft.customer.phone?.replace(/[^0-9]/g, '') || '';
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(draft.messageText)}`;
-    window.open(url, '_blank');
+
+    // Slight delay so the audio chime and voice speech initialize before window blur
+    setTimeout(() => {
+      window.open(url, '_blank');
+    }, 350);
+
     markCustomerReminded(draft);
   };
 
@@ -130,17 +131,17 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
     playAudioCue('success');
 
     const customerLocalized = getLocalizedCustomerName(draft.customer.name, language);
-    const confirmVoice =
-      language === 'en'
-        ? `Opening SMS reminder for ${customerLocalized}.`
-        : language === 'pa'
-        ? `${customerLocalized} ਲਈ SMS ਯਾਦ-ਪੱਤਰ ਖੋਲ੍ਹਿਆ ਜਾ ਰਿਹਾ ਹੈ।`
-        : `${customerLocalized} के लिए SMS तगादा खोला जा रहा है।`;
+    const voiceTemplate = t.reminders.openingSmsVoice || 'Opening SMS reminder for {name}.';
+    const confirmVoice = voiceTemplate.replace('{name}', customerLocalized);
     speechSynthesizer.speak(confirmVoice, language);
 
     const phone = draft.customer.phone?.replace(/[^0-9]/g, '') || '';
     const smsUrl = `sms:${phone}?body=${encodeURIComponent(draft.messageText)}`;
-    window.location.href = smsUrl;
+
+    setTimeout(() => {
+      window.location.href = smsUrl;
+    }, 350);
+
     markCustomerReminded(draft);
   };
 
@@ -181,16 +182,11 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
     const remainingAfterThis = actionableReminders.length - 1;
     const confirmVoice =
       remainingAfterThis > 0
-        ? language === 'en'
-          ? `Opening WhatsApp for ${customerLocalized}. ${remainingAfterThis} remaining in queue.`
-          : language === 'pa'
-          ? `${customerLocalized} ਲਈ WhatsApp ਖੋਲ੍ਹਿਆ ਗਿਆ। ${remainingAfterThis} ਬਾਕੀ ਹਨ।`
-          : `${customerLocalized} के लिए WhatsApp खोला गया। कतार में ${remainingAfterThis} बाकी हैं।`
-        : language === 'en'
-        ? `Opening WhatsApp for ${customerLocalized}. All reminders complete.`
-        : language === 'pa'
-        ? `${customerLocalized} ਲਈ WhatsApp ਖੋਲ੍ਹਿਆ ਗਿਆ। ਸਾਰੇ ਤਿਆਰ ਹਨ।`
-        : `${customerLocalized} के लिए WhatsApp खोला गया। सभी तगादे पूरे हुए।`;
+        ? (t.reminders.queueNextVoice || 'Opening WhatsApp for {name}. {remaining} remaining.')
+            .replace('{name}', customerLocalized)
+            .replace('{remaining}', String(remainingAfterThis))
+        : (t.reminders.queueCompleteVoice || 'Opening WhatsApp for {name}. All complete.')
+            .replace('{name}', customerLocalized);
 
     speechSynthesizer.speak(confirmVoice, language);
     handleSendWhatsApp(nextTarget, true);
@@ -246,18 +242,12 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
             <Clock className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
             <div>
               <p className="font-bold">
-                {language === 'en'
-                  ? `Quiet Hours Active (${reminderSettings.quiet_hours_start} - ${reminderSettings.quiet_hours_end})`
-                  : language === 'pa'
-                  ? `ਸ਼ਾਂਤ ਸਮਾਂ ਚੱਲ ਰਿਹਾ ਹੈ (${reminderSettings.quiet_hours_start} - ${reminderSettings.quiet_hours_end})`
-                  : `शांत समय सुरक्षा सक्रिय है (${reminderSettings.quiet_hours_start} से ${reminderSettings.quiet_hours_end})`}
+                {(t.reminders.quietHoursActiveTitle || 'Quiet Hours Active ({start} - {end})')
+                  .replace('{start}', reminderSettings.quiet_hours_start)
+                  .replace('{end}', reminderSettings.quiet_hours_end)}
               </p>
               <p className="mt-0.5 text-amber-800 leading-snug">
-                {language === 'en'
-                  ? 'Late night / early morning reminders are restricted. Dispatches require explicit shopkeeper confirmation.'
-                  : language === 'pa'
-                  ? "ਰਾਤ ਵੇਲੇ ਜਾਂ ਸਵੇਰੇ ਗਾਹਕਾਂ ਨੂੰ ਪਰੇਸ਼ਾਨੀ ਤੋਂ ਬਚਣ ਲਈ ਸਿਰਫ਼ ਜ਼ਰੂਰੀ ਹੋਣ 'ਤੇ ਹੀ ਭੇਜੋ।"
-                  : 'ग्राहकों की असुविधा से बचने के लिए देर रात/अलसुबह तगादा रोका जाता है। केवल अत्यंत आवश्यक होने पर भेजें।'}
+                {t.reminders.quietHoursNotice || t.reminders.quietHoursActive}
               </p>
             </div>
           </div>
@@ -327,10 +317,10 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                         >
                           <RotateCw className="w-2.5 h-2.5 mr-1" />
                           {draft.tone === 'firm'
-                            ? 'Firm (दृढ़)'
+                            ? (t.reminders.toneFirmLabel || 'Firm (दृढ़)')
                             : draft.tone === 'standard'
-                            ? 'Standard'
-                            : 'Polite'}
+                            ? (t.reminders.toneStandardLabel || 'Standard')
+                            : (t.reminders.tonePoliteLabel || 'Polite')}
                           {draft.customer.reminder_tone_override && ' • Set'}
                         </button>
 
@@ -347,7 +337,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                         {isSent && (
                           <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded-full flex items-center">
                             <CheckCircle className="w-2.5 h-2.5 mr-0.5" />
-                            {t.reminders.sentToday || (language === 'en' ? 'Sent Today' : 'आज भेजा गया')}
+                            {t.reminders.sentToday}
                           </span>
                         )}
 
@@ -355,19 +345,14 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                         {isBlocked && (
                           <span className="text-[10px] bg-red-100 text-red-800 font-bold px-1.5 py-0.5 rounded-full flex items-center">
                             <BellOff className="w-2.5 h-2.5 mr-0.5" />
-                            {t.reminders.doNotRemind || (language === 'en' ? "Don't Remind" : 'तगादा बंद')}
+                            {t.reminders.doNotRemind}
                           </span>
                         )}
                       </div>
 
                       <p className="text-xs text-app-muted flex items-center mt-1">
                         <Phone className="w-3 h-3 mr-1 text-gray-400" />
-                        {draft.customer.phone ||
-                          (language === 'en'
-                            ? 'No phone'
-                            : language === 'pa'
-                            ? 'ਫ਼ੋਨ ਨੰਬਰ ਨਹੀਂ ਹੈ'
-                            : 'फोन नंबर नहीं है')}
+                        {draft.customer.phone || t.reminders.noPhone}
                         {draft.customer.address_note && ` • ${draft.customer.address_note}`}
                       </p>
                     </div>
@@ -383,7 +368,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                   <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
                     <span className="text-[11px] text-app-muted flex items-center">
                       <CreditCard className="w-3 h-3 mr-1 text-primary" />
-                      {draft.upiLink ? t.reminders.upiIncluded : (language === 'en' ? 'Without UPI Link' : 'बिना UPI लिंक')}
+                      {draft.upiLink ? t.reminders.upiIncluded : t.reminders.withoutUpiLink}
                     </span>
 
                     <div className="flex items-center space-x-2">
@@ -394,9 +379,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                           isBlocked ? 'text-emerald-700 hover:underline' : 'text-gray-400 hover:text-owed'
                         }`}
                       >
-                        {isBlocked
-                          ? (language === 'en' ? 'Resume Reminders' : 'तगादा शुरू करें')
-                          : (language === 'en' ? 'Pause Reminders' : 'तगादा रोकें')}
+                        {isBlocked ? t.reminders.resumeReminders : t.reminders.pauseReminders}
                       </button>
 
                       <button
@@ -404,13 +387,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                         className="text-primary font-bold text-xs flex items-center space-x-0.5"
                       >
                         <span>
-                          {isExpanded
-                            ? language === 'en'
-                              ? 'Hide'
-                              : 'छुपाएं'
-                            : language === 'en'
-                            ? 'View'
-                            : 'देखें'}
+                          {isExpanded ? t.reminders.hideMessage : t.reminders.viewMessage}
                         </span>
                         {isExpanded ? (
                           <ChevronUp className="w-3.5 h-3.5" />
@@ -446,7 +423,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                         {isSent ? (
                           <>
                             <CheckCircle className="w-4 h-4 text-emerald-700" />
-                            <span>{language === 'en' ? 'Sent Today (Tap to Resend)' : 'भेजा गया (फिर भेजें)'}</span>
+                            <span>{t.reminders.sentTodayTapToResend}</span>
                           </>
                         ) : (
                           <>
@@ -472,7 +449,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                       >
                         <Share2 className="w-4 h-4" />
                         {reminderSettings.send_channel === 'sms' && (
-                          <span>{language === 'en' ? 'Send SMS' : 'SMS भेजें'}</span>
+                          <span>{t.reminders.sendSmsButton}</span>
                         )}
                       </button>
                     )}
@@ -493,11 +470,9 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
               >
                 <Send className="w-4 h-4" />
                 <span>
-                  {language === 'en'
-                    ? `Dispatch Next: ${nextUpCustomer.customer.name} (${formatINR(nextUpCustomer.amount)})`
-                    : language === 'pa'
-                    ? `ਅਗਲਾ ਭੇਜੋ: ${nextUpCustomer.customer.name} (${formatINR(nextUpCustomer.amount)})`
-                    : `अगला तगादा भेजें: ${nextUpCustomer.customer.name} (${formatINR(nextUpCustomer.amount)})`}
+                  {(t.reminders.dispatchNext || 'Dispatch Next: {name} ({amount})')
+                    .replace('{name}', nextUpCustomer.customer.name)
+                    .replace('{amount}', formatINR(nextUpCustomer.amount))}
                 </span>
                 <ArrowRight className="w-4 h-4 ml-1" />
               </button>
@@ -506,21 +481,14 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                 <p className="text-xs font-bold text-emerald-800 flex items-center justify-center space-x-1.5">
                   <CheckCircle className="w-4 h-4 text-emerald-600" />
                   <span>
-                    {language === 'en'
-                      ? `All ${totalCount} reminders completed today!`
-                      : language === 'pa'
-                      ? `ਅੱਜ ਦੇ ਸਾਰੇ ${totalCount} ਯਾਦ-ਪੱਤਰ ਪੂਰੇ ਹੋ ਚੁੱਕੇ ਹਨ!`
-                      : `आज के सभी ${totalCount} तगादे भेजे जा चुके हैं!`}
+                    {(t.reminders.allRemindersCompleted || 'All {count} reminders completed today!')
+                      .replace('{count}', String(totalCount))}
                   </span>
                 </p>
               </div>
             )}
             <p className="text-[11px] text-center text-app-muted">
-              {language === 'en'
-                ? 'Tapping opens WhatsApp with message pre-filled • Never sends in background'
-                : language === 'pa'
-                ? "ਬਟਨ ਦਬਾਉਣ 'ਤੇ ਸੁਨੇਹਾ ਭਰਿਆ WhatsApp ਖੁੱਲ੍ਹਦਾ ਹੈ • ਕਦੇ ਵੀ ਆਪਣੇ ਆਪ ਨਹੀਂ ਭੇਜਿਆ ਜਾਂਦਾ"
-                : 'बटन दबाने पर पूरा मैसेज लिखा हुआ WhatsApp खुलता है • बैकग्राउंड में कभी नहीं जाता'}
+              {t.reminders.manualNoticeFooter}
             </p>
           </div>
         )}

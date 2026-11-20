@@ -62,13 +62,10 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
     : '';
 
   const amountInWords = pending
-    ? amountToWords(
-        pending.amount,
-        language === 'pa' ? 'pa' : language === 'en' ? 'en' : 'hi'
-      )
+    ? amountToWords(pending.amount, language)
     : '';
 
-  // Spoken sentence formulated for natural speech
+  // Spoken sentence formulated for natural speech across all 10 languages
   const spokenPrompt = pending
     ? language === 'en'
       ? isCredit && custDisplayName
@@ -86,6 +83,62 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
         : isSale && pending.itemName
         ? `${pending.quantity ? pending.quantity + ' ' : ''}${pending.unit || ''} ${pending.itemName}, ${amountInWords} ਨਕਦ ਵਿਕਰੀ। ਲਿਖ ਦਿਆਂ?`
         : `₹${pending.amount} ਦਾ ਲੈਣ-ਦੇਣ ਲਿਖ ਦਿਆਂ?`
+      : language === 'gu'
+      ? isCredit && custDisplayName
+        ? `${custDisplayName}, ${amountInWords} (${pending.amount}) રૂપિયા ઉધાર. નોંધી લઉં?`
+        : isPayment && custDisplayName
+        ? `${custDisplayName} પાસેથી ${amountInWords} (${pending.amount}) રૂપિયા જમા. નોંધી લઉં?`
+        : isSale && pending.itemName
+        ? `${pending.quantity ? pending.quantity + ' ' : ''}${pending.unit || ''} ${pending.itemName}, ${amountInWords} રોકડ વેચાણ. નોંધી લઉં?`
+        : `₹${pending.amount} નો વ્યવહાર નોંધી લઉં?`
+      : language === 'mr'
+      ? isCredit && custDisplayName
+        ? `${custDisplayName}, ${amountInWords} (${pending.amount}) रुपये उधार. लिहू का?`
+        : isPayment && custDisplayName
+        ? `${custDisplayName} कडून ${amountInWords} (${pending.amount}) रुपये जमा. लिहू का?`
+        : isSale && pending.itemName
+        ? `${pending.quantity ? pending.quantity + ' ' : ''}${pending.unit || ''} ${pending.itemName}, ${amountInWords} रोख विक्री. लिहू का?`
+        : `₹${pending.amount} चा व्यवहार लिहू का?`
+      : language === 'bn'
+      ? isCredit && custDisplayName
+        ? `${custDisplayName}, ${amountInWords} (${pending.amount}) টাকা বাকি। লিখে রাখব?`
+        : isPayment && custDisplayName
+        ? `${custDisplayName} এর থেকে ${amountInWords} (${pending.amount}) টাকা জমা। লিখে রাখব?`
+        : isSale && pending.itemName
+        ? `${pending.quantity ? pending.quantity + ' ' : ''}${pending.unit || ''} ${pending.itemName}, ${amountInWords} নগদ বিক্রি। লিখে রাখব?`
+        : `₹${pending.amount} টাকার লেনদেন লিখে রাখব?`
+      : language === 'ta'
+      ? isCredit && custDisplayName
+        ? `${custDisplayName}, ${amountInWords} (${pending.amount}) ரூபாய் கடன். பதிவு செய்யவா?`
+        : isPayment && custDisplayName
+        ? `${custDisplayName} இடமிருந்து ${amountInWords} (${pending.amount}) ரூபாய் வரவு. பதிவு செய்யவா?`
+        : isSale && pending.itemName
+        ? `${pending.quantity ? pending.quantity + ' ' : ''}${pending.unit || ''} ${pending.itemName}, ${amountInWords} ரொக்க விற்பனை. பதிவு செய்யவா?`
+        : `₹${pending.amount} பரிவர்த்தனையை பதிவு செய்யவா?`
+      : language === 'te'
+      ? isCredit && custDisplayName
+        ? `${custDisplayName}, ${amountInWords} (${pending.amount}) రూపాయల అప్పు. రాయమంటారా?`
+        : isPayment && custDisplayName
+        ? `${custDisplayName} నుండి ${amountInWords} (${pending.amount}) రూపాయల జమ. రాయమంటారా?`
+        : isSale && pending.itemName
+        ? `${pending.quantity ? pending.quantity + ' ' : ''}${pending.unit || ''} ${pending.itemName}, ${amountInWords} నగదు అమ్మకం. రాయమంటారా?`
+        : `₹${pending.amount} లావాదేవీని రాయమంటారా?`
+      : language === 'kn'
+      ? isCredit && custDisplayName
+        ? `${custDisplayName}, ${amountInWords} (${pending.amount}) ರೂಪಾಯಿ ಸಾಲ. ಬರೆಯಲೇ?`
+        : isPayment && custDisplayName
+        ? `${custDisplayName} ಅವರಿಂದ ${amountInWords} (${pending.amount}) ರೂಪಾಯಿ ಜಮೆ. ಬರೆಯಲೇ?`
+        : isSale && pending.itemName
+        ? `${pending.quantity ? pending.quantity + ' ' : ''}${pending.unit || ''} ${pending.itemName}, ${amountInWords} ನಗದು ಮಾರಾಟ. ಬರೆಯಲೇ?`
+        : `₹${pending.amount} ವಹಿವಾಟು ಬರೆಯಲೇ?`
+      : language === 'ml'
+      ? isCredit && custDisplayName
+        ? `${custDisplayName}, ${amountInWords} (${pending.amount}) രൂപ കടം. എഴുതട്ടെ?`
+        : isPayment && custDisplayName
+        ? `${custDisplayName} ൽ നിന്ന് ${amountInWords} (${pending.amount}) രൂപ വരവ്. എഴുതട്ടെ?`
+        : isSale && pending.itemName
+        ? `${pending.quantity ? pending.quantity + ' ' : ''}${pending.unit || ''} ${pending.itemName}, ${amountInWords} പണ വിൽപ്പന. എഴുതട്ടെ?`
+        : `₹${pending.amount} ഇടപാട് എഴുതട്ടെ?`
       : pending.spokenReply ||
         (isCredit && custDisplayName
           ? `${custDisplayName}, ${amountInWords} (${pending.amount}) रुपये उधार। लिख दूँ?`
@@ -234,7 +287,7 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                   onStopListeningRef.current?.();
                   speechSynthesizer.speak(
                     spokenPrompt,
-                    language === 'pa' ? 'pa' : language === 'en' ? 'en' : 'hi'
+                    language
                   ).then(() => {
                     onStartListeningRef.current?.();
                   });
@@ -392,8 +445,8 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                   <div className="flex items-center space-x-1.5">
                     <span className="text-xs font-black">
                       {isListeningForReply
-                        ? (t.confirmCard.listeningStatus || (language === 'en' ? 'Listening...' : 'सुन रहे हैं...'))
-                        : (language === 'en' ? 'Voice Confirmation' : 'आवाज़ से पुष्टि')}
+                        ? (t.confirmCard.listeningStatus || (language === 'en' ? 'Listening...' : language === 'pa' ? 'ਸੁਣ ਰਹੇ ਹਾਂ...' : 'सुन रहे हैं...'))
+                        : (t.confirmCard.speechPrompt || (language === 'en' ? 'Voice Confirmation' : language === 'pa' ? 'ਆਵਾਜ਼ ਨਾਲ ਪੁਸ਼ਟੀ' : 'आवाज़ से पुष्टि'))}
                     </span>
                     {isListeningForReply && (
                       <span className="flex h-2 w-2 relative">

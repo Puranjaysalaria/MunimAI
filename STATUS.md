@@ -53,3 +53,13 @@
   - Added indexes for daily cap and filtering performance
   - Preserved existing multi-tenant Row Level Security (RLS) policies
   - Added RLS multi-tenant test in `tests/rls.test.ts` (110 tests passing)
+- [x] **Step 8: Native Indic TTS Engine & Localization Consistency**
+  - Resolved Hindi text leakage in Punjabi and regional languages across `RecoveryModal.tsx` and `ReminderSettingsModal.tsx`
+  - Extended `src/i18n/types.ts` and all 10 language files (`hi`, `pa`, `en`, `gu`, `mr`, `bn`, `ta`, `te`, `kn`, `ml`) with native terms for pause/resume reminders, view/hide, sent today resend, SMS fallback, and quiet hours
+  - Upgraded `SpeechSynthesizer` (`src/tts/speechSynthesizer.ts`) with intelligent voice resolution:
+    - If native voice exists in OS, uses it directly
+    - If OS lacks native regional voices (default Windows/Chromium state for Punjabi, Gujarati, etc.), binds to installed Hindi TTS voice (`hi-IN`) and transliterates Gurmukhi, Gujarati, and Bengali to Devanagari Unicode
+    - Prevents Chromium silent voice crashes (`error: language-unavailable`) and speaks aloud with natural regional cadence
+  - Deferred WhatsApp/SMS `window.open` by 350ms to allow audio chime and voice feedback to initiate cleanly without window blur cutoff
+  - Expanded `ConfirmationCard.tsx` and `numberToWords.ts` spoken prompts across all 10 languages
+  - 113 tests passing across entire test suite (`vitest run`), 0 TypeScript errors (`tsc --noEmit`)

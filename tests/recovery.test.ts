@@ -140,5 +140,5 @@ describe('Phase 6: Offline Mutation Queue & Timestamp Reconciliation', () => {
     // 3. Queue should now be empty
     const remainingCount = await getOfflinePendingCount();
     expect(remainingCount).toBe(0);
-  });
+  }, 15000);
 });

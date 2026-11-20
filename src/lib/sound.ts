@@ -38,6 +38,9 @@ export const playAudioCue = (type: 'start' | 'success' | 'cancel') => {
     const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
     const ctx = new AudioContextClass();
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
 
     if (type === 'start') {
       const osc = ctx.createOscillator();

@@ -35,7 +35,7 @@ export const ReminderSettingsModal: React.FC<ReminderSettingsModalProps> = ({
   shop,
   onSave,
 }) => {
-  const { language } = useI18n();
+  const { t, language } = useI18n();
 
   const currentSettings: ReminderSettings = {
     ...DEFAULT_REMINDER_SETTINGS,
@@ -63,9 +63,9 @@ export const ReminderSettingsModal: React.FC<ReminderSettingsModalProps> = ({
       : null;
 
   const previewMessage = generateReminderMessage({
-    customerName: language === 'en' ? 'Ramesh Kumar' : 'रमेश कुमार',
+    customerName: language === 'en' ? 'Ramesh Kumar' : language === 'pa' ? 'ਰਮੇਸ਼ ਕੁਮਾਰ' : 'रमेश कुमार',
     amount: 1450,
-    shopName: shop.name || (language === 'en' ? 'Sharma Kirana' : 'शर्मा किराना स्टोर'),
+    shopName: shop.name || (language === 'en' ? 'Sharma Kirana' : language === 'pa' ? 'ਸ਼ਰਮਾ ਕਿਰਾਨਾ ਸਟੋਰ' : 'शर्मा किराना स्टोर'),
     upiLink: previewUpiLink,
     language: (language as LanguageCode) || 'hi',
     tone,
@@ -92,6 +92,53 @@ export const ReminderSettingsModal: React.FC<ReminderSettingsModalProps> = ({
     }, 600);
   };
 
+  const toneOptions = [
+    {
+      id: 'polite' as const,
+      label: t.reminders.tonePoliteLabel || 'Polite',
+      desc: t.reminders.tonePoliteDesc || 'Friendly & soft',
+    },
+    {
+      id: 'standard' as const,
+      label: t.reminders.toneStandardLabel || 'Standard',
+      desc: t.reminders.toneStandardDesc || 'Clear & regular',
+    },
+    {
+      id: 'firm' as const,
+      label: t.reminders.toneFirmLabel || 'Firm (दृढ़)',
+      desc: t.reminders.toneFirmDesc || 'Factual & respectful',
+    },
+  ];
+
+  const channelOptions = [
+    {
+      id: 'whatsapp_first_sms_fallback' as const,
+      title: t.reminders.channelWhatsAppSms || 'WhatsApp first, SMS fallback',
+      badge: t.reminders.recommendedBadge || 'Recommended',
+      desc: t.reminders.channelWhatsAppSmsDesc || 'Sends via WhatsApp primary; SMS available as fallback. Never sends twice.',
+    },
+    {
+      id: 'whatsapp' as const,
+      title: t.reminders.channelWhatsAppOnly || 'WhatsApp Only',
+      badge: null,
+      desc: t.reminders.channelWhatsAppOnlyDesc || 'Dispatch exclusively via WhatsApp',
+    },
+    {
+      id: 'sms' as const,
+      title: t.reminders.channelSmsOnly || 'SMS Only',
+      badge: null,
+      desc: t.reminders.channelSmsOnlyDesc || 'Dispatch exclusively via native SMS',
+    },
+  ];
+
+  const scheduleOptions = [
+    { id: 'manual' as const, label: t.reminders.scheduleManual || 'Manual (When needed)' },
+    { id: 'weekly_sunday' as const, label: t.reminders.scheduleWeekly || 'Weekly (Sundays)' },
+    { id: 'biweekly' as const, label: t.reminders.scheduleBiweekly || 'Twice a Month' },
+    { id: 'monthly_1st' as const, label: t.reminders.scheduleMonthly || 'Monthly (1st)' },
+    { id: 'overdue_15d' as const, label: t.reminders.scheduleOverdue15d || 'Overdue 15+ Days' },
+  ];
+
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="bg-surface w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl max-h-[92vh] flex flex-col animate-slide-up">
@@ -103,14 +150,10 @@ export const ReminderSettingsModal: React.FC<ReminderSettingsModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-black text-app-text">
-                {language === 'en' ? 'Reminder Settings' : language === 'pa' ? 'ਯਾਦ-ਪੱਤਰ ਸੈਟਿੰਗਾਂ' : 'तगादा व रिमाइंडर सेटिंग्स'}
+                {t.reminders.settingsTitle || 'Reminder Settings'}
               </h2>
               <p className="text-xs text-app-muted">
-                {language === 'en'
-                  ? 'Configure recovery rules, tone & safe dispatch'
-                  : language === 'pa'
-                  ? 'ਉਧਾਰੀ ਰਿਕਵਰੀ ਨਿਯਮ, ਲਹਿਜ਼ਾ ਅਤੇ ਸੁਰੱਖਿਅਤ ਸਮਾਂ'
-                  : 'उधारी वसूली के नियम, संदेश का लहज़ा और समय'}
+                {t.reminders.settingsSub || 'Configure recovery rules, tone & safe dispatch'}
               </p>
             </div>
           </div>
@@ -131,18 +174,10 @@ export const ReminderSettingsModal: React.FC<ReminderSettingsModalProps> = ({
             <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
             <div>
               <p className="font-bold text-amber-950">
-                {language === 'en'
-                  ? 'Manual Shopkeeper Confirmation Required'
-                  : language === 'pa'
-                  ? 'ਦੁਕਾਨਦਾਰ ਦੀ ਪ੍ਰਵਾਨਗੀ ਲਾਜ਼ਮੀ ਹੈ'
-                  : 'दुकानदार की पुष्टि अनिवार्य है (कोई ऑटो-सेंड नहीं)'}
+                {t.reminders.noAutoSendDisclaimerTitle || 'Manual Shopkeeper Confirmation Required'}
               </p>
               <p className="mt-0.5 leading-relaxed text-amber-900">
-                {language === 'en'
-                  ? 'Schedule options only create an in-app prompt ("N reminders ready for review"). Messages are NEVER sent automatically without your explicit tap.'
-                  : language === 'pa'
-                  ? 'ਸਮਾਂ-ਸੂਚੀ ਸਿਰਫ਼ ਐਪ ਵਿੱਚ ਸਮੀਖਿਆ ਲਈ ਤਿਆਰ ਰਿਮਾਈਂਡਰ ਦਿਖਾਉਂਦੀ ਹੈ। ਤੁਹਾਡੇ ਵੱਲੋਂ ਬਟਨ ਦਬਾਏ ਬਿਨਾਂ ਕੋਈ ਵੀ ਸੁਨੇਹਾ ਆਪਣੇ ਆਪ ਨਹੀਂ ਭੇਜਿਆ ਜਾਂਦਾ।'
-                  : 'शेड्यूल विकल्प केवल ऐप में समीक्षा कार्ड तैयार करते हैं ("N तगादे तैयार हैं")। आपके बटन दबाए बिना कोई भी संदेश अपने आप कभी नहीं भेजा जाता।'}
+                {t.reminders.noAutoSendDisclaimerDesc || 'Schedule options only create an in-app prompt ("N reminders ready for review"). Messages are NEVER sent automatically without your explicit tap.'}
               </p>
             </div>
           </div>
@@ -150,11 +185,7 @@ export const ReminderSettingsModal: React.FC<ReminderSettingsModalProps> = ({
           {/* Section 1: Minimum Due Threshold */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-app-muted mb-2">
-              {language === 'en'
-                ? 'Minimum Balance Threshold'
-                : language === 'pa'
-                ? 'ਘੱਟੋ-ਘੱਟ ਬਕਾਇਆ ਸੀਮਾ'
-                : 'न्यूनतम बकाया सीमा (थ्रेशोल्ड)'}
+              {t.reminders.minThresholdLabel || 'Minimum Balance Threshold'}
             </label>
             <div className="flex flex-wrap gap-2 mb-2">
               {thresholdPresets.map((amt) => (
@@ -184,27 +215,18 @@ export const ReminderSettingsModal: React.FC<ReminderSettingsModalProps> = ({
               />
             </div>
             <p className="text-[11px] text-app-muted mt-1">
-              {language === 'en'
-                ? `Only customers owing ₹${threshold || 0} or more will be suggested for reminders.`
-                : language === 'pa'
-                ? `ਕੇਵਲ ₹${threshold || 0} ਜਾਂ ਵੱਧ ਬਕਾਇਆ ਵਾਲੇ ਗਾਹਕਾਂ ਦੇ ਨਾਮ ਹੀ ਦਿਖਾਏ ਜਾਣਗੇ।`
-                : `केवल ₹${threshold || 0} या अधिक बकाया वाले ग्राहक ही तगादा सूची में आएंगे।`}
+              {(t.reminders.thresholdDesc || 'Only customers owing ₹{amount} or more will be suggested for reminders.')
+                .replace('{amount}', String(threshold || 0))}
             </p>
           </div>
 
           {/* Section 2: Tone Selection with "Firm (दृढ़)" */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-app-muted mb-2">
-              {language === 'en' ? 'Default Reminder Tone' : language === 'pa' ? 'ਯਾਦ-ਪੱਤਰ ਦਾ ਲਹਿਜ਼ਾ' : 'तगादा का लहज़ा (टोन)'}
+              {t.reminders.toneLabel || 'Default Reminder Tone'}
             </label>
             <div className="grid grid-cols-3 gap-2">
-              {(
-                [
-                  { id: 'polite', labelEn: 'Polite', labelHi: 'Polite (विनम्र)', desc: 'Friendly & soft' },
-                  { id: 'standard', labelEn: 'Standard', labelHi: 'Standard (सामान्य)', desc: 'Clear & regular' },
-                  { id: 'firm', labelEn: 'Firm (दृढ़)', labelHi: 'Firm (दृढ़)', desc: 'Factual & respectful' },
-                ] as const
-              ).map((tOpt) => (
+              {toneOptions.map((tOpt) => (
                 <button
                   key={tOpt.id}
                   type="button"
@@ -215,9 +237,7 @@ export const ReminderSettingsModal: React.FC<ReminderSettingsModalProps> = ({
                       : 'border-gray-200 bg-surface text-app-text hover:bg-gray-50'
                   }`}
                 >
-                  <p className="font-bold text-xs">
-                    {language === 'en' ? tOpt.labelEn : tOpt.labelHi}
-                  </p>
+                  <p className="font-bold text-xs">{tOpt.label}</p>
                   <p className="text-[10px] text-app-muted mt-0.5">{tOpt.desc}</p>
                 </button>
               ))}
@@ -228,21 +248,21 @@ export const ReminderSettingsModal: React.FC<ReminderSettingsModalProps> = ({
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-app-muted flex items-center">
                   <Sparkles className="w-3 h-3 mr-1 text-primary" />
-                  {language === 'en' ? 'Live Message Preview' : language === 'pa' ? 'ਸੁਨੇਹਾ ਪੂਰਵਦਰਸ਼ਨ' : 'मैसेज का लाइव प्रीव्यू'}
+                  {t.reminders.livePreviewLabel || 'Live Message Preview'}
                 </span>
                 <span className="text-[10px] font-mono text-gray-500">
-                  {tone === 'firm' ? 'Firm (दृढ़)' : tone === 'polite' ? 'Polite' : 'Standard'}
+                  {tone === 'firm'
+                    ? (t.reminders.toneFirmLabel || 'Firm (दृढ़)')
+                    : tone === 'polite'
+                    ? (t.reminders.tonePoliteLabel || 'Polite')
+                    : (t.reminders.toneStandardLabel || 'Standard')}
                 </span>
               </div>
               <p className="text-xs text-app-text whitespace-pre-wrap leading-relaxed font-sans bg-white p-2.5 rounded-xl border border-gray-100">
                 {previewMessage}
               </p>
               <p className="text-[10px] text-app-muted mt-1.5 italic">
-                {language === 'en'
-                  ? 'Note: Per-customer tone override takes priority if set on customer profile.'
-                  : language === 'pa'
-                  ? 'ਨੋਟ: ਗਾਹਕ ਪ੍ਰੋਫਾਈਲ ਵਿੱਚ ਚੁਣਿਆ ਵੱਖਰਾ ਲਹਿਜ਼ਾ ਇਸ ਉੱਤੇ ਪਹਿਲ ਲਵੇਗਾ।'
-                  : 'नोट: ग्राहक प्रोफ़ाइल में चुना गया विशिष्ट लहज़ा इस मुख्य सेटिंग से पहले लागू होगा।'}
+                {t.reminders.toneOverrideNote || 'Note: Per-customer tone override takes priority if set on customer profile.'}
               </p>
             </div>
           </div>
@@ -250,35 +270,10 @@ export const ReminderSettingsModal: React.FC<ReminderSettingsModalProps> = ({
           {/* Section 3: Channel Selection (WhatsApp first, SMS fallback) */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-app-muted mb-2">
-              {language === 'en' ? 'Primary Channel' : language === 'pa' ? 'ਭੇਜਣ ਦਾ ਤਰੀਕਾ' : 'मैसेज भेजने का माध्यम'}
+              {t.reminders.channelLabel || 'Primary Channel'}
             </label>
             <div className="space-y-2">
-              {(
-                [
-                  {
-                    id: 'whatsapp_first_sms_fallback',
-                    title: language === 'en' ? 'WhatsApp first, SMS fallback' : language === 'pa' ? 'WhatsApp ਪਹਿਲਾਂ, SMS ਬਦਲ' : 'WhatsApp पहले, SMS विकल्प',
-                    badge: language === 'en' ? 'Recommended' : language === 'pa' ? 'ਸਿਫ਼ਾਰਿਸ਼ ਕੀਤਾ' : 'अनुशंसित',
-                    desc: language === 'en'
-                      ? 'Sends via WhatsApp primary; SMS available as fallback. Never sends twice.'
-                      : language === 'pa'
-                      ? 'ਪਹਿਲਾਂ WhatsApp ਰਾਹੀਂ; SMS ਬਦਲ ਵਜੋਂ ਉਪਲਬਧ। ਕਦੇ ਵੀ ਦੋ ਵਾਰ ਨਹੀਂ ਭੇਜਿਆ ਜਾਂਦਾ।'
-                      : 'पहले WhatsApp खुलेगा; ज़रूरत पड़ने पर SMS। कभी दोहरा मैसेज नहीं जाता।',
-                  },
-                  {
-                    id: 'whatsapp',
-                    title: 'WhatsApp Only',
-                    badge: null,
-                    desc: language === 'en' ? 'Dispatch exclusively via WhatsApp' : language === 'pa' ? 'ਸਿਰਫ਼ WhatsApp' : 'केवल WhatsApp द्वारा भेजें',
-                  },
-                  {
-                    id: 'sms',
-                    title: 'SMS Only',
-                    badge: null,
-                    desc: language === 'en' ? 'Dispatch exclusively via native SMS' : language === 'pa' ? 'ਸਿਰਫ਼ SMS' : 'केवल सामान्य SMS द्वारा भेजें',
-                  },
-                ] as const
-              ).map((ch) => (
+              {channelOptions.map((ch) => (
                 <button
                   key={ch.id}
                   type="button"
@@ -316,18 +311,10 @@ export const ReminderSettingsModal: React.FC<ReminderSettingsModalProps> = ({
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-app-muted mb-2 flex items-center">
               <Calendar className="w-3.5 h-3.5 mr-1 text-primary" />
-              {language === 'en' ? 'Review Schedule (In-App Prompts Only)' : language === 'pa' ? 'ਸਮੀਖਿਆ ਸਮਾਂ-ਸੂਚੀ' : 'समीक्षा शेड्यूल (केवल इन-ऐप प्रॉम्प्ट)'}
+              {t.reminders.scheduleLabel || 'Review Schedule (In-App Prompts Only)'}
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {(
-                [
-                  { id: 'manual', label: language === 'en' ? 'Manual (When needed)' : language === 'pa' ? 'ਮੈਨੂਅਲ (ਜਦੋਂ ਲੋੜ ਹੋਵੇ)' : 'मैन्युअल (जब ज़रूरत हो)' },
-                  { id: 'weekly_sunday', label: language === 'en' ? 'Weekly (Sundays)' : language === 'pa' ? 'ਹਰ ਐਤਵਾਰ' : 'हर रविवार (साप्ताहिक)' },
-                  { id: 'biweekly', label: language === 'en' ? 'Twice a Month' : language === 'pa' ? 'ਮਹੀਨੇ ਵਿੱਚ ਦੋ ਵਾਰ' : 'महीने में 2 बार (15 दिन)' },
-                  { id: 'monthly_1st', label: language === 'en' ? 'Monthly (1st)' : language === 'pa' ? 'ਹਰ ਮਹੀਨੇ 1 ਤਾਰੀਖ' : 'हर महीने की 1 तारीख' },
-                  { id: 'overdue_15d', label: language === 'en' ? 'Overdue 15+ Days' : language === 'pa' ? '15+ ਦਿਨ ਪੁਰਾਣਾ ਬਕਾਇਆ' : '15+ दिन से लंबित उधारी' },
-                ] as const
-              ).map((sch) => (
+              {scheduleOptions.map((sch) => (
                 <button
                   key={sch.id}
                   type="button"
@@ -350,14 +337,10 @@ export const ReminderSettingsModal: React.FC<ReminderSettingsModalProps> = ({
               <Clock className="w-4 h-4 text-primary" />
               <div>
                 <p className="text-xs font-bold text-app-text">
-                  {language === 'en' ? 'Quiet Hours Protection' : language === 'pa' ? 'ਸ਼ਾਂਤ ਸਮਾਂ (ਕੋਈ ਤਗਾਦਾ ਨਹੀਂ)' : 'शांत समय सुरक्षा (नो-डिस्टर्ब)'}
+                  {t.reminders.quietHoursTitle || 'Quiet Hours Protection'}
                 </p>
                 <p className="text-[11px] text-app-muted">
-                  {language === 'en'
-                    ? 'Disables dispatch late at night or early morning'
-                    : language === 'pa'
-                    ? 'ਰਾਤ ਵੇਲੇ ਜਾਂ ਸਵੇਰੇ ਸੁਨੇਹਾ ਭੇਜਣ ਤੋਂ ਰੋਕਦਾ ਹੈ'
-                    : 'देर रात या अलसुबह तगादा भेजने से रोकता है'}
+                  {t.reminders.quietHoursSub || 'Disables dispatch late at night or early morning'}
                 </p>
               </div>
             </div>
@@ -365,7 +348,7 @@ export const ReminderSettingsModal: React.FC<ReminderSettingsModalProps> = ({
             <div className="grid grid-cols-2 gap-3 mt-2">
               <div>
                 <label className="block text-[11px] font-bold text-gray-600 mb-1">
-                  {language === 'en' ? 'Start (e.g. 21:00 / 9 PM)' : language === 'pa' ? 'ਸ਼ੁਰੂ (ਰਾਤ 9 ਵਜੇ)' : 'प्रारंभ (रात 9 बजे)'}
+                  {t.reminders.quietHoursStartLabel || 'Start (e.g. 21:00 / 9 PM)'}
                 </label>
                 <input
                   type="time"
@@ -376,7 +359,7 @@ export const ReminderSettingsModal: React.FC<ReminderSettingsModalProps> = ({
               </div>
               <div>
                 <label className="block text-[11px] font-bold text-gray-600 mb-1">
-                  {language === 'en' ? 'End (e.g. 08:00 / 8 AM)' : language === 'pa' ? 'ਸਮਾਪਤ (ਸਵੇਰੇ 8 ਵਜੇ)' : 'समाप्त (सुबह 8 बजे)'}
+                  {t.reminders.quietHoursEndLabel || 'End (e.g. 08:00 / 8 AM)'}
                 </label>
                 <input
                   type="time"
@@ -393,14 +376,10 @@ export const ReminderSettingsModal: React.FC<ReminderSettingsModalProps> = ({
             <div className="pr-2">
               <p className="text-xs font-bold text-app-text flex items-center">
                 <ShieldCheck className="w-4 h-4 mr-1.5 text-emerald-600" />
-                {language === 'en' ? 'Exempt High-Trust VIPs (Score ≥ 90)' : language === 'pa' ? 'ਭਰੋਸੇਮੰਦ VIP ਗਾਹਕਾਂ ਨੂੰ ਛੋਟ (ਸਕੋਰ ≥ 90)' : 'विश्वसनीय VIP ग्राहकों को छूट (स्कोर ≥ 90)'}
+                {t.reminders.vipExemptLabel || 'Exempt High-Trust VIPs (Score ≥ 90)'}
               </p>
               <p className="text-[11px] text-app-muted mt-0.5">
-                {language === 'en'
-                  ? 'Exempts trusted regulars with score 90+. Customers with no score are never exempt.'
-                  : language === 'pa'
-                  ? '90+ ਸਕੋਰ ਵਾਲੇ ਭਰੋਸੇਯੋਗ ਗਾਹਕਾਂ ਨੂੰ ਛੋਟ। ਜਿਨ੍ਹਾਂ ਦਾ ਸਕੋਰ ਨਹੀਂ ਹੈ, ਉਹ ਛੋਟ ਦੇ ਯੋਗ ਨਹੀਂ ਹਨ।'
-                  : '90+ स्कोर वाले नियमित ग्राहकों को तगादा सूची से अलग रखता है। बिना स्कोर वाले ग्राहकों को छूट नहीं मिलती।'}
+                {t.reminders.vipExemptSub || 'Exempts trusted regulars with score 90+. Customers with no score are never exempt.'}
               </p>
             </div>
             <button
@@ -423,21 +402,17 @@ export const ReminderSettingsModal: React.FC<ReminderSettingsModalProps> = ({
             <div className="pr-2">
               <p className="text-xs font-bold text-app-text flex items-center">
                 <CreditCard className="w-4 h-4 mr-1.5 text-primary" />
-                {language === 'en' ? 'Include Instant UPI Payment Link' : language === 'pa' ? 'ਤੁਰੰਤ UPI ਭੁਗਤਾਨ ਲਿੰਕ ਸ਼ਾਮਲ ਕਰੋ' : 'तुरंत UPI भुगतान लिंक शामिल करें'}
+                {t.reminders.upiToggleLabel || 'Include Instant UPI Payment Link'}
               </p>
               <div className="text-[11px] text-app-muted mt-0.5">
                 {shop.upi_id?.trim() ? (
                   <span>
-                    {language === 'en' ? 'Using shop UPI: ' : language === 'pa' ? 'ਦੁਕਾਨ ਦੀ UPI: ' : 'दुकान का UPI: '}
+                    {t.reminders.upiUsingShop || 'Using shop UPI: '}
                     <span className="font-mono font-bold text-primary">{shop.upi_id}</span>
                   </span>
                 ) : (
                   <span className="text-amber-700 font-bold">
-                    {language === 'en'
-                      ? '⚠️ No shop UPI ID configured yet (messages will omit link)'
-                      : language === 'pa'
-                      ? '⚠️ ਕੋਈ UPI ID ਦਰਜ ਨਹੀਂ ਹੈ'
-                      : '⚠️ दुकान की UPI ID सेट नहीं है (बिना लिंक वाला संदेश जाएगा)'}
+                    {t.reminders.upiMissingNotice || '⚠️ No shop UPI ID configured yet (messages will omit link)'}
                   </span>
                 )}
               </div>
@@ -466,10 +441,10 @@ export const ReminderSettingsModal: React.FC<ReminderSettingsModalProps> = ({
               {savedNotice ? (
                 <>
                   <Check className="w-5 h-5 text-accent" />
-                  <span>{language === 'en' ? 'Settings Saved!' : language === 'pa' ? 'ਸੈਟਿੰਗਾਂ ਸੁਰੱਖਿਅਤ ਕੀਤੀਆਂ ਗਈਆਂ!' : 'सेटिंग्स सहेज ली गईं!'}</span>
+                  <span>{t.reminders.settingsSavedNotice || 'Settings Saved!'}</span>
                 </>
               ) : (
-                <span>{language === 'en' ? 'Save Reminder Settings' : language === 'pa' ? 'ਸੈਟਿੰਗਾਂ ਸੇਵ ਕਰੋ' : 'तगादा सेटिंग्स सहेजें'}</span>
+                <span>{t.reminders.saveSettingsBtn || 'Save Reminder Settings'}</span>
               )}
             </button>
           </div>

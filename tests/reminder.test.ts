@@ -313,4 +313,55 @@ describe('Reminder Service - Safety Rules & Template Engine', () => {
       expect(NATIVE_REVIEW_LANGUAGES).toEqual(['gu', 'mr', 'bn', 'ta', 'te', 'kn', 'ml']);
     });
   });
+
+  describe('10. Punjabi & Indic Localization Completeness', () => {
+    it('provides Gurmukhi translations in Punjabi without Hindi fallback words', async () => {
+      const { pa } = await import('../src/i18n/pa');
+      const paReminders = pa.reminders;
+
+      // Verify specific buttons flagged in user screenshot
+      expect(paReminders.pauseReminders).toBe('ਤਗਾਦਾ ਰੋਕੋ');
+      expect(paReminders.resumeReminders).toBe('ਤਗਾਦਾ ਸ਼ੁਰੂ ਕਰੋ');
+      expect(paReminders.viewMessage).toBe('ਵੇਖੋ');
+      expect(paReminders.hideMessage).toBe('ਲੁਕਾਓ');
+      expect(paReminders.sentTodayTapToResend).toBe('ਭੇਜਿਆ ਗਿਆ (ਮੁੜ ਭੇਜੋ)');
+      expect(paReminders.sendSmsButton).toBe('SMS ਭੇਜੋ');
+      expect(paReminders.withoutUpiLink).toBe('ਬਿਨਾਂ UPI ਲਿੰਕ');
+      expect(paReminders.noPhone).toBe('ਫ਼ੋਨ ਨੰਬਰ ਨਹੀਂ ਹੈ');
+
+      // None of the Punjabi reminder strings should have Devanagari Hindi characters
+      const hindiDevanagariRegex = /[\u0900-\u097F]/;
+      expect(hindiDevanagariRegex.test(paReminders.pauseReminders)).toBe(false);
+      expect(hindiDevanagariRegex.test(paReminders.resumeReminders)).toBe(false);
+      expect(hindiDevanagariRegex.test(paReminders.viewMessage)).toBe(false);
+      expect(hindiDevanagariRegex.test(paReminders.hideMessage)).toBe(false);
+      expect(hindiDevanagariRegex.test(paReminders.sentTodayTapToResend)).toBe(false);
+      expect(hindiDevanagariRegex.test(paReminders.withoutUpiLink)).toBe(false);
+      expect(hindiDevanagariRegex.test(paReminders.noPhone)).toBe(false);
+    });
+  });
+
+  describe('11. Indic Speech Synthesis Transliteration Fallback', () => {
+    it('transliterates Gurmukhi text to Devanagari for Hindi TTS fallback', async () => {
+      const { gurmukhiToDevanagari } = await import('../src/tts/speechSynthesizer');
+      const input = 'ਰਮੇਸ਼ ਕੁਮਾਰ ਲਈ WhatsApp ਯਾਦ-ਪੱਤਰ ਖੋਲ੍ਹਿਆ ਜਾ ਰਿਹਾ ਹੈ।';
+      const output = gurmukhiToDevanagari(input);
+
+      // Must be in Devanagari script so Microsoft Kalpana / Google Hindi voice can speak it naturally
+      expect(output).toContain('रमेश कुमार');
+      expect(output).toContain('लई');
+      expect(output).toContain('WhatsApp');
+      expect(output).toContain('याद-पत्तर');
+      expect(output).toContain('जा रिहा है');
+    });
+
+    it('transliterates Gujarati text to Devanagari for Hindi TTS fallback', async () => {
+      const { gujaratiToDevanagari } = await import('../src/tts/speechSynthesizer');
+      const input = 'રમેશ કુમાર માટે WhatsApp રીમાઇન્ડર';
+      const output = gujaratiToDevanagari(input);
+
+      expect(output).toContain('रमेश कुमार');
+      expect(output).toContain('माटे');
+    });
+  });
 });
