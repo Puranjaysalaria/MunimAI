@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { Customer, Item, Transaction } from '../types/schema';
 import { createSTTProvider, STTProvider } from '../stt';
 import { parseSpeech } from '../parser';
+import { resolveCrossScriptCustomer } from '../voice/crossScriptMatcher';
 import { PendingConfirmation } from '../components/ConfirmationCard/ConfirmationCard';
 import { speechSynthesizer } from '../tts/speechSynthesizer';
 import { playAudioCue, triggerHaptic } from '../lib/sound';
@@ -90,6 +91,22 @@ export function useVoiceController({
       setLiveTranscript(text);
 
       try {
+        if (disambiguationCustomers.length > 0) {
+          const match = resolveCrossScriptCustomer(text, disambiguationCustomers);
+          if (match.matchedCustomer) {
+            handleSelectDisambiguatedCustomer(match.matchedCustomer);
+            return;
+          }
+          if (/\b(first|pehla|ek|1|one|ਪਹਿਲਾ|पहला)\b/i.test(text) && disambiguationCustomers[0]) {
+            handleSelectDisambiguatedCustomer(disambiguationCustomers[0]);
+            return;
+          }
+          if (/\b(second|doosra|do|2|two|ਦੂਜਾ|दूसरा)\b/i.test(text) && disambiguationCustomers[1]) {
+            handleSelectDisambiguatedCustomer(disambiguationCustomers[1]);
+            return;
+          }
+        }
+
         const result = await parseSpeech(text, {
           customers,
           items,
@@ -297,12 +314,38 @@ export function useVoiceController({
         }
 
         if (result.intent === 'show_customer_ledger') {
+          if (result.ambiguousCustomers && result.ambiguousCustomers.length > 1) {
+            triggerHaptic('warning');
+            setDisambiguationCustomers(result.ambiguousCustomers);
+            setPendingConfirmation({
+              intent: 'show_customer_ledger',
+              amount: 0,
+              rawText: text,
+              spokenReply: result.spokenReply,
+            });
+            const disambiguationPrompt =
+              language === 'en'
+                ? 'Which customer?'
+                : language === 'pa'
+                ? 'ਕਿਹੜਾ ਗਾਹਕ?'
+                : 'कौनसा ग्राहक?';
+            speechSynthesizer.speak(result.spokenReply || disambiguationPrompt, language);
+            setVoiceState('idle');
+            return;
+          }
+
           setVoiceState('success');
           onNavigateTab('ledger');
-          if (result.matchedCustomer && onSelectCustomer) {
-            onSelectCustomer(result.matchedCustomer.id);
+          let targetCustomer = result.matchedCustomer;
+          if (!targetCustomer && result.customer) {
+            targetCustomer = customers.find(
+              (c) => c.name.toLowerCase() === result.customer?.toLowerCase()
+            ) || null;
           }
-          const reply = t.voiceCommands.ledgerOpenedReply;
+          if (targetCustomer && onSelectCustomer) {
+            onSelectCustomer(targetCustomer.id);
+          }
+          const reply = result.spokenReply || t.voiceCommands.ledgerOpenedReply;
           lastSpokenTextRef.current = reply;
           speechSynthesizer.speak(reply, language);
           setTimeout(() => setVoiceState('idle'), 1500);
@@ -729,6 +772,20 @@ export function useVoiceController({
   const handleSelectDisambiguatedCustomer = useCallback(
     (customer: Customer) => {
       if (pendingConfirmation) {
+        if (pendingConfirmation.intent === 'show_customer_ledger') {
+          onNavigateTab('ledger');
+          if (onSelectCustomer) {
+            onSelectCustomer(customer.id);
+          }
+          const reply = t.voiceCommands.ledgerOpenedReply;
+          lastSpokenTextRef.current = reply;
+          speechSynthesizer.speak(reply, language);
+          setPendingConfirmation(null);
+          setDisambiguationCustomers([]);
+          setVoiceState('success');
+          setTimeout(() => setVoiceState('idle'), 1500);
+          return;
+        }
         setPendingConfirmation({
           ...pendingConfirmation,
           customer,
@@ -737,7 +794,7 @@ export function useVoiceController({
       }
       setDisambiguationCustomers([]);
     },
-    [pendingConfirmation]
+    [pendingConfirmation, onNavigateTab, onSelectCustomer, t, language]
   );
 
   // Start listening specifically for the confirmation card reply ("Haan" / "Yes" or "Nahi" / "No")

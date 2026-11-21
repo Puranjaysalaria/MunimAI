@@ -59,7 +59,7 @@ const MULTILINGUAL_NUMBER_WORDS: Record<string, number> = {
   'এগারো': 11, 'বারো': 12, 'তেরো': 13, 'চৌদ্দ': 14, 'পনেরো': 15, 'ষোল': 16, 'সতেরো': 17, 'আঠারো': 18, 'উনিশ': 19,
   'কুড়ি': 20, 'বিশ': 20, 'ত্রিশ': 30, 'চল্লিশ': 40, 'পঞ্চাশ': 50, 'ষাট': 60, 'সत्तर': 70, 'আশি': 80, 'নব্বই': 90,
   'শো': 100, 'পাঁচশো': 500, 'হাজার': 1000, 'লাখ': 100000,
-  dui: 2, chhoy: 6, aat: 8, dosh: 10, kudi: 20, bish: 20, sho: 100,
+  dui: 2, chhoy: 6, aat: 8, dosh: 10, kudi: 20, bish: 20, eksho: 100, panchsho: 500,
 
   // Tamil (Tamil + Roman)
   'பூஜ்ஜியம்': 0, 'ஒன்று': 1, 'இரண்டு': 2, 'மூன்று': 3, 'நான்கு': 4, 'ஐந்து': 5, 'ஆறு': 6, 'ஏழு': 7, 'எட்டு': 8, 'ஒன்பது': 9, 'பத்து': 10,
@@ -183,7 +183,7 @@ export function parseMultilingualNumber(text: string): number | null {
   for (const phrase of SORTED_PHRASES) {
     const val = MULTILINGUAL_NUMBER_WORDS[phrase];
     if (phrase.includes(' ') || phrase.includes('-')) {
-      const reg = new RegExp(`(?:^|[^\p{L}\p{M}])${phrase}(?:$|[^\p{L}\p{M}])`, 'iu');
+      const reg = new RegExp(`(?:^|[^\\p{L}\\p{M}])${phrase}(?:$|[^\\p{L}\\p{M}])`, 'iu');
       if (reg.test(normalizedText)) {
         return val;
       }
@@ -201,7 +201,7 @@ export function parseMultilingualNumber(text: string): number | null {
   // 6. Single number word lookup (e.g. 'પાંચસો', 'पाचशे', 'পাঁচশো', 'ஐந்நூறு', 'ಐನೂರು', 'twenty', 'paanch')
   for (const phrase of SORTED_PHRASES) {
     const val = MULTILINGUAL_NUMBER_WORDS[phrase];
-    const reg = new RegExp(`(?:^|[^\p{L}\p{M}])${phrase}(?:$|[^\p{L}\p{M}])`, 'iu');
+    const reg = new RegExp(`(?:^|[^\\p{L}\\p{M}])${phrase}(?:$|[^\\p{L}\\p{M}])`, 'iu');
     if (reg.test(normalizedText)) {
       return val;
     }

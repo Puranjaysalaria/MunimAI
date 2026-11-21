@@ -7,12 +7,25 @@ export const enIntents: LanguagePhraseTable = {
   undoKeywords: ['undo', 'revert', 'take back', 'cancel last'],
   intents: [
     {
+      intent: 'build_order_list',
+      patterns: [
+        /\b(?:order|reorder|buy|get|build|create|list|generate)\s*(?:the\s*)?(?:low\s*r[ui]n+ing|r[ui]n+ing\s*low|r[ui]n+ing\s*out|low\s*stock|out\s*of\s*stock|critical\s*stock)\s*(?:items|stock|goods|products|list)?\b/i,
+        /build\s*(order|supplier)\s*list/i,
+        /create\s*order\s*list/i,
+        /generate\s*order\s*list/i,
+        /\border\s*(?:low\s*stock|low\s*r[ui]n+ing|items\s*running\s*low)\b/i,
+      ],
+      confidence: 0.96,
+    },
+    {
       intent: 'show_low_stock',
       patterns: [
         /show\s*(low|out of|critical)?\s*stock/i,
-        /(low|critical)\s*stock/i,
+        /(?:^|\s)(low|critical)\s*stock/i,
         /stock\s*check/i,
         /what('s|\s+is)\s*(running low|out of stock)/i,
+        /(?:^|\s)(?:low\s*r[ui]n+ing|r[ui]n+ing\s*low|r[ui]n+ing\s*out)\s*(?:items|stock|goods|products)?/i,
+        /items?\s*(?:running\s*low|running\s*out|low\s*running|r[ui]n+ing)/i,
       ],
       confidence: 0.95,
     },
@@ -24,15 +37,6 @@ export const enIntents: LanguagePhraseTable = {
         /submit\s*order/i,
       ],
       confidence: 0.95,
-    },
-    {
-      intent: 'build_order_list',
-      patterns: [
-        /build\s*(order|supplier)\s*list/i,
-        /create\s*order\s*list/i,
-        /generate\s*order\s*list/i,
-      ],
-      confidence: 0.94,
     },
     {
       intent: 'order_item',
@@ -79,10 +83,30 @@ export const enIntents: LanguagePhraseTable = {
       confidence: 0.95,
     },
     {
+      intent: 'today',
+      patterns: [/(?:^|[^\p{L}])(today|today's)(?:$|[^\p{L}])/iu],
+      timeframe: 'today',
+      confidence: 0.92,
+    },
+    {
+      intent: 'yesterday',
+      patterns: [/(?:^|[^\p{L}])(yesterday|yesterday's)(?:$|[^\p{L}])/iu],
+      timeframe: 'yesterday',
+      confidence: 0.92,
+    },
+    {
+      intent: 'this_week',
+      patterns: [/(?:^|[^\p{L}])(this week|weekly)(?:$|[^\p{L}])/iu],
+      timeframe: 'this_week',
+      confidence: 0.92,
+    },
+    {
       intent: 'show_customer_ledger',
       patterns: [
         /open\s+customer\s+(ledger|account|passbook)/i,
         /show\s*(customer)?\s*(ledger|account|passbook)/i,
+        /\b(?:show|open|view|check|get)?\s*(?:the\s*)?(?:customer\s+|user\s+)?(?!(?:today|yesterday|this|last|recent|month|weekly)\b)([a-zA-Z]+)(?:'s|s)?\s*(?:ledger|record|records|account|statement|passbook|details)\b/i,
+        /\b(?:ledger|record|records|account|statement|passbook|details)\s*(?:of|for)\s+(?!(?:today|yesterday|this|last|recent|month|weekly)\b)([a-zA-Z]+)\b/i,
       ],
       confidence: 0.94,
     },
@@ -112,29 +136,11 @@ export const enIntents: LanguagePhraseTable = {
       confidence: 0.92,
     },
     {
-      intent: 'today',
-      patterns: [/(?:^|[^\p{L}])(today|today's)(?:$|[^\p{L}])/iu],
-      timeframe: 'today',
-      confidence: 0.92,
-    },
-    {
-      intent: 'yesterday',
-      patterns: [/(?:^|[^\p{L}])(yesterday|yesterday's)(?:$|[^\p{L}])/iu],
-      timeframe: 'yesterday',
-      confidence: 0.92,
-    },
-    {
-      intent: 'this_week',
-      patterns: [/(?:^|[^\p{L}])(this week|weekly)(?:$|[^\p{L}])/iu],
-      timeframe: 'this_week',
-      confidence: 0.92,
-    },
-    {
       intent: 'open_bill_scan',
       patterns: [
-        /scan\s*(a\s*)?bill/i,
-        /take\s*(a\s*)?photo\s*of\s*bill/i,
-        /bill\s*scanner/i,
+        /\b(?:scan|scanner|photo|picture|pic|camera|upload|take\s*(?:a\s*)?(?:photo|pic|picture)\s*of)\s*(?:the\s*|a\s*|this\s*|my\s*)?(?:bill|receipt|invoice|slip|voucher)\b/i,
+        /\b(?:bill|receipt|invoice|slip|voucher)\s*(?:ko\s*)?(?:the\s*)?(?:scan|scanner|photo|picture|pic|camera|upload)\b/i,
+        /\b(bill\s*scan|scan\s*bill|bill\s*photo|photo\s*of\s*bill|scan\s*invoice|invoice\s*scan|bill\s*camera|camera\s*bill)\b/i,
       ],
       confidence: 0.95,
     },
@@ -143,14 +149,6 @@ export const enIntents: LanguagePhraseTable = {
       patterns: [
         /open\s*(stock|inventory)/i,
         /view\s*(stock|inventory)/i,
-      ],
-      confidence: 0.95,
-    },
-    {
-      intent: 'open_ledger',
-      patterns: [
-        /open\s*ledger/i,
-        /view\s*ledger/i,
       ],
       confidence: 0.95,
     },

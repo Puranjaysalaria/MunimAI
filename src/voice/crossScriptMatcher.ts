@@ -169,19 +169,32 @@ export function levenshteinDistance(a: string, b: string): number {
   return d[m][n];
 }
 
-const QUERY_STOP_WORDS = new Set([
+export const QUERY_STOP_WORDS = new Set([
   'da','di','de','ka','ki','ke','ko','nu','che','er','in','yokka','na','te','khata','khaata',
   'account','ledger','kholo','dikhao','dekho','dakhva','ughada','thira','kaattu','thereyiri','thorisi',
-  'thurakkuka','kaanikkuka','show','open',
-  'ਦਾ','ਦੀ','ਦੇ','ਨੂੰ','ਖਾਤਾ','ਖੋਲ੍ਹੋ','ਲੈਜ਼ਰ',
-  'का','की','के','को','खाता','खोलो','दिखाओ','देखें','लेजर','खाते','उघडा','चा','ची','चे',
-  'ખાતું','ખોલો','નો','ની','નું','લેજર',
-  'খাতা','খুলুন','এর',
-  'கணக்கு','திற','காட்டு',
-  'ఖాతా','తెరువు','చూపించు','యొక్క',
-  'ಖಾತೆ','ತೆರೆಯಿರಿ','ತೋರಿಸಿ',
-  'ഖാത്ത','തുറക്കുക','കാണിക്കുക'
+  'thurakkuka','kaanikkuka','show','open','check','view','of','any','the','a',
+  'record','records','statement','details','history','passbook','profile','info','customer','user','grahak','gaahak','hisaab','hisab',
+  'ਦਾ','ਦੀ','ਦੇ','ਨੂੰ','ਖਾਤਾ','ਖੋਲ੍ਹੋ','ਲੈਜ਼ਰ','ਵੇਖੋ','ਰਿਕਾਰਡ',
+  'का','की','के','को','खाता','खोलो','दिखाओ','देखें','लेजर','खाते','उघडा','चा','ची','चे','रिकॉर्ड','विवरण','हिसाब',
+  'ખાતું','ખોલો','નો','ની','નું','લેજર','જોવો','રેકોર્ડ',
+  'খাতা','খুলুন','এর','দেখাও','রেকর্ড',
+  'கணக்கு','திற','காட்டு','பதிவு',
+  'ఖాతా','తెరువు','చూపించు','యొక్క','రికార్డు',
+  'ಖಾತೆ','ತೆರೆಯಿರಿ','ತೋರಿಸಿ','ದಾಖಲೆ',
+  'ഖാത്ത','തുറക്കുക','കാണിക്കുക','രേഖ'
 ]);
+
+/**
+ * Strips common stop/query words from customer search expressions
+ */
+export function cleanCustomerQuery(text: string): string {
+  if (!text) return '';
+  return text
+    .split(/[\s,]+/)
+    .filter((w) => !QUERY_STOP_WORDS.has(w.toLowerCase()))
+    .join(' ')
+    .trim();
+}
 
 /**
  * Resolves a customer query string across scripts (e.g. "Ramesh", "रमेश", "ਰਮੇਸ਼", "ரமேஷ்", etc.)

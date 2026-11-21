@@ -1,8 +1,7 @@
 import { LanguageCode } from '../i18n/types';
-import { Customer, Item } from '../types/schema';
-import { ValidatedParseResult } from '../parser/types';
+import { Customer, Item, ParseResult } from '../types/schema';
 import { parseMultilingualNumber, parseMultilingualQuantityAndUnit } from './multilingualNumbers';
-import { resolveCrossScriptCustomer, resolveCrossScriptItem } from './crossScriptMatcher';
+import { resolveCrossScriptCustomer, resolveCrossScriptItem, cleanCustomerQuery } from './crossScriptMatcher';
 import { INTENT_TABLES } from './intents';
 import { classifyWithLLM } from './llmIntentClassifier';
 
@@ -20,7 +19,7 @@ export interface IntentRouterOptions {
 export async function routeVoiceIntent(
   rawText: string,
   options: IntentRouterOptions = {}
-): Promise<ValidatedParseResult> {
+): Promise<ParseResult> {
   const language = options.language || 'hi';
   const customers = options.customers || [];
   const items = options.items || [];
@@ -116,13 +115,34 @@ export async function routeVoiceIntent(
 
         let targetTab: 'home' | 'ledger' | 'stock' | 'today' | 'bill_scan' | null = null;
         if (item.intent === 'open_bill_scan') targetTab = 'bill_scan';
-        else if (item.intent === 'open_stock') targetTab = 'stock';
-        else if (item.intent === 'open_ledger') targetTab = 'ledger';
-        else if (item.intent === 'open_today') targetTab = 'today';
+        else if (item.intent === 'open_stock' || item.intent === 'show_low_stock' || item.intent === 'build_order_list' || item.intent === 'order_item') targetTab = 'stock';
+        else if (item.intent === 'open_ledger' || item.intent === 'show_customer_ledger' || item.intent === 'top_debtors') targetTab = 'ledger';
+        else if (item.intent === 'open_today' || item.intent === 'recent_transactions' || item.intent === 'monthly_credit_summary') targetTab = 'today';
+
+        let candidateCustomer: string | undefined = undefined;
+        let matchedCustomerObj: Customer | null = null;
+        let ambigCusts: Customer[] | undefined = undefined;
+
+        if (item.intent === 'show_customer_ledger') {
+          const cleanCust = cleanCustomerQuery(trimmed);
+          if (cleanCust) {
+            candidateCustomer = cleanCust;
+            const res = resolveCrossScriptCustomer(cleanCust, customers);
+            if (res.matchedCustomer) {
+              matchedCustomerObj = res.matchedCustomer;
+              candidateCustomer = res.matchedCustomer.name;
+            } else if (res.ambiguousCustomers.length > 1) {
+              ambigCusts = res.ambiguousCustomers;
+            }
+          }
+        }
 
         return {
           intent: item.intent,
           confidence: item.confidence || 0.9,
+          customer: candidateCustomer,
+          matchedCustomer: matchedCustomerObj,
+          ambiguousCustomers: ambigCusts,
           language,
           rawText: trimmed,
           targetTab,
@@ -143,13 +163,34 @@ export async function routeVoiceIntent(
         if (pattern.test(trimmed)) {
           let targetTab: 'home' | 'ledger' | 'stock' | 'today' | 'bill_scan' | null = null;
           if (item.intent === 'open_bill_scan') targetTab = 'bill_scan';
-          else if (item.intent === 'open_stock') targetTab = 'stock';
-          else if (item.intent === 'open_ledger') targetTab = 'ledger';
-          else if (item.intent === 'open_today') targetTab = 'today';
+          else if (item.intent === 'open_stock' || item.intent === 'show_low_stock' || item.intent === 'build_order_list' || item.intent === 'order_item') targetTab = 'stock';
+          else if (item.intent === 'open_ledger' || item.intent === 'show_customer_ledger' || item.intent === 'top_debtors') targetTab = 'ledger';
+          else if (item.intent === 'open_today' || item.intent === 'recent_transactions' || item.intent === 'monthly_credit_summary') targetTab = 'today';
+
+          let candidateCustomer: string | undefined = undefined;
+          let matchedCustomerObj: Customer | null = null;
+          let ambigCusts: Customer[] | undefined = undefined;
+
+          if (item.intent === 'show_customer_ledger') {
+            const cleanCust = cleanCustomerQuery(trimmed);
+            if (cleanCust) {
+              candidateCustomer = cleanCust;
+              const res = resolveCrossScriptCustomer(cleanCust, customers);
+              if (res.matchedCustomer) {
+                matchedCustomerObj = res.matchedCustomer;
+                candidateCustomer = res.matchedCustomer.name;
+              } else if (res.ambiguousCustomers.length > 1) {
+                ambigCusts = res.ambiguousCustomers;
+              }
+            }
+          }
 
           return {
             intent: item.intent,
             confidence: (item.confidence || 0.9) * 0.9,
+            customer: candidateCustomer,
+            matchedCustomer: matchedCustomerObj,
+            ambiguousCustomers: ambigCusts,
             language,
             rawText: trimmed,
             targetTab,
@@ -169,13 +210,34 @@ export async function routeVoiceIntent(
         if (pattern.test(trimmed)) {
           let targetTab: 'home' | 'ledger' | 'stock' | 'today' | 'bill_scan' | null = null;
           if (item.intent === 'open_bill_scan') targetTab = 'bill_scan';
-          else if (item.intent === 'open_stock') targetTab = 'stock';
-          else if (item.intent === 'open_ledger') targetTab = 'ledger';
-          else if (item.intent === 'open_today') targetTab = 'today';
+          else if (item.intent === 'open_stock' || item.intent === 'show_low_stock' || item.intent === 'build_order_list' || item.intent === 'order_item') targetTab = 'stock';
+          else if (item.intent === 'open_ledger' || item.intent === 'show_customer_ledger' || item.intent === 'top_debtors') targetTab = 'ledger';
+          else if (item.intent === 'open_today' || item.intent === 'recent_transactions' || item.intent === 'monthly_credit_summary') targetTab = 'today';
+
+          let candidateCustomer: string | undefined = undefined;
+          let matchedCustomerObj: Customer | null = null;
+          let ambigCusts: Customer[] | undefined = undefined;
+
+          if (item.intent === 'show_customer_ledger') {
+            const cleanCust = cleanCustomerQuery(trimmed);
+            if (cleanCust) {
+              candidateCustomer = cleanCust;
+              const res = resolveCrossScriptCustomer(cleanCust, customers);
+              if (res.matchedCustomer) {
+                matchedCustomerObj = res.matchedCustomer;
+                candidateCustomer = res.matchedCustomer.name;
+              } else if (res.ambiguousCustomers.length > 1) {
+                ambigCusts = res.ambiguousCustomers;
+              }
+            }
+          }
 
           return {
             intent: item.intent,
             confidence: (item.confidence || 0.9) * 0.88,
+            customer: candidateCustomer,
+            matchedCustomer: matchedCustomerObj,
+            ambiguousCustomers: ambigCusts,
             language,
             rawText: trimmed,
             targetTab,
@@ -198,6 +260,7 @@ export async function routeVoiceIntent(
     return {
       intent: 'show_customer_ledger',
       customer: matchedCustomer.name,
+      matchedCustomer: matchedCustomer,
       confidence: 0.9,
       language,
       rawText: trimmed,
@@ -205,9 +268,11 @@ export async function routeVoiceIntent(
   }
 
   if (ambiguousCustomers.length > 1 && !amount && !quantity) {
+    const cleanCust = cleanCustomerQuery(trimmed);
     return {
       intent: 'show_customer_ledger',
-      customer: trimmed,
+      customer: cleanCust || trimmed,
+      ambiguousCustomers: ambiguousCustomers,
       confidence: 0.75,
       language,
       rawText: trimmed,

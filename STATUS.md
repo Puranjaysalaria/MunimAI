@@ -108,3 +108,21 @@
     - 470/470 unit tests passing in `vitest`.
     - Zero TypeScript errors in `tsc --noEmit`.
     - 100% i18n coverage across all 10 locales (404 keys).
+- [x] **Step 13: Resilient Voice Intent Matching (Bill Scan, Customer Ledger Records, Low Running Items)**
+  - **Area 1: Bill Scan Recognition**:
+    - Expanded regex and intent tables in `src/parser/ruleParser.ts`, `src/voice/intents/en.ts`, and `src/voice/intents/hi.ts` to support all natural variations: "Scan the Bill", "scan a bill", "take photo of bill", "scan invoice", "bill scanner", "बिल स्कैन करो", "बिल की फोटो खींचो".
+    - Eliminated previous restriction requiring exact phrase `scan bill` without articles like `the`.
+  - **Area 2: Customer Ledger Inquiries & Disambiguation**:
+    - Fixed `show` multilingual number word collision where `sho` matched `show` as 100, polluting `amount`.
+    - Removed `record` from `isYesWord` so queries like `show ledger record of Ramesh` never trigger confirmation `yes`.
+    - Added comprehensive stop-word stripping (`cleanCustomerQuery`) so disambiguation prompts speak `"Which Ramesh?"` rather than echoing the full sentence `"Which show ledger record of Ramesh?"`.
+    - Wired `useVoiceController.ts` to navigate to ledger and select the specific customer on both direct matches and disambiguation card taps/spoken replies.
+    - Added generic ledger bypass check so customer qualifiers (`of <name>`, `<name> ledger`, `<name> record`) never trigger generic `open_ledger`.
+  - **Area 3: Low Running Items & Supplier Ordering**:
+    - Disambiguated `build_order_list` (ordering/buying low stock) from `show_low_stock` (viewing inventory status) across rule parser and all phrase tables.
+    - Added phonetic and typo tolerance for `r[ui]n+ing` ("order low running items", "order low rinnning items", "low running items").
+    - Positioned `build_order_list` before `show_low_stock` so ordering intents take precedence over passive inspection.
+  - **Verification**:
+    - 486/486 unit tests passing in `vitest` (including 16 new dedicated tests in `tests/userQueriesTest.test.ts`).
+    - Zero TypeScript errors in `tsc --noEmit`.
+    - 100% i18n coverage across all 10 locales (404 keys).

@@ -89,7 +89,7 @@ export function parseWithRules(
 
   // Multi-lingual & multi-script Yes / No recognition
   const isYesWord = (t: string) =>
-    /\b(haan|ha|haa|aaho|yes|yeah|yup|yep|sure|ok|okay|confirm|save|record|done|correct|right|likh\s*do|likh\s*deo|theek\s*hai|theek|save\s*kar\s*do|kar\s*do|bilkul|ho|sari|aam|avunu|haudu|athe)\b/i.test(t) ||
+    /\b(haan|ha|haa|aaho|yes|yeah|yup|yep|sure|ok|okay|confirm|save|done|correct|right|likh\s*do|likh\s*deo|theek\s*hai|theek|save\s*kar\s*do|kar\s*do|bilkul|ho|sari|aam|avunu|haudu|athe)\b/i.test(t) ||
     /(?:^|\s|[^\p{L}\p{N}])(हाँ|हां|हाँजी|जी\s*हाँ|लिख\s*दो|लिख\s*लो|कर\s*दो|ठीक\s*है|सही\s*है|ਹਾਂ|ਹਾਂਜੀ|ਜੀ\s*ਹਾਂ|ਆਹੋ|ਲਿਖ\s*ਦਿਓ|ਠੀਕ\s*ਹੈ|હા|होय|हो|হ্যাঁ|ஆம்|சரி|అవును|సరే|ಹೌದು|ಅതെ)(?:$|\s|[^\p{L}\p{N}])/u.test(t);
 
   const isNoWord = (t: string) =>
@@ -98,7 +98,8 @@ export function parseWithRules(
 
   // Confirmation YES: "Haan" / "Haan likh do" / "Aaho" / "हाँ" (only if not an explicit credit entry or item/customer present)
   const hasCustomerMarker = /\b(ko|ne|nu|ke\s*khate)\b/i.test(lower) || /(को|ने|ਨੂੰ)/.test(lower) || /(को|ने|ਨੂੰ)/.test(rawTrimmed);
-  if (!isCreditPhrase && !isPaymentPhrase && !amount && !firstItem && !hasCustomerMarker) {
+  const isQueryPhrase = /\b(ledger|khata|record|records|statement|details|passbook|bill|scan|stock|order|list|show|open|view|check|dikhao|kholo)\b/i.test(lower);
+  if (!isCreditPhrase && !isPaymentPhrase && !amount && !firstItem && !hasCustomerMarker && !isQueryPhrase) {
     if ((isYesWord(lower) || isYesWord(rawTrimmed)) && !isNoWord(lower) && !isNoWord(rawTrimmed)) {
       return {
         intent: 'confirm_yes',
@@ -147,9 +148,11 @@ export function parseWithRules(
     };
   }
 
-  // Navigation: Open Bill Scan ("Bill scan karo", "Bill se price update karo", "Bill ki photo lagani hai")
+  // Navigation: Open Bill Scan ("Bill scan karo", "Scan the bill", "Scan a bill", "Bill se price update karo", "Bill ki photo lagani hai")
   if (
-    /\b(bill\s*scan|scan\s*bill|bill\s*se\s*price|bill\s*ki\s*photo|bill\s*di\s*photo|bill\s*photo|parcha\s*scan|photo\s*of\s*bill|scan\s*invoice|invoice\s*scan|bill\s*se\s*rate|bill\s*camera|camera\s*bill|open\s*bill\s*camera)\b/i.test(lower) ||
+    /\b(?:scan|scanner|photo|picture|pic|camera|upload|take\s*(?:a\s*)?(?:photo|pic|picture)\s*of|kheencho|kheenchiye|click)\s*(?:the\s*|a\s*|this\s*|my\s*)?(?:bill|receipt|invoice|slip|parcha|voucher)\b/i.test(lower) ||
+    /\b(?:bill|receipt|invoice|slip|parcha|voucher)\s*(?:ko\s*)?(?:the\s*)?(?:scan|scanner|photo|picture|pic|camera|upload|kheencho|kheenchiye|lagao|lagani|update|dekho)\b/i.test(lower) ||
+    /\b(bill\s*scan|scan\s*bill|bill\s*se\s*price|bill\s*ki\s*photo|bill\s*di\s*photo|bill\s*photo|parcha\s*scan|photo\s*of\s*bill|scan\s*invoice|invoice\s*scan|bill\s*se\s*rate|bill\s*camera|camera\s*bill|open\s*bill\s*camera|bill\s*kheencho)\b/i.test(lower) ||
     /(ਬਿੱਲ\s*ਸਕੈਨ|ਬਿੱਲ\s*ਦੀ\s*ਫੋਟੋ|ਬਿਲ\s*ਸਕੈਨ)/.test(rawTrimmed) ||
     /(बिल\s*स्कैन|बिल\s*की\s*फोटो|बिल\s*से\s*रेट|बिल\s*से\s*प्राइस|पर्चा\s*स्कैन)/.test(rawTrimmed)
   ) {
@@ -190,10 +193,19 @@ export function parseWithRules(
   }
 
   // Navigation: Open Customer Ledger ("Ledger kholo", "Khata kholo", "Udhaar khata dikhao")
+  const hasCustomerQualifier =
+    /\b(?:of|for|ka|ki|ke|da|di|de)\s+[a-zA-Z\u0900-\u097F]+/i.test(lower) ||
+    context.customers.some((c) => {
+      const first = c.name.split(/\s+/)[0].toLowerCase();
+      return first.length >= 2 && new RegExp(`(^|\\s)${first}(\\s|$)`, 'i').test(lower);
+    });
+
   if (
+    !hasCustomerQualifier && (
     /\b(ledger\s*kholo|khata\s*kholo|udhaar\s*khata\s*dikhao|udhaar\s*khata\s*kholo|udhar\s*khata\s*dikhao|udhar\s*khata\s*kholo|bahi\s*khata\s*kholo|bahi\s*khata\s*open|open\s*(?:customer\s*)?ledger|show\s*(?:customer\s*)?ledger|go\s*to\s*(?:customer\s*)?ledger|go\s*to\s*khata|show\s*khata|open\s*khata|ledger\s*screen|ledger\s*tab)\b/i.test(lower) ||
     /(ਖਾਤਾ\s*ਖੋਲ੍ਹੋ|ਬਹੀ[- ]?ਖਾਤਾ\s*ਖੋਲ੍ਹੋ|ਉਧਾਰ\s*ਖਾਤਾ\s*ਦਿਖਾਓ|ਉਧਾਰ\s*ਖਾਤਾ\s*ਖੋਲ੍ਹੋ)/.test(rawTrimmed) ||
     /(खाता\s*खोलो|बही[- ]?खाता\s*खोलो|उधार\s*खाता\s*दिखाओ|उधार\s*खाता\s*खोलो|लेजर\s*खोलो)/.test(rawTrimmed)
+    )
   ) {
     return {
       intent: 'open_ledger',
@@ -207,6 +219,35 @@ export function parseWithRules(
           : detectedLang === 'pa'
           ? 'ਬਹੀ-ਖਾਤਾ ਖੋਲ੍ਹਿਆ ਗਿਆ'
           : 'खाता खोला गया',
+    };
+  }
+
+  // Supplier Orders / Low Running Items: "Order low running items", "Order low stock", "Low running items", "Kam stock order karo"
+  if (
+    !firstItem && (
+    /\b(?:order|reorder|buy|get|list|create|build|generate)?\s*(?:the\s*)?(?:low\s*r[ui]n+ing|r[ui]n+ing\s*low|r[ui]n+ing\s*out|low\s*stock|out\s*of\s*stock|critical\s*stock|kam\s*stock|ghatt\s*stock|khatam\s*stock)\s*(?:items|stock|maal|goods|products|list)?\b/i.test(lower) ||
+    /\b(?:low\s*r[ui]n+ing|r[ui]n+ing\s*low|r[ui]n+ing\s*out)\s*(?:items|stock|goods|products)?\b/i.test(lower)
+    )
+  ) {
+    const isOrdering = /\b(order\s*banao|order\s*bana)\b/i.test(lower);
+    const isOrderAction = /\b(order|reorder|buy|build|create|list|supplier|sheet|bhejo)\b/i.test(lower);
+    return {
+      intent: isOrdering ? 'ordering' : isOrderAction ? 'build_order_list' : 'show_low_stock',
+      targetTab: 'stock',
+      confidence: 0.98,
+      language: detectedLang,
+      rawText: text,
+      spokenReply: isOrdering || isOrderAction
+        ? (detectedLang === 'en'
+            ? 'Building supplier order list for low stock items'
+            : detectedLang === 'pa'
+            ? 'ਘੱਟ ਸਟਾਕ ਦਾ ਆਰਡਰ ਤਿਆਰ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ'
+            : 'कम स्टॉक का सप्लायर ऑर्डर तैयार किया जा रहा है')
+        : (detectedLang === 'en'
+            ? 'Showing low stock items'
+            : detectedLang === 'pa'
+            ? 'ਘੱਟ ਸਟਾਕ ਦਿਖਾਇਆ ਜਾ ਰਿਹਾ ਹੈ'
+            : 'कम स्टॉक वाले सामान दिखाए जा रहे हैं'),
     };
   }
 
@@ -411,13 +452,25 @@ export function parseWithRules(
     }
   }
 
-  // Next check English prepositions: for/to/from/by <name>
+  // Next check English prepositions: for/to/from/by/of/about <name>
   if (!matchedCustomerName) {
-    const prepPattern = /(?:^|\s)(?:for|to|from|by)\s+([a-zA-Z\u0900-\u097F]+)\b/i;
+    const prepPattern = /(?:^|\s)(?:for|to|from|by|of|about)\s+(?:customer\s+|user\s+)?([a-zA-Z\u0900-\u097F]+)\b/i;
     const match = text.match(prepPattern);
     if (match) {
       const candidate = match[1].trim();
-      if (!['aaj', 'kal', 'today', 'cash', 'loan', 'credit', 'me', 'him', 'her', 'store', 'the'].includes(candidate.toLowerCase())) {
+      if (!['aaj', 'kal', 'today', 'cash', 'loan', 'credit', 'me', 'him', 'her', 'store', 'the', 'bill', 'receipt', 'item', 'items', 'ledger', 'record', 'records'].includes(candidate.toLowerCase())) {
+        matchedCustomerName = candidate;
+      }
+    }
+  }
+
+  // Next check ledger inquiry with customer name: "show <name> ledger", "<name> ledger", "<name> record", "<name> ka khata", "ledger of <name>", "record of <name>"
+  if (!matchedCustomerName) {
+    const ledgerCustPattern = /(?:(?:show|open|view|check|dikhao|kholo|dekho)?\s*(?:ledger|khata|record|records|statement|details|passbook|hisab)\s*(?:of|for|ka|ki|ke|da|di|de)?\s+([a-zA-Z\u0900-\u097F]+)|([a-zA-Z\u0900-\u097F]+)(?:'s|s)?\s*(?:ka|ki|ke|da|di|de)?\s*(?:ledger|khata|record|records|statement|details|passbook|hisab))/i;
+    const match = text.trim().match(ledgerCustPattern);
+    if (match) {
+      const candidate = (match[1] || match[2] || '').trim();
+      if (candidate && !['the', 'a', 'any', 'my', 'all', 'customer', 'user', 'grahak', 'gaahak', 'show', 'open', 'view', 'check', 'record', 'ledger'].includes(candidate.toLowerCase())) {
         matchedCustomerName = candidate;
       }
     }
@@ -480,6 +533,30 @@ export function parseWithRules(
         break;
       }
     }
+  }
+
+  // 4b. Customer Ledger Inquiry: e.g. "Ramesh ka khata", "Show Ramesh ledger", "Ramesh record", "Open Ramesh account"
+  const isLedgerInquiry =
+    /\b(?:ledger|khata|bahi\s*khata|account|record|records|statement|details|passbook|history|entries|transactions?|hisab|hisaab)\b/i.test(lower) ||
+    /\b(?:show|open|view|check|dikhao|kholo|dekho)\b/i.test(lower) ||
+    /(ਖਾਤਾ|ਬਹੀ[- ]?ਖਾਤਾ|ਲੈਜ਼ਰ|ਰਿਕਾਰਡ|ਵੇਰਵੇ|ਵੇਖੋ|ਖੋਲ੍ਹੋ)/.test(rawTrimmed) ||
+    /(खाता|बही[- ]?खाता|लेजर|रिकॉर्ड|विवरण|हिसाब|पासबुक|दिखाओ|खोलो|देखें)/.test(rawTrimmed);
+
+  if (matchedCustomerName && isLedgerInquiry && !isPaymentPhrase && !isCreditPhrase && !isSalePhrase && !amount) {
+    return {
+      intent: 'show_customer_ledger',
+      customer: matchedCustomerName,
+      targetTab: 'ledger',
+      confidence: 0.98,
+      language: detectedLang,
+      rawText: text,
+      spokenReply:
+        detectedLang === 'en'
+          ? `Opening ${matchedCustomerName}'s ledger`
+          : detectedLang === 'pa'
+          ? `${matchedCustomerName} ਦਾ ਖਾਤਾ ਖੋਲ੍ਹਿਆ ਗਿਆ`
+          : `${matchedCustomerName} का खाता खोला गया`,
+    };
   }
 
   // 5. Payment Received Intent: "Ramesh Sharma ne 200 diye" / "diye" / "jama" / "wapis kite"

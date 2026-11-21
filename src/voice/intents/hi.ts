@@ -7,6 +7,18 @@ export const hiIntents: LanguagePhraseTable = {
   undoKeywords: ['wapas karo', 'hatao', 'undo', 'cancel', 'वापस करो', 'हटाओ'],
   intents: [
     {
+      intent: 'build_order_list',
+      patterns: [
+        /(?:कम\s*स्टॉक|खत्म\s*स्टॉक|kam\s*stock|low\s*stock|low\s*r[ui]n+ing)\s*.*(?:order|आर्डर|ऑर्डर|बनाओ|list|लिस्ट)/iu,
+        /(?:order|आर्डर|ऑर्डर)\s*.*(?:कम\s*स्टॉक|खत्म\s*स्टॉक|kam\s*stock|low\s*stock|low\s*r[ui]n+ing)/iu,
+        /order\s*(list|suchi|parcha)\s*(banao|tayyar)/iu,
+        /(ऑर्डर|आर्डर)\s*(लिस्ट|सूची|पर्चा)\s*(बनाओ|तैयार)/iu,
+        /(सप्लायर|समान)\s*का?\s*(आर्डर|ऑर्डर)\s*(बनाओ|लिस्ट)/iu,
+        /list\s*banao/iu,
+      ],
+      confidence: 0.96,
+    },
+    {
       intent: 'show_low_stock',
       patterns: [
         /(kam|low|khatam|kamti)\s*(stock|maal|samana?|item)/iu,
@@ -23,16 +35,6 @@ export const hiIntents: LanguagePhraseTable = {
         /(ऑर्डर|आर्डर)\s*(भेज दो|भेजो|सेंड करो)/iu,
       ],
       confidence: 0.95,
-    },
-    {
-      intent: 'build_order_list',
-      patterns: [
-        /order\s*(list|suchi|parcha)\s*(banao|tayyar)/iu,
-        /(ऑर्डर|आर्डर)\s*(लिस्ट|सूची|पर्चा)\s*(बनाओ|तैयार)/iu,
-        /(सप्लायर|समान)\s*का?\s*(आर्डर|ऑर्डर)\s*(बनाओ|लिस्ट)/iu,
-        /list\s*banao/iu,
-      ],
-      confidence: 0.94,
     },
     {
       intent: 'order_item',
@@ -70,10 +72,30 @@ export const hiIntents: LanguagePhraseTable = {
       confidence: 0.95,
     },
     {
+      intent: 'today',
+      patterns: [/(?:^|[^\p{L}])(aaj|aaj ka|today|आज|आज\s*का)(?:$|[^\p{L}])/iu],
+      timeframe: 'today',
+      confidence: 0.9,
+    },
+    {
+      intent: 'yesterday',
+      patterns: [/(?:^|[^\p{L}])(kal|kal ka|yesterday|कल|कल\s*का|बीता\s*कल)(?:$|[^\p{L}])/iu],
+      timeframe: 'yesterday',
+      confidence: 0.9,
+    },
+    {
+      intent: 'this_week',
+      patterns: [/(?:^|[^\p{L}])(is hafte|hafta|this week|इस\s*हफ्ते|हफ्ते\s*का)(?:$|[^\p{L}])/iu],
+      timeframe: 'this_week',
+      confidence: 0.9,
+    },
+    {
       intent: 'show_customer_ledger',
       patterns: [
         /(khata|ledger|passbook|खाता|लेजर|पासबुक)\s*(kholo|dikhao|dekho|खोलो|दिखाओ|देखें)/iu,
-        /(ग्राहक|customer)\s*का?\s*(लेजर|खाता|हिसाब)/iu,
+        /(ग्राहक|customer)\s*का?\s*(लेजर|खाता)/iu,
+        /(?!(?:aaj|kal|aakhri|pichhle|mahine|is\s*hafte|आज|कल|आखरी|पिछले|महीने|इस\s*हफ्ते|कुल|दिन|sabse|top)\b)([a-zA-Z\u0900-\u097F]+)\s*(?:ka|ki|ke|का|की|के)?\s*(?:khata|ledger|record|passbook|खाता|लेजर|रिकॉर्ड|पासबुक)/iu,
+        /(?:khata|ledger|record|खाता|लेजर|रिकॉर्ड)\s*(?:dikhao|kholo|dekho|दिखाओ|खोलो|देखें)/iu,
       ],
       confidence: 0.92,
     },
@@ -103,26 +125,10 @@ export const hiIntents: LanguagePhraseTable = {
       confidence: 0.92,
     },
     {
-      intent: 'today',
-      patterns: [/(?:^|[^\p{L}])(aaj|aaj ka|today|आज|आज\s*का)(?:$|[^\p{L}])/iu],
-      timeframe: 'today',
-      confidence: 0.9,
-    },
-    {
-      intent: 'yesterday',
-      patterns: [/(?:^|[^\p{L}])(kal|kal ka|yesterday|कल|कल\s*का|बीता\s*कल)(?:$|[^\p{L}])/iu],
-      timeframe: 'yesterday',
-      confidence: 0.9,
-    },
-    {
-      intent: 'this_week',
-      patterns: [/(?:^|[^\p{L}])(is hafte|hafta|this week|इस\s*हफ्ते|हफ्ते\s*का)(?:$|[^\p{L}])/iu],
-      timeframe: 'this_week',
-      confidence: 0.9,
-    },
-    {
       intent: 'open_bill_scan',
       patterns: [
+        /(?:scan|स्कैन|फोटो|photo|camera|कैमरा|खींचो|kheecho)\s*(?:the\s*|a\s*|का\s*|की\s*)?(?:bill|receipt|invoice|बिल|पर्चा|रसीद)/iu,
+        /(?:bill|receipt|invoice|बिल|पर्चा|रसीद)\s*(?:का\s*|की\s*|को\s*)?(?:scan|स्कैन|photo|फोटो|खींचो|kheecho|camera|कैमरा)/iu,
         /bill\s*(scan|kheecho|photo|camera)/iu,
         /बिल\s*(स्कैन|फोटो|खींचो)/iu,
       ],
