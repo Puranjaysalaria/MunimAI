@@ -164,6 +164,7 @@ export const pa: Translations = {
     stockLowBadge: 'ਘੱਟ',
     sellingPrice: 'ਵੇਚ ਮੁੱਲ',
     costPrice: 'ਲਾਗਤ',
+    mrp: 'ਐਮਆਰਪੀ (MRP)',
     costHidden: 'ਲਾਗਤ ਗੁਪਤ',
     thresholdLimit: 'ਸੀਮਾ',
     perDay: 'ਦਿਨ',

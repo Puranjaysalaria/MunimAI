@@ -33,6 +33,8 @@ function normalizeUnit(unitStr?: string): ItemUnit {
 
 export async function parseBillPhotoWithGemini(imageDataUrl: string): Promise<BillOcrResult> {
   const apiKey = (import.meta.env.VITE_GEMINI_API_KEY || '').trim();
+  const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
+  const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
 
   // Strip prefix data:image/...;base64,
   let mimeType = 'image/jpeg';
@@ -41,6 +43,44 @@ export async function parseBillPhotoWithGemini(imageDataUrl: string): Promise<Bi
   if (match) {
     mimeType = match[1];
     base64Data = match[2];
+  }
+
+  // 1. Try server-side Supabase Edge Function first if available
+  if (supabaseUrl && !supabaseUrl.includes('your-project')) {
+    try {
+      const edgeRes = await fetch(`${supabaseUrl}/functions/v1/bill-ocr`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${supabaseAnonKey}`,
+        },
+        body: JSON.stringify({ imageBase64: base64Data, mimeType }),
+      });
+      if (edgeRes.ok) {
+        const edgeData = await edgeRes.json();
+        if (edgeData.items && Array.isArray(edgeData.items)) {
+          const items: ExtractedBillItem[] = edgeData.items.map((it: any, idx: number) => ({
+            id: `bill-item-${idx + 1}-${Date.now()}`,
+            name: it.name || `Item ${idx + 1}`,
+            quantity: Number(it.quantity) || 1,
+            unit: normalizeUnit(it.unit),
+            price: Number(it.price) || 0,
+            mrp: it.mrp ? Number(it.mrp) : Number(it.price) || 0,
+            selected: true,
+            priceType: 'cost',
+          }));
+          return {
+            success: true,
+            storeName: edgeData.storeName || 'Local Store Receipt',
+            totalAmount: Number(edgeData.totalAmount) || items.reduce((acc, i) => acc + i.price * i.quantity, 0),
+            items,
+          };
+        }
+      }
+    } catch {
+      // Fall through to client API key or offline mock
+    }
   }
 
   if (apiKey) {

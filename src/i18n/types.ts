@@ -174,6 +174,7 @@ export interface Translations {
     stockLowBadge: string;
     sellingPrice: string;
     costPrice: string;
+    mrp: string;
     costHidden: string;
     thresholdLimit: string;
     perDay: string;

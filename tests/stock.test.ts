@@ -174,4 +174,13 @@ describe('Phase 5: Payment Received Intent & Voice Disambiguation', () => {
     const res = parseWithRules('Aaj kitni kamai hui?', context);
     expect(res.intent).toBe('summary');
   });
+
+  it('verifies that items support MRP and MRP is greater than or equal to selling price', () => {
+    expect(INITIAL_ITEMS.length).toBeGreaterThan(0);
+    INITIAL_ITEMS.forEach((it) => {
+      expect(it.mrp).toBeDefined();
+      expect(it.mrp).toBeGreaterThanOrEqual(it.selling_price);
+      expect(it.selling_price).toBeGreaterThanOrEqual(it.cost_price);
+    });
+  });
 });

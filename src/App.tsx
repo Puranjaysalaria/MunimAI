@@ -37,6 +37,7 @@ import {
 import { useI18n } from './i18n';
 import { Mic } from 'lucide-react';
 import { triggerHaptic } from './lib/sound';
+import { webSpeechWakeWordProvider } from './voice/wakeWord/webSpeechWakeWordProvider';
 
 export const AppContent: React.FC = () => {
   const {
@@ -237,6 +238,23 @@ export const AppContent: React.FC = () => {
       }
     },
   });
+
+  // Hands-free "Munim" wake word detection when enabled in shop settings
+  React.useEffect(() => {
+    if (shop.settings?.wake_word_enabled && !voice.isListening) {
+      const wakeLang = language === 'pa' ? 'pa-IN' : language === 'en' ? 'en-IN' : 'hi-IN';
+      webSpeechWakeWordProvider.startListening({ language: wakeLang }, () => {
+        triggerHaptic('start');
+        voice.startListening();
+      });
+    } else {
+      webSpeechWakeWordProvider.stopListening();
+    }
+
+    return () => {
+      webSpeechWakeWordProvider.stopListening();
+    };
+  }, [shop.settings?.wake_word_enabled, voice.isListening, language]);
 
   if (!isLoggedIn) {
     return <Auth />;

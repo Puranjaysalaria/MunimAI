@@ -52,4 +52,17 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-ui': ['framer-motion', 'lucide-react', 'canvas-confetti'],
+          'vendor-supabase': ['@supabase/supabase-js', 'idb'],
+          'vendor-zod': ['zod'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 850,
+  },
 });

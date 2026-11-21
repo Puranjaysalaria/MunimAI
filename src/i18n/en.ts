@@ -164,6 +164,7 @@ export const en: Translations = {
     stockLowBadge: 'Low',
     sellingPrice: 'Selling',
     costPrice: 'Cost',
+    mrp: 'MRP',
     costHidden: 'Cost Hidden',
     thresholdLimit: 'Min Limit',
     perDay: 'day',

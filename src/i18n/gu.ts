@@ -164,6 +164,7 @@ export const gu: Translations = {
     stockLowBadge: 'ઓછો',
     sellingPrice: 'વેચાણ',
     costPrice: 'પડતર',
+    mrp: 'એમઆરપી (MRP)',
     costHidden: 'પડતર છુપી',
     thresholdLimit: 'મર્યાદા',
     perDay: 'દિવસ',

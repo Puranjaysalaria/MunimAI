@@ -164,6 +164,7 @@ export const hi: Translations = {
     stockLowBadge: 'कम',
     sellingPrice: 'बिक्री',
     costPrice: 'लागत',
+    mrp: 'एमआरपी (MRP)',
     costHidden: 'लागत गुप्त',
     thresholdLimit: 'सीमा',
     perDay: 'दिन',

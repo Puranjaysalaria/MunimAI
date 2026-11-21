@@ -164,6 +164,7 @@ export const ml: Translations = {
     stockLowBadge: 'കുറവ്',
     sellingPrice: 'വിൽപ്പന വില',
     costPrice: 'വാങ്ങിയ വില',
+    mrp: 'എംആർപി (MRP)',
     costHidden: 'വില രഹസ്യം',
     thresholdLimit: 'പരിധി',
     perDay: 'ദിവസം',

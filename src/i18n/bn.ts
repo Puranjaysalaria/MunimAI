@@ -164,6 +164,7 @@ export const bn: Translations = {
     stockLowBadge: 'কম',
     sellingPrice: 'বিক্রি',
     costPrice: 'ক্রয়মূল্য',
+    mrp: 'এমআরপি (MRP)',
     costHidden: 'ক্রয়মূল্য গোপন',
     thresholdLimit: 'সীমা',
     perDay: 'দিন',

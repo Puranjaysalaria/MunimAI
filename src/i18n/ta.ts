@@ -164,6 +164,7 @@ export const ta: Translations = {
     stockLowBadge: 'குறைவு',
     sellingPrice: 'விற்பனை',
     costPrice: 'அடக்கம்',
+    mrp: 'அதிகபட்ச சில்லறை விலை (MRP)',
     costHidden: 'அடக்கம் மறைக்கப்பட்டது',
     thresholdLimit: 'வரம்பு',
     perDay: 'நாள்',

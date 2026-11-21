@@ -41,6 +41,7 @@ export interface Shop {
     credit_warning_limit?: number;
     voice_confirm?: boolean;
     sound_enabled?: boolean;
+    wake_word_enabled?: boolean;
     reminder_settings?: ReminderSettings;
   };
   created_at?: string;
@@ -104,6 +105,7 @@ export interface Item {
   unit: ItemUnit;
   cost_price: number;
   selling_price: number;
+  mrp?: number | null;
   current_stock: number;
   min_threshold: number;
   created_at?: string;

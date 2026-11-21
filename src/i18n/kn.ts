@@ -164,6 +164,7 @@ export const kn: Translations = {
     stockLowBadge: 'ಕಡಿಮೆ',
     sellingPrice: 'ಮಾರಾಟ ಬೆಲೆ',
     costPrice: 'ಖರೀದಿ ಬೆಲೆ',
+    mrp: 'ಎಂಆರ್‌ಪಿ (MRP)',
     costHidden: 'ಬೆಲೆ ಗೌಪ್ಯ',
     thresholdLimit: 'ಕನಿಷ್ಠ ಮಿತಿ',
     perDay: 'ದಿನ',

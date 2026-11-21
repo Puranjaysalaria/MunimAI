@@ -36,3 +36,4 @@ export class StubWakeWordProvider implements WakeWordProvider {
 }
 
 export const defaultWakeWordProvider = new StubWakeWordProvider();
+export { webSpeechWakeWordProvider, WebSpeechWakeWordProvider } from './webSpeechWakeWordProvider';

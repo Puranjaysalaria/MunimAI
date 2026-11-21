@@ -261,6 +261,19 @@ export const Stock: React.FC<StockProps> = ({
 
                       <p className="text-xs text-slate-500 mt-1 leading-relaxed font-medium">
                         {t.stock.sellingPrice}: <span className="font-black text-slate-800">{formatINR(item.selling_price)}</span> /{formatUnit(item.unit, language)}
+                        {item.mrp && item.mrp > item.selling_price ? (
+                          <>
+                            {' • '}<span className="text-slate-400">{t.stock.mrp}: <span className="line-through">{formatINR(item.mrp)}</span></span>
+                            {' '}
+                            <span className="text-emerald-600 font-bold text-[11px]">
+                              (-{formatINR(item.mrp - item.selling_price)})
+                            </span>
+                          </>
+                        ) : item.mrp ? (
+                          <>
+                            {' • '}<span className="text-slate-500">{t.stock.mrp}: {formatINR(item.mrp)}</span>
+                          </>
+                        ) : null}
                         {isOwner ? (
                           <>
                             {' • '}{t.stock.costPrice}: {formatINR(item.cost_price)}

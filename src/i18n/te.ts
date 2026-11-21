@@ -164,6 +164,7 @@ export const te: Translations = {
     stockLowBadge: 'తక్కువ',
     sellingPrice: 'అమ్మకం ధర',
     costPrice: 'కొనుగోలు ధర',
+    mrp: 'ఎంఆర్పీ (MRP)',
     costHidden: 'ధర దాచబడింది',
     thresholdLimit: 'కనీస పరిమితి',
     perDay: 'రోజు',

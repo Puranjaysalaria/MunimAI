@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useShop } from '../context/ShopContext';
 import { useI18n } from '../i18n';
 import { LanguageCode } from '../i18n/types';
-import { X, Globe, Lock, Shield, LogOut, Check, Store, UserCheck, Bell, ChevronRight } from 'lucide-react';
+import { X, Globe, Lock, Shield, LogOut, Check, Store, UserCheck, Bell, ChevronRight, Mic } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -18,6 +18,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
   const [shopName, setShopName] = useState(shop.name);
   const [upiId, setUpiId] = useState(shop.upi_id || '');
   const [pinInput, setPinInput] = useState(shop.pin_hash || '');
+  const [wakeWordEnabled, setWakeWordEnabled] = useState(shop.settings?.wake_word_enabled ?? false);
   const [savedNotice, setSavedNotice] = useState(false);
 
   if (!isOpen) return null;
@@ -27,6 +28,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
     updateShopSettings({
       name: shopName,
       upi_id: upiId,
+      settings: {
+        ...shop.settings,
+        wake_word_enabled: wakeWordEnabled,
+      },
     });
     if (pinInput.length === 4) {
       setShopPin(pinInput);
@@ -168,6 +173,36 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
           {/* Staff role note */}
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900">
             <span className="font-bold">ℹ️ {t.settings.staffRoleNotice}</span>
+          </div>
+
+          {/* Hands-free "Munim" Wake Word Toggle */}
+          <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3 text-xs flex items-center justify-between">
+            <div className="flex items-center space-x-2.5">
+              <div className="p-2 rounded-lg bg-primary text-white">
+                <Mic className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="font-bold text-app-text text-sm">
+                  {language === 'pa' ? '"ਮੁਨੀਮ" ਆਵਾਜ਼ ਜਾਗਰੂਕਤਾ' : language === 'en' ? 'Hands-Free "Munim" Wake Word' : '"मुनीम" हैंड्स-फ्री वेक वर्ड'}
+                </p>
+                <p className="mt-0.5 text-xs text-app-muted">
+                  {language === 'pa' ? 'ਬਿਨਾਂ ਛੂਹੇ "ਮੁਨੀਮ" ਬੋਲ ਕੇ ਮਾਈਕ ਚਾਲੂ ਕਰੋ' : language === 'en' ? 'Say "Munim" to start listening hands-free' : '"मुनीम" बोलकर बिना छुए आवाज़ शुरू करें'}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setWakeWordEnabled(!wakeWordEnabled)}
+              className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${
+                wakeWordEnabled ? 'bg-primary' : 'bg-gray-300'
+              }`}
+            >
+              <div
+                className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                  wakeWordEnabled ? 'translate-x-6' : 'translate-x-0'
+                }`}
+              />
+            </button>
           </div>
 
           {/* Payment Reminders Settings */}
