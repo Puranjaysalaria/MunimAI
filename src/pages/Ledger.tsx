@@ -163,61 +163,65 @@ export const Ledger: React.FC<LedgerProps> = ({
         </div>
 
         {/* Customer Header Info */}
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-          <div className="flex items-center space-x-3">
-            <CustomerAvatar
-              name={getLocalizedCustomerName(cust.name, language)}
-              size="lg"
-              trustScore={cust.trust_score}
-              showBadge
-            />
-            <div>
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">
-                {getLocalizedCustomerName(cust.name, language)}
-              </h2>
-              <p className="text-xs text-slate-500 flex items-center mt-0.5 font-medium">
-                <MapPin className="w-3.5 h-3.5 mr-1 text-slate-400" />
-                {cust.address_note || getLocalizedCustomerName(cust.name, language)}
-              </p>
-
-              {/* Customer Preferred Language selector dropdown */}
-              <div className="flex items-center space-x-1.5 mt-2">
-                <Languages className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                <span className="text-[11px] font-semibold text-slate-500">
-                  {t.ledger.preferredLanguageLabel || 'Preferred Language'}:
-                </span>
-                <select
-                  value={cust.preferred_language || ''}
-                  onChange={(e) => {
-                    const val = (e.target.value as CustomerLanguage) || undefined;
-                    if (updateCustomer) {
-                      updateCustomer(cust.id, { preferred_language: val });
-                    }
-                  }}
-                  aria-label={t.ledger.preferredLanguageLabel || 'Preferred Language'}
-                  className="text-xs font-bold bg-white text-slate-700 border border-slate-200 rounded-lg px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs cursor-pointer"
-                >
-                  <option value="">
-                    {t.ledger.sameAsShopLanguage || 'Same as shop language'} ({language.toUpperCase()})
-                  </option>
-                  {availableLanguages.map((l) => (
-                    <option key={l.code} value={l.code}>
-                      {l.nativeLabel} ({l.label})
-                    </option>
-                  ))}
-                </select>
+        <div className="pb-3 border-b border-gray-100">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <CustomerAvatar
+                name={getLocalizedCustomerName(cust.name, language)}
+                size="lg"
+                trustScore={cust.trust_score}
+                showBadge
+              />
+              <div>
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">
+                  {getLocalizedCustomerName(cust.name, language)}
+                </h2>
+                <p className="text-xs text-slate-500 flex items-center mt-0.5 font-medium">
+                  <MapPin className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                  {cust.address_note || getLocalizedCustomerName(cust.name, language)}
+                </p>
               </div>
             </div>
+
+            {isDrawer && (
+              <button
+                onClick={() => setSelectedCustomer(null)}
+                className="p-2 rounded-full hover:bg-gray-100 text-slate-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
           </div>
 
-          {isDrawer && (
-            <button
-              onClick={() => setSelectedCustomer(null)}
-              className="p-2 rounded-full hover:bg-gray-100 text-slate-400"
+          {/* Customer Preferred Language selector row - clean grid anchor */}
+          <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between">
+            <div className="flex items-center space-x-1.5">
+              <Languages className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+              <span className="text-xs font-semibold text-slate-600">
+                {t.ledger.preferredLanguageLabel || 'Preferred Language'}:
+              </span>
+            </div>
+            <select
+              value={cust.preferred_language || ''}
+              onChange={(e) => {
+                const val = (e.target.value as CustomerLanguage) || undefined;
+                if (updateCustomer) {
+                  updateCustomer(cust.id, { preferred_language: val });
+                }
+              }}
+              aria-label={t.ledger.preferredLanguageLabel || 'Preferred Language'}
+              className="text-xs font-bold bg-white text-slate-800 border border-slate-200 rounded-xl px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-primary shadow-2xs cursor-pointer"
             >
-              <X className="w-5 h-5" />
-            </button>
-          )}
+              <option value="">
+                {t.ledger.sameAsShopLanguage || 'Same as shop language'} ({language.toUpperCase()})
+              </option>
+              {availableLanguages.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.nativeLabel} ({l.label})
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Balance and Limits Grid */}
@@ -318,9 +322,9 @@ export const Ledger: React.FC<LedgerProps> = ({
 
         {/* Customer's Individual Transactions History */}
         <div className="mt-3">
-          <h4 className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">
+          <h3 className="text-xs font-black text-slate-600 uppercase tracking-wider mb-2">
             {t.today.allTransactionsToday} ({custTxs.length})
-          </h4>
+          </h3>
 
           <div className="divide-y divide-gray-100 border border-gray-100 rounded-3xl overflow-hidden bg-gray-50/50 max-h-[340px] overflow-y-auto">
             {custTxs.length === 0 ? (
@@ -399,15 +403,17 @@ export const Ledger: React.FC<LedgerProps> = ({
         <div className="pt-3 border-t border-gray-100 grid grid-cols-2 gap-3">
           <button
             onClick={() => handleCreditAction(cust)}
-            className="touch-target-64 bg-rose-50 text-owed hover:bg-rose-100 font-black rounded-2xl border border-rose-200"
+            className="btn-action-credit touch-target-64 rounded-2xl text-sm"
           >
-            + {t.ledger.giveCredit}
+            <PlusCircle className="w-4 h-4 stroke-[2.5]" />
+            <span>{t.ledger.giveCredit}</span>
           </button>
           <button
             onClick={() => handlePaymentAction(cust)}
-            className="touch-target-64 bg-emerald-50 text-received hover:bg-emerald-100 font-black rounded-2xl border border-emerald-200"
+            className="btn-action-payment touch-target-64 rounded-2xl text-sm"
           >
-            - {t.ledger.recordPayment}
+            <MinusCircle className="w-4 h-4 stroke-[2.5]" />
+            <span>{t.ledger.recordPayment}</span>
           </button>
         </div>
       </div>
@@ -420,13 +426,13 @@ export const Ledger: React.FC<LedgerProps> = ({
       <motion.div
         initial={{ opacity: 0, y: -6 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-[32px] p-5 sm:p-6 bg-gradient-to-br from-rose-50 via-white to-rose-50/50 border border-rose-200/80 shadow-card flex items-center justify-between card-hover-elevate"
+        className="rounded-3xl p-5 sm:p-6 bg-gradient-to-br from-rose-50 via-white to-rose-50/50 border border-rose-200/80 shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-4 card-hover-elevate"
       >
-        <div>
-          <span className="text-xs font-black text-rose-800 uppercase tracking-wider block">
+        <div className="space-y-0.5">
+          <h2 className="text-xs font-black text-rose-700 uppercase tracking-wider block">
             {t.ledger.totalOwed}
-          </span>
-          <div className="amount-hero text-owed mt-1 tracking-tight">
+          </h2>
+          <div className="amount-hero text-owed tracking-tight">
             {formatINR(totalOwed)}
           </div>
           <p className="text-xs text-rose-600 font-semibold mt-0.5">
@@ -434,36 +440,37 @@ export const Ledger: React.FC<LedgerProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center space-x-2 sm:space-x-3">
+        <div className="flex items-center space-x-2.5 sm:self-center">
           {/* CSV Export */}
           <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.94 }}
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.96 }}
             onClick={() => {
               triggerHaptic('start');
               playAudioCue('start');
               exportLedgerToCSV(transactions, customers, shop.name);
             }}
-            className="touch-target-64 px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-primary border border-emerald-200 rounded-2xl font-black text-xs flex flex-col items-center justify-center space-y-1 shadow-xs"
+            className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 rounded-xl font-bold text-xs flex items-center space-x-1.5 shadow-2xs"
             title="Export CSV"
           >
-            <FileSpreadsheet className="w-5 h-5 text-primary" />
+            <FileSpreadsheet className="w-4 h-4 text-emerald-700" />
             <span>CSV</span>
           </motion.button>
 
-          {/* Recovery Reminder Alert */}
+          {/* Recovery Reminder Alert - Subordinate visual weight */}
           {over1000Count > 0 && (
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.94 }}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
               onClick={() => {
                 triggerHaptic('start');
                 playAudioCue('start');
                 onOpenRecovery();
               }}
-              className="touch-target-64 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black rounded-2xl shadow-md text-xs flex flex-col items-center justify-center space-y-1 border border-amber-400"
+              className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold rounded-xl shadow-2xs text-xs flex items-center space-x-1.5"
+              title="Open Reminders"
             >
-              <BellRing className="w-5 h-5 text-slate-950 animate-bounce" />
+              <BellRing className="w-4 h-4 text-amber-700 flex-shrink-0" />
               <span>{t.reminders.title} ({over1000Count})</span>
             </motion.button>
           )}
@@ -558,7 +565,7 @@ export const Ledger: React.FC<LedgerProps> = ({
                   <motion.div
                     key={cust.id}
                     whileHover={{ y: -2 }}
-                    className={`bg-white rounded-[28px] p-4 shadow-card border space-y-3 transition-all card-hover-elevate cursor-pointer ${
+                    className={`bg-white rounded-2xl p-4 shadow-card border space-y-3 transition-all card-hover-elevate cursor-pointer ${
                       isSelectedInDesktop
                         ? 'border-primary ring-2 ring-primary/20 bg-emerald-50/20'
                         : 'border-gray-100 hover:border-gray-200'
@@ -584,16 +591,14 @@ export const Ledger: React.FC<LedgerProps> = ({
                           </h3>
 
                           <div className="flex items-center space-x-2 mt-1">
-                            <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
+                            <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-800">
                               {t.ledger.trustLabel}: {cust.trust_score}%
                             </span>
 
                             {cust.address_note && (
                               <span className="text-xs text-slate-500 flex items-center font-medium">
                                 <MapPin className="w-3 h-3 mr-0.5 text-slate-400 flex-shrink-0" />
-                                <span className="truncate max-w-[130px]">
-                                  {cust.address_note}
-                                </span>
+                                <span>{cust.address_note}</span>
                               </span>
                             )}
                           </div>
@@ -627,7 +632,7 @@ export const Ledger: React.FC<LedgerProps> = ({
                             whileHover={{ scale: 1.08 }}
                             whileTap={{ scale: 0.92 }}
                             href={`tel:${cust.phone}`}
-                            className="p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-slate-700 shadow-xs"
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 shadow-2xs"
                             title="Call Customer"
                           >
                             <PhoneCall className="w-3.5 h-3.5" />
@@ -638,10 +643,10 @@ export const Ledger: React.FC<LedgerProps> = ({
                           <motion.button
                             whileTap={{ scale: 0.94 }}
                             onClick={() => handlePlayProof(recentProofTx)}
-                            className={`px-3 py-1.5 rounded-xl font-black flex items-center space-x-1.5 border shadow-xs transition-all ${
+                            className={`btn-action-proof ${
                               playingTxId === recentProofTx.id
-                                ? 'bg-blue-600 text-white border-blue-700 shadow-listening'
-                                : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                                ? 'bg-slate-800 text-white border-slate-800 shadow-xs'
+                                : ''
                             }`}
                             title="Play Voice Proof"
                           >
@@ -652,7 +657,7 @@ export const Ledger: React.FC<LedgerProps> = ({
                                 <span className="w-1 bg-white rounded-full soundbar-anim" style={{ animationDelay: '400ms' }} />
                               </div>
                             ) : (
-                              <Volume2 className="w-3.5 h-3.5 text-blue-600" />
+                              <Volume2 className="w-3.5 h-3.5 text-slate-600" />
                             )}
                             <span>
                               {playingTxId === recentProofTx.id
@@ -671,10 +676,10 @@ export const Ledger: React.FC<LedgerProps> = ({
                                 playAudioCue('start');
                                 onRecordProofForTransaction(recentUdhaarTx, cust);
                               }}
-                              className="px-2.5 py-1.5 rounded-xl bg-amber-50 text-amber-900 hover:bg-amber-100 font-black flex items-center space-x-1 border border-amber-200 text-[11px] shadow-xs"
+                              className="btn-action-proof"
                               title="Record Customer Proof"
                             >
-                              <Mic className="w-3 h-3 text-amber-700" />
+                              <Mic className="w-3 h-3 text-slate-600" />
                               <span>{t.ledger.recordProof}</span>
                             </motion.button>
                           )
@@ -686,7 +691,7 @@ export const Ledger: React.FC<LedgerProps> = ({
                           whileHover={{ scale: 1.04 }}
                           whileTap={{ scale: 0.94 }}
                           onClick={() => handleCreditAction(cust)}
-                          className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-owed font-black border border-rose-200 flex items-center space-x-1 shadow-xs"
+                          className="btn-action-credit"
                         >
                           <PlusCircle className="w-3.5 h-3.5 stroke-[2.5]" />
                           <span>{t.ledger.giveCreditBtn}</span>
@@ -696,7 +701,7 @@ export const Ledger: React.FC<LedgerProps> = ({
                           whileHover={{ scale: 1.04 }}
                           whileTap={{ scale: 0.94 }}
                           onClick={() => handlePaymentAction(cust)}
-                          className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-received font-black border border-emerald-200 flex items-center space-x-1 shadow-xs"
+                          className="btn-action-payment"
                         >
                           <MinusCircle className="w-3.5 h-3.5 stroke-[2.5]" />
                           <span>{t.ledger.receivePaymentBtn}</span>
@@ -712,7 +717,7 @@ export const Ledger: React.FC<LedgerProps> = ({
 
         {/* Right Column on Laptop: Active Customer's Passbook Details (Master-Detail View) */}
         <div className="hidden lg:block lg:col-span-7 lg:sticky lg:top-20">
-          <div className="bg-white rounded-[32px] p-6 shadow-card border border-gray-100">
+          <div className="bg-white rounded-3xl p-6 shadow-card border border-gray-100">
             {activeCustomer ? (
               renderPassbookContent(activeCustomer, false)
             ) : (

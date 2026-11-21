@@ -67,7 +67,7 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
     <motion.div
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-gradient-to-br from-emerald-950 via-primary to-emerald-900 text-white rounded-[32px] p-6 shadow-card relative overflow-hidden border border-emerald-800/40 card-hover-elevate"
+      className="bg-gradient-to-br from-emerald-950 via-primary to-emerald-900 text-white rounded-3xl p-6 shadow-card relative overflow-hidden border border-emerald-800/40 card-hover-elevate"
     >
       <div className="flex items-center justify-between">
         <span className="text-xs font-black text-emerald-200 uppercase tracking-wider flex items-center">
@@ -215,9 +215,9 @@ export const Today: React.FC<TodayProps> = ({ onSpeakSummary }) => {
   );
 
   const TransactionsTimeline = (
-    <div className="bg-white rounded-[28px] p-5 sm:p-6 shadow-card border border-gray-100">
+    <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-card border border-gray-100">
       <div className="flex items-center justify-between mb-3.5 px-1">
-        <h3 className="font-black text-sm text-slate-900">
+        <h3 className="font-black text-base sm:text-lg text-slate-900 tracking-tight">
           {t.today.allTransactionsToday} ({todayTxs.length})
         </h3>
         <span className="text-xs font-bold text-slate-500 bg-gray-100 px-2.5 py-0.5 rounded-full">

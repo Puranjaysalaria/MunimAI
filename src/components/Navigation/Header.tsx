@@ -68,7 +68,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <h1 className="font-black text-base sm:text-lg leading-tight truncate tracking-tight text-white">
                   {shop.name}
                 </h1>
-                <span className="text-[10px] uppercase font-black px-1.5 py-0.5 rounded-md bg-accent/20 text-accent border border-accent/30 tracking-wider">
+                <span className="text-[10px] uppercase font-black px-1.5 py-0.5 rounded-lg bg-accent/20 text-accent border border-accent/30 tracking-wider">
                   PRO
                 </span>
               </div>
@@ -104,7 +104,7 @@ export const Header: React.FC<HeaderProps> = ({
                       triggerHaptic('start');
                       onTriggerSync?.();
                     }}
-                    className="flex items-center bg-amber-500/25 hover:bg-amber-500/35 text-amber-200 px-2 py-0.5 rounded-md text-[11px] font-bold border border-amber-400/30"
+                    className="flex items-center bg-amber-500/25 hover:bg-amber-500/35 text-amber-200 px-2 py-0.5 rounded-lg text-[11px] font-bold border border-amber-400/30"
                     title="Tap to sync pending transactions"
                   >
                     <RefreshCw className="w-3 h-3 mr-1 animate-spin" />

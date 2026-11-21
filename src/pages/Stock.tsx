@@ -84,7 +84,7 @@ export const Stock: React.FC<StockProps> = ({
         <motion.div
           initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-emerald-950 via-primary to-emerald-900 text-white rounded-[32px] p-6 shadow-card flex items-center justify-between border border-emerald-800/40 card-hover-elevate"
+          className="bg-gradient-to-br from-emerald-950 via-primary to-emerald-900 text-white rounded-3xl p-6 shadow-card flex items-center justify-between border border-emerald-800/40 card-hover-elevate"
         >
           <div>
             <span className="text-xs uppercase tracking-wider text-emerald-200 font-black block">
@@ -102,7 +102,7 @@ export const Stock: React.FC<StockProps> = ({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.94 }}
             onClick={handleOpenSuppliers}
-            className="touch-target-64 px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs rounded-2xl shadow-md flex flex-col items-center justify-center space-y-1 border border-amber-300 flex-shrink-0 ml-3"
+            className="touch-target-64 px-4 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-900 font-black text-xs rounded-2xl shadow-md flex flex-col items-center justify-center space-y-1 border border-amber-300 flex-shrink-0 ml-3"
           >
             <Truck className="w-5 h-5 mb-0.5" />
             <span>{t.stock.supplierListBtn}</span>
@@ -114,9 +114,9 @@ export const Stock: React.FC<StockProps> = ({
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/90 rounded-[32px] p-5 shadow-xs flex items-start space-x-3.5 card-hover-elevate"
+            className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/90 rounded-3xl p-5 shadow-xs flex items-start space-x-3.5 card-hover-elevate"
           >
-            <div className="p-3 rounded-2xl bg-amber-400 text-slate-950 flex-shrink-0 mt-0.5 shadow-xs">
+            <div className="p-3 rounded-2xl bg-amber-400 text-slate-900 flex-shrink-0 mt-0.5 shadow-xs">
               <Sparkles className="w-5 h-5" />
             </div>
             <div className="flex-1">
@@ -169,7 +169,7 @@ export const Stock: React.FC<StockProps> = ({
           }}
           className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center space-x-1.5 ${
             filter === 'low'
-              ? 'bg-amber-500 text-slate-950 shadow-xs'
+              ? 'bg-amber-500 text-slate-900 shadow-xs'
               : 'bg-white text-amber-700 border border-amber-200 hover:bg-amber-50'
           }`}
         >
@@ -212,7 +212,7 @@ export const Stock: React.FC<StockProps> = ({
                 }}
                 transition={{ delay: idx * 0.03, duration: 0.25 }}
                 whileHover={{ y: -2 }}
-                className={`bg-white rounded-[28px] p-5 shadow-card border transition-all space-y-3.5 card-hover-elevate flex flex-col justify-between ${
+                className={`bg-white rounded-2xl p-5 shadow-card border transition-all space-y-3.5 card-hover-elevate flex flex-col justify-between ${
                   isHighlighted
                     ? 'border-amber-400 ring-4 ring-amber-400/80 bg-amber-50/50 shadow-2xl'
                     : isCritical
@@ -228,7 +228,7 @@ export const Stock: React.FC<StockProps> = ({
                       <h3 className="font-black text-base sm:text-lg text-slate-900 capitalize flex flex-wrap items-center gap-1.5">
                         <span>{item.name}</span>
                         {isHighlighted && priceChangeInfo && (
-                          <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-950 flex items-center shadow-xs">
+                          <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-900 flex items-center shadow-xs">
                             <Sparkles className="w-3 h-3 mr-1" />
                             ₹{priceChangeInfo.oldPrice} ➔ ₹{priceChangeInfo.newPrice}
                           </span>
@@ -297,7 +297,7 @@ export const Stock: React.FC<StockProps> = ({
                 <div className="pt-2.5 border-t border-gray-100 flex items-center justify-between text-xs">
                   <div className="flex items-center space-x-1.5 text-slate-500 font-semibold">
                     <TrendingDown className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
-                    <span className="truncate">~{analysis.dailyAvgSales} {item.unit}/{t.stock.perDay}</span>
+                    <span className="whitespace-nowrap">~{analysis.dailyAvgSales} {item.unit}/{t.stock.perDay}</span>
                   </div>
 
                   <div className="flex items-center space-x-2 flex-shrink-0 ml-2">

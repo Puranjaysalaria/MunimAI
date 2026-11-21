@@ -264,7 +264,7 @@ export const Home: React.FC<HomeProps> = ({
   const isListeningNow = isListening || voiceState === 'listening';
 
   const VoiceCenterpiece = (
-    <div className="relative rounded-[32px] p-6 bg-gradient-to-b from-white via-white to-gray-50/80 border border-emerald-900/10 shadow-float text-center overflow-hidden">
+    <div className="relative rounded-3xl p-6 bg-gradient-to-b from-white via-white to-gray-50/80 border border-emerald-900/10 shadow-float text-center overflow-hidden">
       {/* Atmospheric ambient glow */}
       {isListeningNow ? (
         <div className="absolute inset-0 bg-gradient-to-b from-blue-100/50 via-indigo-50/30 to-transparent pointer-events-none transition-opacity duration-500" />
@@ -541,13 +541,13 @@ export const Home: React.FC<HomeProps> = ({
   );
 
   const RecentFeed = (
-    <div className="bg-white rounded-[28px] p-5 shadow-card border border-gray-100">
+    <div className="bg-white rounded-3xl p-5 shadow-card border border-gray-100">
       <div className="flex items-center justify-between mb-3.5 px-1">
         <div className="flex items-center space-x-2">
           <div className="w-6 h-6 rounded-lg bg-emerald-100 text-primary flex items-center justify-center">
             <Clock className="w-3.5 h-3.5 stroke-[2.5]" />
           </div>
-          <h2 className="text-sm font-black text-slate-900">{t.home.recentActivity}</h2>
+          <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">{t.home.recentActivity}</h2>
         </div>
         <span className="text-xs font-bold text-slate-500 bg-gray-100 px-2.5 py-0.5 rounded-full">
           {recentTxs.length} {t.today.totalDeals}
@@ -610,11 +610,11 @@ export const Home: React.FC<HomeProps> = ({
                     </div>
                   )}
 
-                  <div className="truncate">
-                    <p className="text-sm font-black text-slate-900 truncate">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black text-slate-900 leading-tight">
                       {customer ? getLocalizedCustomerName(customer.name, language) : isSale ? t.today.cashSaleLabel : t.today.shopExpenseLabel}
                     </p>
-                    <p className="text-xs text-slate-500 truncate max-w-[170px] sm:max-w-xs mt-0.5 font-medium">
+                    <p className="text-xs text-slate-500 line-clamp-1 mt-0.5 font-medium">
                       {getLocalizedTransactionDesc(tx, customer?.name, language)}
                     </p>
                   </div>
