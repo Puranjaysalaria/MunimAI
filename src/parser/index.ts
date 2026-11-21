@@ -21,6 +21,7 @@ export async function parseSpeech(
     items: Item[];
     isOnline?: boolean;
     language?: string;
+    activeItem?: Item | null;
   }
 ): Promise<ParseResult> {
   const activeLang = (context.language as LanguageCode) || 'hi';
@@ -30,6 +31,7 @@ export async function parseSpeech(
     customers: context.customers,
     items: context.items,
     preferredLanguage: context.language,
+    activeItem: context.activeItem,
   });
 
   const multilingualOverrideIntents: ParsedIntent[] = [

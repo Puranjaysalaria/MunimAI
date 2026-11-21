@@ -40,6 +40,18 @@ describe('Voice-driven Navigation & Price Action Tests', () => {
       unit: 'litre',
       created_at: new Date().toISOString(),
     },
+    {
+      id: 'item-4',
+      shop_id: 'shop-1',
+      name: 'Chawal',
+      synonyms: ['rice', 'basmati'],
+      current_stock: 80,
+      min_threshold: 25,
+      cost_price: 45,
+      selling_price: 55,
+      unit: 'kilo',
+      created_at: new Date().toISOString(),
+    },
   ];
 
   const mockCustomers: Customer[] = [
@@ -233,6 +245,44 @@ describe('Voice-driven Navigation & Price Action Tests', () => {
       const res = await parseSpeech('ਦੁੱਧ ਦਾ ਖਰੀਦ ਰੇਟ 55 ਰੁਪਏ ਲੀਟਰ', { items: mockItems, customers: mockCustomers, language: 'pa' });
       expect(res.intent).toBe('set_cost_price');
       expect(res.amount).toBe(55);
+    });
+
+    it('does NOT match rice when word "price" is used and targets selected activeItem', async () => {
+      // User says "change selling price of this to 25" while Chini (mockItems[1]) is selected
+      const res = await parseSpeech('change selling price of this to 25', {
+        items: mockItems,
+        customers: mockCustomers,
+        activeItem: mockItems[1], // Chini (old selling price 42)
+      });
+      expect(res.intent).toBe('set_selling_price');
+      expect(res.item).toBe('Chini');
+      expect(res.item).not.toBe('Chawal');
+      expect(res.amount).toBe(25);
+      expect(res.oldPrice).toBe(42);
+    });
+
+    it('handles "change selling price of this" without amount by asking for price', async () => {
+      const res = await parseSpeech('change selling price of this', {
+        items: mockItems,
+        customers: mockCustomers,
+        activeItem: mockItems[1],
+      });
+      expect(res.intent).toBe('set_selling_price');
+      expect(res.item).toBe('Chini');
+      expect(res.amount).toBe(0);
+      expect(res.questionToAsk).toBeTruthy();
+    });
+
+    it('parses Punjabi deictic "ਇਸਦਾ ਰੇਟ 25 ਰੁਪਏ ਕਰ ਦਿਓ" targeting activeItem', async () => {
+      const res = await parseSpeech('ਇਸਦਾ ਰੇਟ 25 ਰੁਪਏ ਕਰ ਦਿਓ', {
+        items: mockItems,
+        customers: mockCustomers,
+        activeItem: mockItems[1],
+        language: 'pa',
+      });
+      expect(res.intent).toBe('set_selling_price');
+      expect(res.item).toBe('Chini');
+      expect(res.amount).toBe(25);
     });
   });
 

@@ -78,6 +78,7 @@ export const AppContent: React.FC = () => {
   // Bill Scan & Voice Price Navigation States
   const [isBillScanOpen, setIsBillScanOpen] = useState(false);
   const [highlightedStockItemId, setHighlightedStockItemId] = useState<string | null>(null);
+  const [selectedStockItem, setSelectedStockItem] = useState<Item | null>(null);
   const [priceChangeInfo, setPriceChangeInfo] = useState<LastPriceChange | null>(null);
   const [showPriceToast, setShowPriceToast] = useState(false);
   const [priceToastShowView, setPriceToastShowView] = useState(false);
@@ -160,6 +161,7 @@ export const AppContent: React.FC = () => {
     suppliers,
     transactions,
     isOnline,
+    activeStockItem: activeTab === 'stock' ? selectedStockItem : null,
     onSaveTransaction: (txData) => {
       const savedTx = addTransaction(txData);
       return savedTx;
@@ -382,6 +384,10 @@ export const AppContent: React.FC = () => {
                 }}
                 highlightedItemId={highlightedStockItemId}
                 priceChangeInfo={priceChangeInfo}
+                selectedItemId={selectedStockItem?.id}
+                onSelectItem={(item) => {
+                  setSelectedStockItem((prev) => (prev?.id === item.id ? null : item));
+                }}
               />
             </motion.div>
           )}

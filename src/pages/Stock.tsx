@@ -23,6 +23,8 @@ interface StockProps {
   onQuickStockOrder: (item: Item) => void;
   highlightedItemId?: string | null;
   priceChangeInfo?: LastPriceChange | null;
+  selectedItemId?: string | null;
+  onSelectItem?: (item: Item) => void;
 }
 
 export const Stock: React.FC<StockProps> = ({
@@ -30,6 +32,8 @@ export const Stock: React.FC<StockProps> = ({
   onQuickStockOrder,
   highlightedItemId,
   priceChangeInfo,
+  selectedItemId,
+  onSelectItem,
 }) => {
   const { items, transactions, user } = useShop();
   const { t, language } = useI18n();
@@ -200,11 +204,16 @@ export const Stock: React.FC<StockProps> = ({
             );
 
             const isHighlighted = highlightedItemId === item.id;
+            const isSelected = selectedItemId === item.id;
 
             return (
               <motion.div
                 key={item.id}
                 id={`item-${item.id}`}
+                onClick={() => {
+                  triggerHaptic('light');
+                  onSelectItem?.(item);
+                }}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{
                   opacity: 1,
@@ -213,15 +222,18 @@ export const Stock: React.FC<StockProps> = ({
                 }}
                 transition={{ delay: idx * 0.03, duration: 0.25 }}
                 whileHover={{ y: -2 }}
-                className={`bg-white rounded-2xl p-5 shadow-card border transition-all space-y-3.5 card-hover-elevate flex flex-col justify-between ${
+                className={`bg-white rounded-2xl p-5 shadow-card border transition-all space-y-3.5 card-hover-elevate flex flex-col justify-between cursor-pointer ${
                   isHighlighted
                     ? 'border-amber-400 ring-4 ring-amber-400/80 bg-amber-50/50 shadow-2xl'
+                    : isSelected
+                    ? 'border-emerald-600 ring-4 ring-emerald-500/80 bg-emerald-50/40 shadow-xl'
                     : isCritical
                     ? 'border-rose-300 ring-2 ring-rose-100 bg-rose-50/20'
                     : isLow
                     ? 'border-amber-200 bg-amber-50/10'
-                    : 'border-gray-100'
+                    : 'border-gray-100 hover:border-emerald-200'
                 }`}
+                title={language === 'pa' ? 'ਸਿਲੈਕਟ ਕਰਨ ਲਈ ਟੈਪ ਕਰੋ' : language === 'en' ? 'Tap to select item for voice actions' : 'वॉइस एक्शन के लिए टैप करें'}
               >
                 <div>
                   <div className="flex items-start justify-between">
@@ -232,6 +244,11 @@ export const Stock: React.FC<StockProps> = ({
                           <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-900 flex items-center shadow-xs">
                             <Sparkles className="w-3 h-3 mr-1" />
                             ₹{priceChangeInfo.oldPrice} ➔ ₹{priceChangeInfo.newPrice}
+                          </span>
+                        )}
+                        {isSelected && !isHighlighted && (
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-600 text-white flex items-center shadow-xs">
+                            ✓ {language === 'pa' ? 'ਚੁਣਿਆ ਗਿਆ' : language === 'en' ? 'Selected' : 'चयनित'}
                           </span>
                         )}
                         {isLow && !isHighlighted && (

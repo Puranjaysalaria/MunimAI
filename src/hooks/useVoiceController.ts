@@ -35,6 +35,7 @@ interface UseVoiceControllerProps {
   onSelectCustomer?: (customerId: string) => void;
   onCloseModals?: () => void;
   onPlayProofClip?: (clipPath?: string) => void;
+  activeStockItem?: Item | null;
 }
 
 export function useVoiceController({
@@ -56,6 +57,7 @@ export function useVoiceController({
   onSelectCustomer,
   onCloseModals,
   onPlayProofClip,
+  activeStockItem,
 }: UseVoiceControllerProps) {
   const { language, t } = useI18n();
   const lastSpokenTextRef = useRef<string>('');
@@ -156,6 +158,7 @@ export function useVoiceController({
           items,
           isOnline,
           language,
+          activeItem: activeStockItem,
         });
 
         // 1. Control Intents
@@ -580,19 +583,41 @@ export function useVoiceController({
         // Price Action Intents (set_selling_price / set_cost_price)
         if (result.intent === 'set_selling_price' || result.intent === 'set_cost_price') {
           const priceType: 'selling' | 'cost' = result.intent === 'set_cost_price' ? 'cost' : 'selling';
-          const matchedItem = result.matchedItem || items.find((i) => i.name.toLowerCase() === (result.item || '').toLowerCase());
-          const oldPrice = result.oldPrice !== undefined && result.oldPrice !== null
-            ? result.oldPrice
-            : matchedItem
-            ? (priceType === 'cost' ? matchedItem.cost_price : matchedItem.selling_price)
-            : null;
+          const matchedItem =
+            result.matchedItem ||
+            items.find((i) => i.name.toLowerCase() === (result.item || '').toLowerCase()) ||
+            activeStockItem ||
+            null;
+
+          if (!result.amount) {
+            // Price amount not specified in voice query (e.g. "change selling price of this")
+            const reply =
+              result.spokenReply ||
+              result.questionToAsk ||
+              (language === 'en'
+                ? `What is the new ${priceType} price?`
+                : language === 'pa'
+                ? `ਨਵਾਂ ਰੇਟ ਕਿੰਨਾ ਲਗਾਉਣਾ ਹੈ?`
+                : `नया रेट कितना लगाना है?`);
+            lastSpokenTextRef.current = reply;
+            speechSynthesizer.speak(reply, language);
+            setVoiceState('idle');
+            return;
+          }
+
+          const oldPrice =
+            result.oldPrice !== undefined && result.oldPrice !== null
+              ? result.oldPrice
+              : matchedItem
+              ? (priceType === 'cost' ? matchedItem.cost_price : matchedItem.selling_price)
+              : null;
 
           setPendingConfirmation({
             intent: result.intent,
             amount: result.amount || 0,
             item: matchedItem || null,
             itemName: matchedItem?.name || result.item || 'Item',
-            unit: result.unit || matchedItem?.unit || 'unit',
+            unit: result.unit || matchedItem?.unit || 'kilo',
             oldPrice,
             priceType,
             rawText: text,

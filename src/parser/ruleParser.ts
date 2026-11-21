@@ -1,13 +1,13 @@
-import { ValidatedParseResult } from './types';
 import { extractAmount, extractQuantityAndUnit } from './numbers';
 import { findMentionedItems } from './synonyms';
 import { transliterateIndicToLatin } from './indicNormalizer';
-import { Customer, Item } from '../types/schema';
+import { Customer, Item, ParseResult } from '../types/schema';
 
 export interface RuleParserContext {
   customers: Customer[];
   items?: Item[];
   preferredLanguage?: string;
+  activeItem?: Item | null;
 }
 
 /**
@@ -17,7 +17,7 @@ export interface RuleParserContext {
 export function parseWithRules(
   rawText: string,
   context: RuleParserContext = { customers: [] }
-): ValidatedParseResult {
+): ParseResult {
   // 1. Language Detection from original script & markers
   let detectedLang: 'hi' | 'pa' | 'en' =
     context.preferredLanguage === 'pa' || context.preferredLanguage === 'en'
@@ -351,13 +351,27 @@ export function parseWithRules(
   }
 
   // Price Actions: set_cost_price and set_selling_price
-  const matchedItemForPrice = context.items?.find((it) => {
+  const hasWord = (str: string, word: string) => {
+    const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+    return new RegExp(`(?:^|\\s|[^\\p{L}\\p{N}])${escaped}(?:$|\\s|[^\\p{L}\\p{N}])`, 'u').test(str);
+  };
+
+  const explicitlyMatchedItem = context.items?.find((it) => {
     const clean = it.name.toLowerCase();
-    return (
-      lower.includes(clean) ||
-      it.synonyms.some((s) => lower.includes(s.toLowerCase()))
-    );
+    if (hasWord(lower, clean)) return true;
+    return it.synonyms?.some((s) => hasWord(lower, s.toLowerCase()));
   });
+
+  const isDeicticOrSelected =
+    /\b(this|this\s*item|selected|selected\s*item|current|current\s*item|iska|iski|iske|isda|isdi|isde|ehda|ehdi|eh|is\s*item|iss|ye|yeh|aa|idu|ithu)\b/i.test(lower) ||
+    /(ਇਸਦਾ|ਇਹਦਾ|ਇਹ|ਇਸ|ਇਸਦੀ|ਇਸਦੇ|ਇਸ\s*ਸਾਮਾਨ|इसका|इसकी|इस|यह|इस\s*सामान)/.test(rawTrimmed);
+
+  const matchedItemForPrice =
+    explicitlyMatchedItem ||
+    (isDeicticOrSelected && context.activeItem ? context.activeItem : null) ||
+    (!explicitlyMatchedItem && context.activeItem ? context.activeItem : null) ||
+    (firstItem ? context.items?.find((it) => it.name.toLowerCase() === firstItem.toLowerCase()) : null);
+
   const targetItemName = matchedItemForPrice?.name || firstItem;
 
   const isCostKeyword =
@@ -365,7 +379,7 @@ export function parseWithRules(
     /(ਖਰੀਦ|खरीद)/.test(rawTrimmed);
 
   const isPriceKeyword =
-    /\b(rate|bhav|mul|selling\s*price|sell\s*price|sale\s*price|bechna|vechna|set\s*karo|kardo|kar\s*deo|set\s*price|change\s*price|update\s*price)\b/i.test(lower) ||
+    /\b(rate|bhav|mul|selling\s*price|sell\s*price|sale\s*price|bechna|vechna|set\s*karo|kardo|kar\s*deo|set\s*price|change\s*price|update\s*price|selling)\b/i.test(lower) ||
     /(ਰੇਟ|रेट|सेलिंग|ਵੇਚਣਾ|बेचना)/.test(rawTrimmed);
 
   if (
@@ -383,6 +397,7 @@ export function parseWithRules(
       return {
         intent: 'set_cost_price',
         item: targetItemName,
+        matchedItem: matchedItemForPrice || undefined,
         amount,
         unit,
         oldPrice,
@@ -401,6 +416,7 @@ export function parseWithRules(
       return {
         intent: 'set_selling_price',
         item: targetItemName,
+        matchedItem: matchedItemForPrice || undefined,
         amount,
         unit,
         oldPrice,
@@ -415,6 +431,44 @@ export function parseWithRules(
             : `${targetItemName} का सेलिंग रेट ₹${amount}/${unit} सेट करें?`,
       };
     }
+  }
+
+  // Price Action without amount inquiry
+  if (
+    targetItemName &&
+    !amount &&
+    !isCreditPhrase &&
+    !isPaymentPhrase &&
+    !hasCustomerMarker &&
+    (isCostKeyword || isPriceKeyword)
+  ) {
+    const isCost = isCostKeyword;
+    const oldPrice = matchedItemForPrice
+      ? (isCost ? matchedItemForPrice.cost_price : matchedItemForPrice.selling_price)
+      : null;
+    return {
+      intent: isCost ? 'set_cost_price' : 'set_selling_price',
+      item: targetItemName,
+      matchedItem: matchedItemForPrice || undefined,
+      amount: 0,
+      unit: matchedItemForPrice?.unit || 'kilo',
+      oldPrice,
+      confidence: 0.9,
+      language: detectedLang,
+      rawText: text,
+      questionToAsk:
+        detectedLang === 'en'
+          ? `What is the new ${isCost ? 'cost' : 'selling'} price for ${targetItemName}?`
+          : detectedLang === 'pa'
+          ? `${targetItemName} ਦਾ ਨਵਾਂ ${isCost ? 'ਖਰੀਦ ' : ''}ਰੇਟ ਕਿੰਨਾ ਲਗਾਉਣਾ ਹੈ?`
+          : `${targetItemName} का नया ${isCost ? 'खरीद ' : 'सेलिंग '}रेट कितना लगाना है?`,
+      spokenReply:
+        detectedLang === 'en'
+          ? `What is the new ${isCost ? 'cost' : 'selling'} price for ${targetItemName}?`
+          : detectedLang === 'pa'
+          ? `${targetItemName} ਦਾ ਨਵਾਂ ${isCost ? 'ਖਰੀਦ ' : ''}ਰੇਟ ਕਿੰਨਾ ਲਗਾਉਣਾ ਹੈ?`
+          : `${targetItemName} का नया ${isCost ? 'खरीद ' : 'सेलिंग '}रेट कितना लगाना है?`,
+    };
   }
 
   // Recovery Intent: "Jinka 1000 se zyada baaki hai, unko yaad dilao"

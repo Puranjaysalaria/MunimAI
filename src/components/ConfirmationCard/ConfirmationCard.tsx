@@ -66,6 +66,27 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
     ? getLocalizedCustomerName(pending.customerName || pending.customer?.name, language)
     : '';
 
+  const localizedItemName = pending?.itemName
+    ? formatItemName(pending.itemName, language)
+    : pending?.item?.name
+    ? formatItemName(pending.item.name, language)
+    : '';
+
+  const localizedUnit = pending?.unit
+    ? formatUnit(pending.unit, language)
+    : '';
+
+  const priceConfirmTemplate = isCostPrice
+    ? t.priceAction.costPriceConfirm
+    : t.priceAction.sellingPriceConfirm;
+
+  const priceActionTitle = priceConfirmTemplate
+    ? priceConfirmTemplate
+        .replace('{item}', localizedItemName || t.confirmCard.itemsLabel)
+        .replace('{price}', String(pending?.amount ?? ''))
+        .replace('{unit}', localizedUnit || '')
+    : '';
+
   const amountInWords = pending
     ? amountToWords(pending.amount, language)
     : '';
@@ -73,12 +94,16 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
   // Spoken sentence formulated for natural speech across all 10 languages
   const spokenPrompt = pending
     ? isPriceAction
-      ? pending.spokenReply ||
-        (language === 'en'
-          ? `Set ${pending.itemName} ${isCostPrice ? 'cost' : 'selling'} price to ₹${pending.amount}${pending.unit ? ' per ' + pending.unit : ''}?`
-          : language === 'pa'
-          ? `${pending.itemName} ਦਾ ${isCostPrice ? 'ਖਰੀਦ ' : ''}ਰੇਟ ₹${pending.amount} ${pending.unit || ''} ਸੈੱਟ ਕਰਨਾ ਹੈ?`
-          : `${pending.itemName} का ${isCostPrice ? 'खरीद ' : ''}रेट ₹${pending.amount} ${pending.unit || ''} सेट करना है?`)
+      ? (pending.spokenReply
+          ? pending.spokenReply
+              .replace('{item}', localizedItemName)
+              .replace('{price}', String(pending.amount))
+              .replace('{unit}', localizedUnit)
+          : (language === 'en'
+            ? `Set ${localizedItemName} ${isCostPrice ? 'cost' : 'selling'} price to ₹${pending.amount}${localizedUnit ? ' per ' + localizedUnit : ''}?`
+            : language === 'pa'
+            ? `${localizedItemName} ਦਾ ${isCostPrice ? 'ਖਰੀਦ ' : ''}ਰੇਟ ₹${pending.amount} ${localizedUnit} ਸੈੱਟ ਕਰਨਾ ਹੈ?`
+            : `${localizedItemName} का ${isCostPrice ? 'खरीद ' : ''}रेट ₹${pending.amount} ${localizedUnit} सेट करना है?`))
       : language === 'en'
       ? isCredit && custDisplayName
         ? `${custDisplayName}, ${amountInWords} (₹${pending.amount}) credit loan. Should I record it?`
@@ -284,7 +309,7 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                   </span>
                   <h2 className="text-base font-black text-slate-900 leading-tight">
                     {isPriceAction
-                      ? (isCostPrice ? t.priceAction.costPriceConfirm : t.priceAction.sellingPriceConfirm)
+                      ? priceActionTitle
                       : isCredit
                       ? t.confirmCard.creditConfirm
                       : isPayment
@@ -330,7 +355,7 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
             >
               <span className="text-xs uppercase tracking-wider text-slate-500 font-black block mb-1">
                 {isPriceAction
-                  ? (isCostPrice ? t.priceAction.costPriceConfirm : t.priceAction.sellingPriceConfirm)
+                  ? (isCostPrice ? t.stock.costPrice : t.stock.sellingPrice)
                   : t.confirmCard.amountLabel}
               </span>
               <div
@@ -343,7 +368,7 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                 }`}
               >
                 {formatINR(pending.amount)}
-                {isPriceAction && pending.unit ? ` / ${pending.unit}` : ''}
+                {isPriceAction && pending.unit ? ` / ${localizedUnit || pending.unit}` : ''}
               </div>
               {isPriceAction && pending.oldPrice !== null && pending.oldPrice !== undefined ? (
                 <p className="text-sm font-bold text-slate-700 mt-1">
