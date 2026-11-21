@@ -91,6 +91,7 @@ export const pa: Translations = {
   },
   voice: {
     tapToSpeak: 'ਮਾਈਕ ਦਬਾ ਕੇ ਬੋਲੋ',
+    wakeWordPrompt: '"ਮੁਨੀਮ" ਬੋਲੋ ਜਾਂ ਮਾਈਕ ਦਬਾਓ',
     listening: 'ਸੁਣ ਰਹੇ ਹਾਂ... ਬੋਲੋ ਜੀ',
     thinking: 'ਸਮਝ ਰਹੇ ਹਾਂ...',
     success: 'ਸਮਝ ਗਏ!',

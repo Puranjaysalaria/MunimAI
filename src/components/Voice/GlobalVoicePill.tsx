@@ -12,6 +12,7 @@ interface GlobalVoicePillProps {
   onStartListening: () => void;
   onStopListening: () => void;
   visible: boolean;
+  wakeWordActive?: boolean;
 }
 
 export const GlobalVoicePill: React.FC<GlobalVoicePillProps> = ({
@@ -22,6 +23,7 @@ export const GlobalVoicePill: React.FC<GlobalVoicePillProps> = ({
   onStartListening,
   onStopListening,
   visible,
+  wakeWordActive = false,
 }) => {
   const { t } = useI18n();
 
@@ -127,6 +129,7 @@ export const GlobalVoicePill: React.FC<GlobalVoicePillProps> = ({
     if (voiceState === 'thinking') return t.voice.thinking;
     if (voiceState === 'success') return t.voice.success;
     if (voiceState === 'error') return errorMessage || t.voice.retry;
+    if (wakeWordActive) return t.voice.wakeWordPrompt;
     return t.voice.tapToSpeak;
   };
 

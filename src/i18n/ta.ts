@@ -91,6 +91,7 @@ export const ta: Translations = {
   },
   voice: {
     tapToSpeak: 'மைக் தட்டிப் பேசுங்கள்',
+    wakeWordPrompt: '"முனீம்" சொல்லுங்கள் அல்லது மைக் தட்டுங்கள்',
     listening: 'கேட்கிறது... பேசுங்கள்',
     thinking: 'புரிந்துகொள்கிறது...',
     success: 'பதிவு செய்யப்பட்டது!',

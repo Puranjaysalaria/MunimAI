@@ -1,7 +1,6 @@
 /**
- * WakeWordProvider Interface Stub
- * Note: Wake word ("Munim") detection is postponed per architectural spec.
- * This file maintains the interface definition and stub implementation without active background audio processing.
+ * WakeWordProvider Interface
+ * Provides hands-free wake word ("Munim") detection across Indic languages and English.
  */
 
 export interface WakeWordOptions {
@@ -16,7 +15,7 @@ export interface WakeWordProvider {
   readonly isSupported: boolean;
   readonly isListening: boolean;
 
-  startListening(options: WakeWordOptions, onDetected: () => void): Promise<void>;
+  startListening(options: WakeWordOptions, onDetected: (command?: string) => void): Promise<void>;
   stopListening(): void;
 }
 
@@ -26,8 +25,8 @@ export class StubWakeWordProvider implements WakeWordProvider {
   readonly isSupported = false;
   readonly isListening = false;
 
-  async startListening(_options: WakeWordOptions, _onDetected: () => void): Promise<void> {
-    // Intentionally no-op; wake word postponed
+  async startListening(_options: WakeWordOptions, _onDetected: (command?: string) => void): Promise<void> {
+    // Intentionally no-op; stub implementation
   }
 
   stopListening(): void {
@@ -36,4 +35,8 @@ export class StubWakeWordProvider implements WakeWordProvider {
 }
 
 export const defaultWakeWordProvider = new StubWakeWordProvider();
-export { webSpeechWakeWordProvider, WebSpeechWakeWordProvider } from './webSpeechWakeWordProvider';
+export {
+  webSpeechWakeWordProvider,
+  WebSpeechWakeWordProvider,
+  extractWakeWordAndCommand,
+} from './webSpeechWakeWordProvider';

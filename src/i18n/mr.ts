@@ -91,6 +91,7 @@ export const mr: Translations = {
   },
   voice: {
     tapToSpeak: 'माईक दाबून बोला',
+    wakeWordPrompt: '"मुनीम" म्हणा किंवा माईक दाबा',
     listening: 'ऐकत आहोत... बोला',
     thinking: 'समजत आहोत...',
     success: 'समजले!',

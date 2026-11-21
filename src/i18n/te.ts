@@ -91,6 +91,7 @@ export const te: Translations = {
   },
   voice: {
     tapToSpeak: 'మైక్ నొక్కి మాట్లాడండి',
+    wakeWordPrompt: '"మునీమ్" అనండి లేదా మైక్ నొక్కండి',
     listening: 'వింటున్నాము... మాట్లాడండి',
     thinking: 'అర్థం చేసుకుంటోంది...',
     success: 'నమోదయింది!',

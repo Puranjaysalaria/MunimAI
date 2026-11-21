@@ -91,6 +91,7 @@ export const kn: Translations = {
   },
   voice: {
     tapToSpeak: 'ಮೈಕ್ ಒತ್ತಿ ಮಾತನಾಡಿ',
+    wakeWordPrompt: '"ಮುನೀಮ್" ಎನ್ನಿ ಅಥವಾ ಮೈಕ್ ಒತ್ತಿ',
     listening: 'ಕೇಳುತ್ತಿದ್ದೇವೆ... ಮಾತನಾಡಿ',
     thinking: 'ಅರ್ಥಮಾಡಿಕೊಳ್ಳುತ್ತಿದ್ದೇವೆ...',
     success: 'ದಾಖಲಾಗಿದೆ!',

@@ -62,17 +62,31 @@ const STORAGE_KEY_PREFIX = 'munim_ai_';
 export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // 1. Initial State from localStorage or default mock
   const [shop, setShop] = useState<Shop>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}shop`);
-    if (saved) {
-      try { return JSON.parse(saved); } catch {}
-    }
-    return {
+    const defaultShop: Shop = {
       id: DEMO_SHOP_ID,
       name: 'Sharma Kirana Store',
       owner_phone: '+919876543210',
       upi_id: 'sharmakirana@okaxis',
       pin_hash: '1234', // Default demo PIN
+      settings: {
+        wake_word_enabled: true,
+      },
     };
+    const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}shop`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return {
+          ...defaultShop,
+          ...parsed,
+          settings: {
+            wake_word_enabled: true,
+            ...(parsed.settings || {}),
+          },
+        };
+      } catch {}
+    }
+    return defaultShop;
   });
 
   const [user, setUser] = useState<User | null>(() => {

@@ -91,6 +91,7 @@ export const gu: Translations = {
   },
   voice: {
     tapToSpeak: 'માઇક દબાવીને બોલો',
+    wakeWordPrompt: '"મુનીમ" બોલો અથવા માઇક દબાવો',
     listening: 'સાંભળી રહ્યા છીએ... બોલો',
     thinking: 'સમજી રહ્યા છીએ...',
     success: 'સમજાઈ ગયું!',

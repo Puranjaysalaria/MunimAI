@@ -91,6 +91,7 @@ export const bn: Translations = {
   },
   voice: {
     tapToSpeak: 'মাইক টিপে বলুন',
+    wakeWordPrompt: '"মুনিম" বলুন বা মাইক টিপুন',
     listening: 'শুনছি... বলুন',
     thinking: 'বুঝছি...',
     success: 'বুঝেছি!',

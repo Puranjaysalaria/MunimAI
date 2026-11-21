@@ -91,6 +91,7 @@ export const hi: Translations = {
   },
   voice: {
     tapToSpeak: 'माइक दबाकर बोलें',
+    wakeWordPrompt: '"मुनीम" बोलें या माइक दबाएं',
     listening: 'सुन रहे हैं... बोलिए',
     thinking: 'समझ रहे हैं...',
     success: 'समझ गए!',

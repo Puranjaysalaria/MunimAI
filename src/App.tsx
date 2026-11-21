@@ -36,7 +36,7 @@ import {
 } from './lib/stockAnalytics';
 import { useI18n } from './i18n';
 import { Mic } from 'lucide-react';
-import { triggerHaptic } from './lib/sound';
+import { triggerHaptic, playAudioCue } from './lib/sound';
 import { webSpeechWakeWordProvider } from './voice/wakeWord/webSpeechWakeWordProvider';
 
 export const AppContent: React.FC = () => {
@@ -241,11 +241,34 @@ export const AppContent: React.FC = () => {
 
   // Hands-free "Munim" wake word detection when enabled in shop settings
   React.useEffect(() => {
-    if (shop.settings?.wake_word_enabled && !voice.isListening) {
+    const isVoiceBusy =
+      voice.isListening ||
+      voice.voiceState === 'listening' ||
+      voice.voiceState === 'thinking' ||
+      Boolean(voice.pendingConfirmation) ||
+      voice.disambiguationCustomers.length > 0;
+
+    const shouldWakeWordBeActive =
+      Boolean(shop.settings?.wake_word_enabled) &&
+      isLoggedIn &&
+      !isLocked &&
+      !isVoiceBusy;
+
+    if (shouldWakeWordBeActive) {
       const wakeLang = language === 'pa' ? 'pa-IN' : language === 'en' ? 'en-IN' : 'hi-IN';
-      webSpeechWakeWordProvider.startListening({ language: wakeLang }, () => {
+      webSpeechWakeWordProvider.startListening({ language: wakeLang }, (command?: string) => {
         triggerHaptic('start');
-        voice.startListening();
+        playAudioCue('start');
+
+        if (command && command.trim().length > 0) {
+          // Single-shot command uttered with wake word (e.g. "Munim 200 udhaar Ramesh")
+          voice.processInput(command.trim());
+        } else {
+          // Wake word only: give hardware 150ms to release audio pipeline, then start listening
+          setTimeout(() => {
+            voice.startListening();
+          }, 150);
+        }
       });
     } else {
       webSpeechWakeWordProvider.stopListening();
@@ -254,7 +277,18 @@ export const AppContent: React.FC = () => {
     return () => {
       webSpeechWakeWordProvider.stopListening();
     };
-  }, [shop.settings?.wake_word_enabled, voice.isListening, language]);
+  }, [
+    shop.settings?.wake_word_enabled,
+    isLoggedIn,
+    isLocked,
+    voice.isListening,
+    voice.voiceState,
+    voice.pendingConfirmation,
+    voice.disambiguationCustomers.length,
+    language,
+    voice.processInput,
+    voice.startListening,
+  ]);
 
   if (!isLoggedIn) {
     return <Auth />;
@@ -633,6 +667,7 @@ export const AppContent: React.FC = () => {
           !showProofPrompt &&
           !proofTargetTx
         }
+        wakeWordActive={Boolean(shop.settings?.wake_word_enabled)}
         isListening={voice.isListening}
         voiceState={voice.voiceState}
         liveTranscript={voice.liveTranscript}

@@ -18,7 +18,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
   const [shopName, setShopName] = useState(shop.name);
   const [upiId, setUpiId] = useState(shop.upi_id || '');
   const [pinInput, setPinInput] = useState(shop.pin_hash || '');
-  const [wakeWordEnabled, setWakeWordEnabled] = useState(shop.settings?.wake_word_enabled ?? false);
+  const [wakeWordEnabled, setWakeWordEnabled] = useState(shop.settings?.wake_word_enabled ?? true);
   const [savedNotice, setSavedNotice] = useState(false);
 
   if (!isOpen) return null;
@@ -192,7 +192,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
             </div>
             <button
               type="button"
-              onClick={() => setWakeWordEnabled(!wakeWordEnabled)}
+              onClick={() => {
+                const next = !wakeWordEnabled;
+                setWakeWordEnabled(next);
+                if (next && typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+                  navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then((stream) => stream.getTracks().forEach((track) => track.stop()))
+                    .catch(() => {});
+                }
+              }}
               className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${
                 wakeWordEnabled ? 'bg-primary' : 'bg-gray-300'
               }`}

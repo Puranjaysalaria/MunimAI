@@ -91,6 +91,7 @@ export const ml: Translations = {
   },
   voice: {
     tapToSpeak: 'മൈക്ക് അമർത്തി പറയൂ',
+    wakeWordPrompt: '"മുനീം" എന്ന് പറയൂ അല്ലെങ്കിൽ മൈക്ക് അമർത്തൂ',
     listening: 'കേൾക്കുന്നു... പറയൂ',
     thinking: 'മനസ്സിലാക്കുന്നു...',
     success: 'രേഖപ്പെടുത്തി!',

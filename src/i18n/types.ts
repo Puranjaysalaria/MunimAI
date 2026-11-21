@@ -101,6 +101,7 @@ export interface Translations {
   };
   voice: {
     tapToSpeak: string;
+    wakeWordPrompt: string;
     listening: string;
     thinking: string;
     success: string;

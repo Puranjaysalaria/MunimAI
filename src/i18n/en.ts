@@ -91,6 +91,7 @@ export const en: Translations = {
   },
   voice: {
     tapToSpeak: 'Tap mic and speak',
+    wakeWordPrompt: 'Say "Munim" or tap mic',
     listening: 'Listening... speak now',
     thinking: 'Understanding...',
     success: 'Got it!',
