@@ -1,4 +1,5 @@
 import { Item, Supplier, Transaction } from '../types/schema';
+import { formatItemName, formatUnit } from './nameTranslation';
 
 export interface ItemStockAnalysis {
   item: Item;
@@ -269,19 +270,14 @@ export function generateStockVoiceReply(
   language: string = 'hi'
 ): string {
   const { item, daysStockLeft, isCritical } = analysis;
-  const indic = ITEM_INDIC_NAMES[item.name.toLowerCase()];
-  const displayName =
-    language === 'hi' && indic?.hi
-      ? indic.hi
-      : language === 'pa' && indic?.pa
-      ? indic.pa
-      : item.name;
+  const displayName = formatItemName(item.name, language);
+  const displayUnit = formatUnit(item.unit, language);
 
   if (language === 'pa') {
     if (isCritical) {
-      return `${displayName} ਦਾ ਸਟਾਕ ਖ਼ਤਮ ਹੋਣ ਵਾਲਾ ਹੈ! ਸਿਰਫ਼ ${daysStockLeft} ਦਿਨ (${item.current_stock} ${item.unit}) ਬਚਿਆ ਹੈ। ਸਪਲਾਇਰ ਤੋਂ ਨਵਾਂ ਮਾਲ ਮੰਗਵਾ ਲਵੋ।`;
+      return `${displayName} ਦਾ ਸਟਾਕ ਖ਼ਤਮ ਹੋਣ ਵਾਲਾ ਹੈ! ਸਿਰਫ਼ ${daysStockLeft} ਦਿਨ (${item.current_stock} ${displayUnit}) ਬਚਿਆ ਹੈ। ਸਪਲਾਇਰ ਤੋਂ ਨਵਾਂ ਮਾਲ ਮੰਗਵਾ ਲਵੋ।`;
     }
-    return `${displayName} ਦਾ ਸਟਾਕ ਠੀਕ ਹੈ, ਲਗਭਗ ${daysStockLeft} ਦਿਨ (${item.current_stock} ${item.unit}) ਚੱਲੇਗਾ।`;
+    return `${displayName} ਦਾ ਸਟਾਕ ਠੀਕ ਹੈ, ਲਗਭਗ ${daysStockLeft} ਦਿਨ (${item.current_stock} ${displayUnit}) ਚੱਲੇਗਾ।`;
   }
 
   if (language === 'en') {
@@ -293,9 +289,9 @@ export function generateStockVoiceReply(
 
   // Hindi default
   if (isCritical) {
-    return `${displayName} का स्टॉक खत्म होने वाला है! सिर्फ ${daysStockLeft} दिन (${item.current_stock} ${item.unit}) बचा है। सप्लायर से तुरंत नया माल मंगवाने की सलाह है।`;
+    return `${displayName} का स्टॉक खत्म होने वाला है! सिर्फ ${daysStockLeft} दिन (${item.current_stock} ${displayUnit}) बचा है। सप्लायर से तुरंत नया माल मंगवाने की सलाह है।`;
   }
-  return `${displayName} का स्टॉक पर्याप्त है, लगभग ${daysStockLeft} दिन (${item.current_stock} ${item.unit}) का माल बाकी है।`;
+  return `${displayName} का स्टॉक पर्याप्त है, लगभग ${daysStockLeft} दिन (${item.current_stock} ${displayUnit}) का माल बाकी है।`;
 }
 
 /**

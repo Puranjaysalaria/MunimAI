@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SupplierOrderDraft } from '../../lib/stockAnalytics';
 import { formatINR } from '../../lib/utils';
+import { formatItemName, formatUnit } from '../../lib/nameTranslation';
 import { triggerHaptic, playAudioCue } from '../../lib/sound';
 import { speechSynthesizer } from '../../tts/speechSynthesizer';
 import { LanguageCode, useI18n } from '../../i18n';
@@ -256,10 +257,10 @@ export const SupplierOrdersModal: React.FC<SupplierOrdersModalProps> = ({
                   >
                     <div>
                       <h4 className="font-bold text-sm capitalize text-app-text">
-                        {it.item.name}
+                        {formatItemName(it.item.name, language)}
                       </h4>
                       <p className="text-xs text-app-muted">
-                        {t.stock.costPrefix}: {formatINR(it.unitCost)} /{it.unit} • {t.stock.stockPrefix}: {it.item.current_stock}
+                        {t.stock.costPrefix}: {formatINR(it.unitCost)} /{formatUnit(it.unit, language)} • {t.stock.stockPrefix}: {it.item.current_stock}
                       </p>
                     </div>
 
@@ -274,7 +275,7 @@ export const SupplierOrdersModal: React.FC<SupplierOrdersModalProps> = ({
                           <Minus className="w-3.5 h-3.5" />
                         </button>
                         <span className="w-12 text-center text-xs font-black text-app-text">
-                          {it.suggestedQty} {it.unit}
+                          {it.suggestedQty} {formatUnit(it.unit, language)}
                         </span>
                         <button
                           onClick={() => handleUpdateQty(it.item.id, 1)}

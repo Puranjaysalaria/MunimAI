@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { triggerHaptic, playAudioCue } from '../../lib/sound';
 import { formatINR } from '../../lib/utils';
+import { formatItemName, formatUnit } from '../../lib/nameTranslation';
 import {
   parseBillPhotoWithGemini,
   ExtractedBillItem,
@@ -30,7 +31,7 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
   onClose,
   onPricesExtracted,
 }) => {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -322,10 +323,10 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
                         {/* Name & Details */}
                         <div className="truncate">
                           <p className="text-xs font-black text-slate-900 truncate">
-                            {item.name}
+                            {formatItemName(item.name, language)}
                           </p>
                           <span className="text-[10px] font-bold text-slate-500 bg-gray-100 px-1.5 py-0.5 rounded">
-                            {item.quantity} {item.unit}
+                            {item.quantity} {formatUnit(item.unit, language)}
                           </span>
                         </div>
                       </div>

@@ -4,6 +4,7 @@ import { useShop } from '../context/ShopContext';
 import { useI18n } from '../i18n';
 import { Item, LastPriceChange } from '../types/schema';
 import { formatINR } from '../lib/utils';
+import { formatItemName, formatUnit } from '../lib/nameTranslation';
 import { compute14DayStockAnalysis } from '../lib/stockAnalytics';
 import { getSeasonalStockInsights } from '../lib/seasonalInsights';
 import {
@@ -226,7 +227,7 @@ export const Stock: React.FC<StockProps> = ({
                   <div className="flex items-start justify-between">
                     <div>
                       <h3 className="font-black text-base sm:text-lg text-slate-900 capitalize flex flex-wrap items-center gap-1.5">
-                        <span>{item.name}</span>
+                        <span>{formatItemName(item.name, language)}</span>
                         {isHighlighted && priceChangeInfo && (
                           <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-900 flex items-center shadow-xs">
                             <Sparkles className="w-3 h-3 mr-1" />
@@ -242,7 +243,7 @@ export const Stock: React.FC<StockProps> = ({
                       </h3>
 
                       <p className="text-xs text-slate-500 mt-1 leading-relaxed font-medium">
-                        {t.stock.sellingPrice}: <span className="font-black text-slate-800">{formatINR(item.selling_price)}</span> /{item.unit}
+                        {t.stock.sellingPrice}: <span className="font-black text-slate-800">{formatINR(item.selling_price)}</span> /{formatUnit(item.unit, language)}
                         {isOwner ? (
                           <>
                             {' • '}{t.stock.costPrice}: {formatINR(item.cost_price)}
@@ -267,11 +268,11 @@ export const Stock: React.FC<StockProps> = ({
                       >
                         {item.current_stock}
                         <span className="text-xs font-semibold ml-1 text-slate-400">
-                          {item.unit}
+                          {formatUnit(item.unit, language)}
                         </span>
                       </div>
                       <p className="text-[10px] text-slate-400 font-semibold">
-                        {t.stock.thresholdLimit}: {item.min_threshold} {item.unit}
+                        {t.stock.thresholdLimit}: {item.min_threshold} {formatUnit(item.unit, language)}
                       </p>
                     </div>
                   </div>
@@ -297,7 +298,7 @@ export const Stock: React.FC<StockProps> = ({
                 <div className="pt-2.5 border-t border-gray-100 flex items-center justify-between text-xs">
                   <div className="flex items-center space-x-1.5 text-slate-500 font-semibold">
                     <TrendingDown className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
-                    <span className="whitespace-nowrap">~{analysis.dailyAvgSales} {item.unit}/{t.stock.perDay}</span>
+                    <span className="whitespace-nowrap">~{analysis.dailyAvgSales} {formatUnit(item.unit, language)}/{t.stock.perDay}</span>
                   </div>
 
                   <div className="flex items-center space-x-2 flex-shrink-0 ml-2">

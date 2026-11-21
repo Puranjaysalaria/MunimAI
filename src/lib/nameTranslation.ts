@@ -78,7 +78,7 @@ export function getLocalizedCustomerName(fullName: string | null | undefined, ta
 }
 
 // Common grocery items translation
-const ITEM_NAMES: Record<string, Record<string, string>> = {
+export const ITEM_NAMES: Record<string, Record<string, string>> = {
   chini: { en: 'Sugar', hi: 'चीनी', pa: 'ਖੰਡ', gu: 'ખાંડ', mr: 'साखर', bn: 'চিনি', ta: 'சர்க்கரை', te: 'చక్కెర', kn: 'ಸಕ್ಕರೆ', ml: 'പഞ്ചസാര' },
   aata: { en: 'Flour (Atta)', hi: 'आटा', pa: 'ਆਟਾ', gu: 'લોટ', mr: 'पीठ', bn: 'আটা', ta: 'மாவு', te: 'పిండి', kn: 'ಹಿಟ್ಟು', ml: 'പൊടി' },
   doodh: { en: 'Milk', hi: 'दूध', pa: 'ਦੁੱਧ', gu: 'દૂધ', mr: 'दूध', bn: 'দুধ', ta: 'பால்', te: 'పాలు', kn: 'ಹಾಲು', ml: 'പാൽ' },
@@ -90,15 +90,131 @@ const ITEM_NAMES: Record<string, Record<string, string>> = {
   biscuit: { en: 'Biscuit', hi: 'बिस्कुट', pa: 'ਬਿਸਕੁਟ', gu: 'બિસ્કિટ', mr: 'बिस्किट', bn: 'বিস্কুট', ta: 'பிஸ்கட்', te: 'బిస్కెట్', kn: 'ಬಿಸ್ಕತ್ತು', ml: 'ബിസ്കറ്റ്' },
   haldi: { en: 'Turmeric', hi: 'हल्दी', pa: 'ਹਲਦੀ', gu: 'હળદર', mr: 'हळद', bn: 'হলুদ', ta: 'மஞ்சள்', te: 'పసుపు', kn: 'ಅರಿಶಿನ', ml: 'മഞ്ഞൾ' },
   maggi: { en: 'Maggi Noodles', hi: 'मैगी', pa: 'ਮੈਗੀ', gu: 'મેગી', mr: 'मॅगी', bn: 'ম্যাগি', ta: 'மேகி', te: 'మ్యాగీ', kn: 'ಮ್ಯಾಗಿ', ml: 'മാഗി' },
+  'chai patti': { en: 'Tea (Chai Patti)', hi: 'चाय पत्ती', pa: 'ਚਾਹ ਪੱਤੀ', gu: 'ચા પત્તી', mr: 'चहा पत्ती', bn: 'চা পাতা', ta: 'தேயிலை', te: 'టీ పొడి', kn: 'ಟೀ ಪುಡಿ', ml: 'തേയില' },
 };
+
+// Aliases for common synonyms
+export const ITEM_ALIASES: Record<string, string> = {
+  cheeni: 'chini',
+  sugar: 'chini',
+  sakkar: 'chini',
+  mishri: 'chini',
+  atta: 'aata',
+  flour: 'aata',
+  'gehu aata': 'aata',
+  'ashirvaad aata': 'aata',
+  'chakki aata': 'aata',
+  milk: 'doodh',
+  'amul doodh': 'doodh',
+  'amul taaza': 'doodh',
+  dahi: 'doodh',
+  rice: 'chawal',
+  kolam: 'chawal',
+  basmati: 'chawal',
+  'tota pari': 'chawal',
+  daal: 'dal',
+  'toor dal': 'dal',
+  'arhar dal': 'dal',
+  'moong dal': 'dal',
+  'chana dal': 'dal',
+  oil: 'tel',
+  'mustard oil': 'tel',
+  'sarso tel': 'tel',
+  'fortune oil': 'tel',
+  refine: 'tel',
+  tea: 'chai patti',
+  chai: 'chai patti',
+  'taj mahal': 'chai patti',
+  'tata tea': 'chai patti',
+  'red label': 'chai patti',
+  salt: 'namak',
+  'tata salt': 'namak',
+  'sendha namak': 'namak',
+  'kala namak': 'namak',
+  soap: 'sabun',
+  lifebuoy: 'sabun',
+  dettol: 'sabun',
+  lux: 'sabun',
+  rin: 'sabun',
+  surf: 'sabun',
+  'surf excel': 'sabun',
+  biscuits: 'biscuit',
+  'parle-g': 'biscuit',
+  parleg: 'biscuit',
+  'good day': 'biscuit',
+  monaco: 'biscuit',
+  marie: 'biscuit',
+  turmeric: 'haldi',
+  'haldi powder': 'haldi',
+  masala: 'haldi',
+  'everest haldi': 'haldi',
+  'catch haldi': 'haldi',
+  maggie: 'maggi',
+  noodles: 'maggi',
+  'maggi noodles': 'maggi',
+  'chhoti maggi': 'maggi',
+};
+
+// Grocery measurement unit translations across 10 commercial Indian languages
+export const UNIT_MAP: Record<string, Record<string, string>> = {
+  kilo: { en: 'kg', hi: 'किलो', pa: 'ਕਿਲੋ', gu: 'કિલો', mr: 'किलो', bn: 'কেজি', ta: 'கிலோ', te: 'కిలో', kn: 'ಕಿಲೋ', ml: 'കിലോ' },
+  kg: { en: 'kg', hi: 'किलो', pa: 'ਕਿਲੋ', gu: 'કિલો', mr: 'किलो', bn: 'কেজি', ta: 'கிலோ', te: 'కిలో', kn: 'ಕಿಲೋ', ml: 'കിലോ' },
+  litre: { en: 'litre', hi: 'लीटर', pa: 'ਲੀਟਰ', gu: 'લિટર', mr: 'लिटर', bn: 'লিটার', ta: 'லிட்டர்', te: 'లీటరు', kn: 'ಲೀಟರ್', ml: 'ലിറ്റർ' },
+  liter: { en: 'litre', hi: 'लीटर', pa: 'ਲੀਟਰ', gu: 'લિટર', mr: 'लिटर', bn: 'লিটার', ta: 'லிட்டர்', te: 'లీటరు', kn: 'ಲೀಟರ್', ml: 'ലിറ്റർ' },
+  l: { en: 'L', hi: 'लीटर', pa: 'ਲੀਟਰ', gu: 'લિટર', mr: 'लिटर', bn: 'লিটার', ta: 'லிட்டர்', te: 'లీటరు', kn: 'ಲೀಟರ್', ml: 'ലിറ്റർ' },
+  packet: { en: 'pkt', hi: 'पैकेट', pa: 'ਪੈਕੇਟ', gu: 'પેકેટ', mr: 'पॅकेट', bn: 'ਪ্যাকেট', ta: 'பாக்கெட்', te: 'ప్యాకెట్', kn: 'ಪ್ಯಾಕೆಟ್', ml: 'പാക്കറ്റ്' },
+  pkt: { en: 'pkt', hi: 'पैकेट', pa: 'ਪੈਕੇਟ', gu: 'પેકેટ', mr: 'पॅकेट', bn: 'ਪ্যাকেট', ta: 'பாக்கெட்', te: 'ప్యాకెట్', kn: 'ಪ್ಯಾಕೆಟ್', ml: 'പാക്കറ്റ്' },
+  pack: { en: 'pack', hi: 'पैकेट', pa: 'ਪੈਕੇਟ', gu: 'પેકેટ', mr: 'पॅकेट', bn: 'ਪ্যাকেট', ta: 'பாக்கெட்', te: 'ప్యాకెట్', kn: 'ಪ್ಯಾಕೆಟ್', ml: 'പാക്കറ്റ്' },
+  piece: { en: 'pc', hi: 'पीस', pa: 'ਪੀਸ', gu: 'પીਸ', mr: 'पीस', bn: 'পিস', ta: 'பீஸ்', te: 'పీస్', kn: 'ಪೀಸ್', ml: 'പീസ്' },
+  pc: { en: 'pc', hi: 'पीस', pa: 'ਪੀਸ', gu: 'પીਸ', mr: 'पीस', bn: 'পিস', ta: 'பீஸ்', te: 'పీస్', kn: 'ಪೀಸ್', ml: 'പീസ്' },
+  pcs: { en: 'pcs', hi: 'पीस', pa: 'ਪੀਸ', gu: 'પીਸ', mr: 'पीस', bn: 'পিস', ta: 'பீస్', te: 'పీస్', kn: 'ಪೀಸ್', ml: 'പീസ്' },
+  gram: { en: 'g', hi: 'ग्राम', pa: 'ਗ੍ਰਾਮ', gu: 'ગ્રામ', mr: 'ग्रॅम', bn: 'গ্রাম', ta: 'கிராம்', te: 'గ్రాము', kn: 'ಗ್ರಾಂ', ml: 'ഗ്രാം' },
+  gm: { en: 'g', hi: 'ग्राम', pa: 'ਗ੍ਰਾਮ', gu: 'ગ્રામ', mr: 'ग्रॅम', bn: 'গ্রাম', ta: 'கிராம்', te: 'గ్రాము', kn: 'ಗ್ರಾಂ', ml: 'ഗ്രാം' },
+  g: { en: 'g', hi: 'ग्राम', pa: 'ਗ੍ਰਾਮ', gu: 'ગ્રામ', mr: 'ग्रॅम', bn: 'গ্রাম', ta: 'கிராம்', te: 'గ్రాము', kn: 'ಗ್ರಾಂ', ml: 'ഗ്രാം' },
+  dozen: { en: 'dozen', hi: 'दर्जन', pa: 'ਦਰਜਨ', gu: 'ડઝન', mr: 'डझन', bn: 'ডজন', ta: 'டஜன்', te: 'డజన్', kn: 'ಡಜನ್', ml: 'ഡസൻ' },
+  bottle: { en: 'bottle', hi: 'बोतल', pa: 'ਬੋਤਲ', gu: 'બોਟਲ', mr: 'बाटली', bn: 'বোতল', ta: 'பாட்டில்', te: 'సీసా', kn: 'ಬಾಟಲ್', ml: 'കുപ്പി' },
+  box: { en: 'box', hi: 'डिब्बा', pa: 'ਡੱਬਾ', gu: 'ਡબ્બો', mr: 'डबा', bn: 'বাক্স', ta: 'பெட்டி', te: 'పెట్టె', kn: 'ಪೆಟ್ಟಿಗೆ', ml: 'പെട്ടി' },
+};
+
+export function formatUnit(rawUnit?: string | null, targetLang: string = 'en'): string {
+  if (!rawUnit) return '';
+  const key = rawUnit.trim().toLowerCase();
+  if (UNIT_MAP[key]) {
+    return UNIT_MAP[key][targetLang] || UNIT_MAP[key].en || rawUnit;
+  }
+  return rawUnit;
+}
 
 export function formatItemName(rawName: string, targetLang: string = 'en'): string {
   if (!rawName) return '';
-  const key = rawName.trim().toLowerCase();
-  if (ITEM_NAMES[key]) {
-    return ITEM_NAMES[key][targetLang] || ITEM_NAMES[key].en || rawName;
+  const trimmed = rawName.trim();
+  const lower = trimmed.toLowerCase();
+
+  // 1. Direct canonical lookup
+  if (ITEM_NAMES[lower]) {
+    return ITEM_NAMES[lower][targetLang] || ITEM_NAMES[lower].en || trimmed;
   }
-  return rawName;
+
+  // 2. Direct alias lookup
+  if (ITEM_ALIASES[lower] && ITEM_NAMES[ITEM_ALIASES[lower]]) {
+    const canonical = ITEM_ALIASES[lower];
+    return ITEM_NAMES[canonical][targetLang] || ITEM_NAMES[canonical].en || trimmed;
+  }
+
+  // 3. Substring match
+  for (const [alias, canonical] of Object.entries(ITEM_ALIASES)) {
+    if (lower.includes(alias) && ITEM_NAMES[canonical]) {
+      return ITEM_NAMES[canonical][targetLang] || ITEM_NAMES[canonical].en || trimmed;
+    }
+  }
+
+  for (const canonical of Object.keys(ITEM_NAMES)) {
+    if (lower.includes(canonical)) {
+      return ITEM_NAMES[canonical][targetLang] || ITEM_NAMES[canonical].en || trimmed;
+    }
+  }
+
+  return trimmed;
 }
 
 /**
@@ -117,7 +233,7 @@ export function getLocalizedTransactionDesc(
     return tx.items
       .map(
         (it) =>
-          `${it.quantity > 1 ? it.quantity + ' ' : ''}${it.unit ? it.unit + ' ' : ''}${formatItemName(it.name, language)}`
+          `${it.quantity > 1 ? it.quantity + ' ' : ''}${it.unit ? formatUnit(it.unit, language) + ' ' : ''}${formatItemName(it.name, language)}`
       )
       .join(', ');
   }

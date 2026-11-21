@@ -14,6 +14,7 @@ import {
   generateDailySummaryVoice,
   findSupplierForItem,
 } from '../lib/stockAnalytics';
+import { formatItemName, formatUnit } from '../lib/nameTranslation';
 
 interface UseVoiceControllerProps {
   customers: Customer[];
@@ -352,7 +353,10 @@ export function useVoiceController({
           } else {
             const topLow = lowItems.slice(0, 3);
             const itemsList = topLow
-              .map((a) => `${a.item.name} (${a.item.current_stock} ${a.item.unit})`)
+              .map(
+                (a) =>
+                  `${formatItemName(a.item.name, language)} (${a.item.current_stock} ${formatUnit(a.item.unit, language)})`
+              )
               .join(', ');
             const remainingCount = lowItems.length - topLow.length;
 

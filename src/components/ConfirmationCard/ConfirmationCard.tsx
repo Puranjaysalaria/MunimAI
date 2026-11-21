@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { triggerHaptic, playAudioCue } from '../../lib/sound';
 import { CustomerAvatar } from '../CustomerAvatar';
-import { getLocalizedCustomerName } from '../../lib/nameTranslation';
+import { getLocalizedCustomerName, formatItemName, formatUnit } from '../../lib/nameTranslation';
 
 export interface PendingConfirmation {
   intent: ParsedIntent;
@@ -394,8 +394,8 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                     {t.confirmCard.itemsLabel}:
                   </span>
                   <span className="font-black text-slate-900 capitalize text-sm">
-                    {pending.quantity ? `${pending.quantity} ${pending.unit || ''} ` : ''}
-                    {pending.itemName}
+                    {pending.quantity ? `${pending.quantity} ${formatUnit(pending.unit, language)} ` : ''}
+                    {formatItemName(pending.itemName, language)}
                   </span>
                 </div>
               )}

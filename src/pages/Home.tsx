@@ -21,7 +21,7 @@ import {
 import { triggerHaptic, playAudioCue } from '../lib/sound';
 import { LiveWaveform } from '../components/Voice/LiveWaveform';
 import { CustomerAvatar } from '../components/CustomerAvatar';
-import { getLocalizedCustomerName, getLocalizedTransactionDesc } from '../lib/nameTranslation';
+import { getLocalizedCustomerName, getLocalizedTransactionDesc, formatItemName, formatUnit } from '../lib/nameTranslation';
 
 interface HomeProps {
   onStartVoice: () => void;
@@ -248,10 +248,10 @@ export const Home: React.FC<HomeProps> = ({
         </div>
         <div>
           <p className="text-xs font-black text-amber-950">
-            {lowStockItems[0].name.toUpperCase()} {t.stock.lowStockNotice}
+            {formatItemName(lowStockItems[0].name, language).toUpperCase()} {t.stock.lowStockNotice}
           </p>
           <p className="text-[11px] text-amber-800 font-medium">
-            {lowStockItems[0].current_stock} {lowStockItems[0].unit} ({daysLeftEstimated} {t.home.daysLeftRemaining})
+            {lowStockItems[0].current_stock} {formatUnit(lowStockItems[0].unit, language)} ({daysLeftEstimated} {t.home.daysLeftRemaining})
           </p>
         </div>
       </div>
