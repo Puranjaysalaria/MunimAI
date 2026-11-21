@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Customer, Item, Transaction } from '../types/schema';
+import { Customer, Item, Transaction, Supplier } from '../types/schema';
 import { createSTTProvider, STTProvider } from '../stt';
 import { parseSpeech } from '../parser';
 import { resolveCrossScriptCustomer } from '../voice/crossScriptMatcher';
@@ -12,17 +12,19 @@ import {
   generateStockVoiceReply,
   computeDailySummary,
   generateDailySummaryVoice,
+  findSupplierForItem,
 } from '../lib/stockAnalytics';
 
 interface UseVoiceControllerProps {
   customers: Customer[];
   items: Item[];
+  suppliers?: Supplier[];
   transactions: Transaction[];
   isOnline: boolean;
   onSaveTransaction: (tx: Omit<Transaction, 'id' | 'shop_id' | 'created_at'>) => Transaction;
   onUndoLast: () => { success: boolean; message: string };
   onNavigateTab: (tab: 'home' | 'ledger' | 'stock' | 'today') => void;
-  onOpenSupplierOrders?: () => void;
+  onOpenSupplierOrders?: (supplierId?: string) => void;
   onOpenDailySummary?: () => void;
   onOpenRecovery?: (threshold: number) => void;
   onOpenReminderSettings?: () => void;
@@ -37,6 +39,7 @@ interface UseVoiceControllerProps {
 export function useVoiceController({
   customers,
   items,
+  suppliers = [],
   transactions,
   isOnline,
   onSaveTransaction,
@@ -67,10 +70,15 @@ export function useVoiceController({
 
   const sttProviderRef = useRef<STTProvider | null>(null);
   const pendingConfirmationRef = useRef<PendingConfirmation | null>(null);
+  const disambiguationCustomersRef = useRef<Customer[]>([]);
 
   useEffect(() => {
     pendingConfirmationRef.current = pendingConfirmation;
   }, [pendingConfirmation]);
+
+  useEffect(() => {
+    disambiguationCustomersRef.current = disambiguationCustomers;
+  }, [disambiguationCustomers]);
 
   // Stop listening
   const stopListening = useCallback(() => {
@@ -91,18 +99,53 @@ export function useVoiceController({
       setLiveTranscript(text);
 
       try {
-        if (disambiguationCustomers.length > 0) {
-          const match = resolveCrossScriptCustomer(text, disambiguationCustomers);
+        const currentDisambig =
+          disambiguationCustomersRef.current.length > 0
+            ? disambiguationCustomersRef.current
+            : disambiguationCustomers;
+
+        if (currentDisambig.length > 0) {
+          const isFirst = /\b(first(\s*one)?|number\s*(one|1)|pehla(\s*wala)?|ek|1|one|ਪਹਿਲਾ|पहला)\b/i.test(text);
+          const isSecond = /\b(second(\s*one)?|number\s*(two|2)|doosra(\s*wala)?|do|2|two|ਦੂਜਾ|दूसरा)\b/i.test(text);
+          const isThird = /\b(third(\s*one)?|number\s*(three|3)|teesra(\s*wala)?|teen|3|three|ਤੀਜਾ|तीसरा)\b/i.test(text);
+
+          if (isFirst && currentDisambig[0]) {
+            handleSelectDisambiguatedCustomer(currentDisambig[0]);
+            return;
+          }
+          if (isSecond && currentDisambig[1]) {
+            handleSelectDisambiguatedCustomer(currentDisambig[1]);
+            return;
+          }
+          if (isThird && currentDisambig[2]) {
+            handleSelectDisambiguatedCustomer(currentDisambig[2]);
+            return;
+          }
+
+          const match = resolveCrossScriptCustomer(text, currentDisambig);
           if (match.matchedCustomer) {
             handleSelectDisambiguatedCustomer(match.matchedCustomer);
             return;
           }
-          if (/\b(first|pehla|ek|1|one|ਪਹਿਲਾ|पहला)\b/i.test(text) && disambiguationCustomers[0]) {
-            handleSelectDisambiguatedCustomer(disambiguationCustomers[0]);
-            return;
-          }
-          if (/\b(second|doosra|do|2|two|ਦੂਜਾ|दूसरा)\b/i.test(text) && disambiguationCustomers[1]) {
-            handleSelectDisambiguatedCustomer(disambiguationCustomers[1]);
+
+          const lowerText = text.toLowerCase();
+          const matchedByDetail = currentDisambig.find((c) => {
+            const parts = c.name.toLowerCase().split(/\s+/);
+            const surname = parts[parts.length - 1];
+            const hasNameMatch = parts.some((part) => part.length >= 3 && lowerText.includes(part));
+            const addressTokens = c.address_note
+              ? c.address_note.toLowerCase().split(/[\s,()]+/).filter((w) => w.length >= 3)
+              : [];
+            const hasAddressMatch = addressTokens.some((token) => lowerText.includes(token));
+            return (
+              (surname.length >= 3 && lowerText.includes(surname)) ||
+              hasNameMatch ||
+              (c.address_note && lowerText.includes(c.address_note.toLowerCase())) ||
+              hasAddressMatch
+            );
+          });
+          if (matchedByDetail) {
+            handleSelectDisambiguatedCustomer(matchedByDetail);
             return;
           }
         }
@@ -162,15 +205,23 @@ export function useVoiceController({
         if (result.intent === 'ordering') {
           setVoiceState('success');
           onNavigateTab('stock');
+          const analyses = compute14DayStockAnalysis(items, transactions);
+          const lowStockAnalyses = analyses.filter(
+            (a) => a.isLowStock || (a.daysStockLeft !== null && a.daysStockLeft < 2) || a.suggestedReorderQty > 0
+          );
+          let targetSupplier: Supplier | null = null;
+          if (lowStockAnalyses.length > 0 && suppliers) {
+            targetSupplier = findSupplierForItem(lowStockAnalyses[0].item, suppliers);
+          }
           const orderVoice =
             language === 'en'
-              ? 'Supplier order list prepared based on 14-day consumption.'
+              ? (targetSupplier ? `Order prepared for ${targetSupplier.name}.` : 'Supplier order list prepared based on 14-day consumption.')
               : language === 'pa'
-              ? 'ਸਪਲਾਇਰ ਆਰਡਰ ਸੂਚੀ ਤਿਆਰ ਹੈ। 14 ਦਿਨਾਂ ਦੀ ਵਿਕਰੀ ਅਨੁਸਾਰ ਆਰਡਰ ਬਣਾਇਆ ਗਿਆ ਹੈ।'
-              : 'सप्लायर आर्डर लिस्ट तैयार है। 14 दिनों की बिक्री के अनुसार आर्डर बनाया गया है।';
+              ? (targetSupplier ? `${targetSupplier.name} ਲਈ ਆਰਡਰ ਤਿਆਰ ਹੈ।` : 'ਸਪਲਾਇਰ ਆਰਡਰ ਸੂਚੀ ਤਿਆਰ ਹੈ। 14 ਦਿਨਾਂ ਦੀ ਵਿਕਰੀ ਅਨੁਸਾਰ ਆਰਡਰ ਬਣਾਇਆ ਗਿਆ ਹੈ।')
+              : (targetSupplier ? `${targetSupplier.name} के लिए ऑर्डर तैयार है।` : 'सप्लायर आर्डर लिस्ट तैयार है। 14 दिनों की बिक्री के अनुसार आर्डर बनाया गया है।');
           speechSynthesizer.speak(orderVoice, language);
           if (onOpenSupplierOrders) {
-            onOpenSupplierOrders();
+            onOpenSupplierOrders(targetSupplier ? targetSupplier.id : undefined);
           }
           setTimeout(() => setVoiceState('idle'), 1500);
           return;
@@ -284,18 +335,90 @@ export function useVoiceController({
         if (result.intent === 'show_low_stock') {
           setVoiceState('success');
           onNavigateTab('stock');
-          const reply = t.voiceCommands.lowStockReply;
+
+          const analyses = compute14DayStockAnalysis(items, transactions);
+          const lowItems = analyses.filter(
+            (a) => a.isLowStock || (a.daysStockLeft !== null && a.daysStockLeft < 2)
+          );
+
+          let reply: string;
+          if (lowItems.length === 0) {
+            reply =
+              language === 'en'
+                ? 'All items are in stock. No items are running low.'
+                : language === 'pa'
+                ? 'ਸਾਰਾ ਸਾਮਾਨ ਸਟਾਕ ਵਿੱਚ ਹੈ। ਕੋਈ ਵੀ ਸਾਮਾਨ ਘੱਟ ਨਹੀਂ ਹੈ।'
+                : 'सभी सामान स्टॉक में हैं। कोई भी सामान कम नहीं है।';
+          } else {
+            const topLow = lowItems.slice(0, 3);
+            const itemsList = topLow
+              .map((a) => `${a.item.name} (${a.item.current_stock} ${a.item.unit})`)
+              .join(', ');
+            const remainingCount = lowItems.length - topLow.length;
+
+            if (language === 'en') {
+              reply =
+                remainingCount > 0
+                  ? `${itemsList} and ${remainingCount} more items are running low.`
+                  : `${itemsList} ${lowItems.length === 1 ? 'is' : 'are'} running low.`;
+            } else if (language === 'pa') {
+              reply =
+                remainingCount > 0
+                  ? `${itemsList} ਅਤੇ ${remainingCount} ਹੋਰ ਚੀਜ਼ਾਂ ਘੱਟ ਹਨ।`
+                  : `${itemsList} ਦਾ ਸਟਾਕ ਘੱਟ ਹੈ।`;
+            } else {
+              reply =
+                remainingCount > 0
+                  ? `${itemsList} और ${remainingCount} अन्य सामान का स्टॉक कम है।`
+                  : `${itemsList} का स्टॉक कम है।`;
+            }
+          }
+
           lastSpokenTextRef.current = reply;
           speechSynthesizer.speak(reply, language);
-          setTimeout(() => setVoiceState('idle'), 1500);
+          setTimeout(() => setVoiceState('idle'), 2000);
           return;
         }
 
         if (result.intent === 'order_item' || result.intent === 'build_order_list') {
           setVoiceState('success');
           onNavigateTab('stock');
-          if (onOpenSupplierOrders) onOpenSupplierOrders();
-          const reply = t.voiceCommands.orderPreparedReply;
+
+          const analyses = compute14DayStockAnalysis(items, transactions);
+          const lowStockAnalyses = analyses.filter(
+            (a) => a.isLowStock || (a.daysStockLeft !== null && a.daysStockLeft < 2) || a.suggestedReorderQty > 0
+          );
+
+          let targetItem =
+            result.matchedItem ||
+            (result.item
+              ? items.find((i) => i.name.toLowerCase() === result.item?.toLowerCase())
+              : null);
+          if (!targetItem && lowStockAnalyses.length > 0) {
+            targetItem = lowStockAnalyses[0].item;
+          }
+
+          let targetSupplier: Supplier | null = null;
+          if (targetItem && suppliers) {
+            targetSupplier = findSupplierForItem(targetItem, suppliers);
+          }
+
+          if (onOpenSupplierOrders) {
+            onOpenSupplierOrders(targetSupplier ? targetSupplier.id : undefined);
+          }
+
+          let reply: string;
+          if (targetSupplier) {
+            reply =
+              language === 'en'
+                ? `Order prepared for ${targetSupplier.name}.`
+                : language === 'pa'
+                ? `${targetSupplier.name} ਲਈ ਆਰਡਰ ਤਿਆਰ ਹੈ।`
+                : `${targetSupplier.name} के लिए ऑर्डर तैयार है।`;
+          } else {
+            reply = t.voiceCommands.orderPreparedReply;
+          }
+
           lastSpokenTextRef.current = reply;
           speechSynthesizer.speak(reply, language);
           setTimeout(() => setVoiceState('idle'), 1500);
@@ -317,6 +440,7 @@ export function useVoiceController({
           if (result.ambiguousCustomers && result.ambiguousCustomers.length > 1) {
             triggerHaptic('warning');
             setDisambiguationCustomers(result.ambiguousCustomers);
+            disambiguationCustomersRef.current = result.ambiguousCustomers;
             setPendingConfirmation({
               intent: 'show_customer_ledger',
               amount: 0,
@@ -329,8 +453,12 @@ export function useVoiceController({
                 : language === 'pa'
                 ? 'ਕਿਹੜਾ ਗਾਹਕ?'
                 : 'कौनसा ग्राहक?';
-            speechSynthesizer.speak(result.spokenReply || disambiguationPrompt, language);
+            const promptText = result.spokenReply || disambiguationPrompt;
+            speechSynthesizer.speak(promptText, language);
             setVoiceState('idle');
+            setTimeout(() => {
+              startListening();
+            }, 1800);
             return;
           }
 
@@ -345,7 +473,13 @@ export function useVoiceController({
           if (targetCustomer && onSelectCustomer) {
             onSelectCustomer(targetCustomer.id);
           }
-          const reply = result.spokenReply || t.voiceCommands.ledgerOpenedReply;
+          const reply = targetCustomer
+            ? (language === 'en'
+                ? `Opening ${targetCustomer.name}'s ledger record.`
+                : language === 'pa'
+                ? `${targetCustomer.name} ਦਾ ਖਾਤਾ ਖੋਲ੍ਹਿਆ ਗਿਆ`
+                : `${targetCustomer.name} का खाता खोला गया`)
+            : (result.spokenReply || t.voiceCommands.ledgerOpenedReply);
           lastSpokenTextRef.current = reply;
           speechSynthesizer.speak(reply, language);
           setTimeout(() => setVoiceState('idle'), 1500);
@@ -757,6 +891,7 @@ export function useVoiceController({
     playAudioCue('cancel');
     setPendingConfirmation(null);
     setDisambiguationCustomers([]);
+    disambiguationCustomersRef.current = [];
     setVoiceState('idle');
     setLiveTranscript('');
     const cancelVoice =
@@ -771,28 +906,51 @@ export function useVoiceController({
   // Resolve disambiguation selection
   const handleSelectDisambiguatedCustomer = useCallback(
     (customer: Customer) => {
-      if (pendingConfirmation) {
-        if (pendingConfirmation.intent === 'show_customer_ledger') {
-          onNavigateTab('ledger');
-          if (onSelectCustomer) {
-            onSelectCustomer(customer.id);
-          }
-          const reply = t.voiceCommands.ledgerOpenedReply;
-          lastSpokenTextRef.current = reply;
-          speechSynthesizer.speak(reply, language);
-          setPendingConfirmation(null);
-          setDisambiguationCustomers([]);
-          setVoiceState('success');
-          setTimeout(() => setVoiceState('idle'), 1500);
-          return;
+      const pending = pendingConfirmationRef.current || pendingConfirmation;
+      if (pending && pending.intent === 'show_customer_ledger') {
+        onNavigateTab('ledger');
+        if (onSelectCustomer) {
+          onSelectCustomer(customer.id);
         }
+        const reply =
+          language === 'en'
+            ? `Opening ${customer.name}'s ledger record.`
+            : language === 'pa'
+            ? `${customer.name} ਦਾ ਖਾਤਾ ਖੋਲ੍ਹਿਆ ਗਿਆ`
+            : `${customer.name} का खाता खोला गया`;
+        lastSpokenTextRef.current = reply;
+        speechSynthesizer.speak(reply, language);
+        setPendingConfirmation(null);
+        setDisambiguationCustomers([]);
+        disambiguationCustomersRef.current = [];
+        setVoiceState('success');
+        setTimeout(() => setVoiceState('idle'), 1500);
+        return;
+      }
+      if (pending) {
         setPendingConfirmation({
-          ...pendingConfirmation,
+          ...pending,
           customer,
           customerName: customer.name,
         });
+      } else {
+        onNavigateTab('ledger');
+        if (onSelectCustomer) {
+          onSelectCustomer(customer.id);
+        }
+        const reply =
+          language === 'en'
+            ? `Opening ${customer.name}'s ledger record.`
+            : language === 'pa'
+            ? `${customer.name} ਦਾ ਖਾਤਾ ਖੋਲ੍ਹਿਆ ਗਿਆ`
+            : `${customer.name} का खाता खोला गया`;
+        lastSpokenTextRef.current = reply;
+        speechSynthesizer.speak(reply, language);
+        setVoiceState('success');
+        setTimeout(() => setVoiceState('idle'), 1500);
       }
       setDisambiguationCustomers([]);
+      disambiguationCustomersRef.current = [];
     },
     [pendingConfirmation, onNavigateTab, onSelectCustomer, t, language]
   );

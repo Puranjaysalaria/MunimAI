@@ -32,6 +32,7 @@ import {
   groupOrdersBySupplier,
   computeDailySummary,
   generateDailySummaryVoice,
+  findSupplierForItem,
 } from './lib/stockAnalytics';
 import { useI18n } from './i18n';
 import { Mic } from 'lucide-react';
@@ -71,6 +72,8 @@ export const AppContent: React.FC = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showUndoToast, setShowUndoToast] = useState(false);
   const [selectedLedgerCustomerId, setSelectedLedgerCustomerId] = useState<string | null>(null);
+  const [selectedCustomerTrigger, setSelectedCustomerTrigger] = useState<number>(0);
+  const [supplierOrdersTargetSupplierId, setSupplierOrdersTargetSupplierId] = useState<string | null>(null);
 
   // Bill Scan & Voice Price Navigation States
   const [isBillScanOpen, setIsBillScanOpen] = useState(false);
@@ -154,6 +157,7 @@ export const AppContent: React.FC = () => {
   const voice = useVoiceController({
     customers,
     items,
+    suppliers,
     transactions,
     isOnline,
     onSaveTransaction: (txData) => {
@@ -167,7 +171,10 @@ export const AppContent: React.FC = () => {
       return res;
     },
     onNavigateTab: (tab) => setActiveTab(tab),
-    onOpenSupplierOrders: () => setIsSupplierOrdersOpen(true),
+    onOpenSupplierOrders: (supplierId) => {
+      setSupplierOrdersTargetSupplierId(supplierId || null);
+      setIsSupplierOrdersOpen(true);
+    },
     onOpenDailySummary: () => setIsDailySummaryOpen(true),
     onOpenRecovery: (threshold) => {
       setRecoveryThreshold(threshold);
@@ -207,6 +214,7 @@ export const AppContent: React.FC = () => {
     },
     onSelectCustomer: (customerId) => {
       setSelectedLedgerCustomerId(customerId);
+      setSelectedCustomerTrigger(Date.now());
       setActiveTab('ledger');
     },
     onCloseModals: () => {
@@ -238,6 +246,7 @@ export const AppContent: React.FC = () => {
 
   const handleSelectCustomer = (customer: Customer) => {
     setSelectedLedgerCustomerId(customer.id);
+    setSelectedCustomerTrigger(Date.now());
     setActiveTab('ledger');
   };
 
@@ -319,9 +328,13 @@ export const AppContent: React.FC = () => {
                 onRetryVoice={voice.startListening}
                 onSelectCustomerSuggestion={(customerId) => {
                   setSelectedLedgerCustomerId(customerId);
+                  setSelectedCustomerTrigger(Date.now());
                   setActiveTab('ledger');
                 }}
-                onOpenSupplierOrders={() => setIsSupplierOrdersOpen(true)}
+                onOpenSupplierOrders={() => {
+                  setSupplierOrdersTargetSupplierId(null);
+                  setIsSupplierOrdersOpen(true);
+                }}
               />
             </motion.div>
           )}
@@ -336,6 +349,7 @@ export const AppContent: React.FC = () => {
             >
               <Ledger
                 selectedCustomerId={selectedLedgerCustomerId}
+                selectedCustomerTrigger={selectedCustomerTrigger}
                 onSelectCustomer={handleSelectCustomer}
                 onOpenRecovery={() => {
                   setRecoveryThreshold(1000);
@@ -357,8 +371,15 @@ export const AppContent: React.FC = () => {
               transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             >
               <Stock
-                onOpenSupplierOrders={() => setIsSupplierOrdersOpen(true)}
-                onQuickStockOrder={(_item) => setIsSupplierOrdersOpen(true)}
+                onOpenSupplierOrders={() => {
+                  setSupplierOrdersTargetSupplierId(null);
+                  setIsSupplierOrdersOpen(true);
+                }}
+                onQuickStockOrder={(item) => {
+                  const sup = findSupplierForItem(item, suppliers);
+                  setSupplierOrdersTargetSupplierId(sup?.id || null);
+                  setIsSupplierOrdersOpen(true);
+                }}
                 highlightedItemId={highlightedStockItemId}
                 priceChangeInfo={priceChangeInfo}
               />
@@ -452,10 +473,14 @@ export const AppContent: React.FC = () => {
       {/* Supplier Orders Modal */}
       <SupplierOrdersModal
         isOpen={isSupplierOrdersOpen}
-        onClose={() => setIsSupplierOrdersOpen(false)}
+        onClose={() => {
+          setIsSupplierOrdersOpen(false);
+          setSupplierOrdersTargetSupplierId(null);
+        }}
         drafts={supplierDrafts}
         shopName={shop.name}
         language={language}
+        initialSupplierId={supplierOrdersTargetSupplierId}
         onConfirmOrder={(_order) => {
           // Order confirmed in app
         }}

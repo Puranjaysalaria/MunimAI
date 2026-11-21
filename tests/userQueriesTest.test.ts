@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseSpeech } from '../src/parser';
-import { Customer, Item } from '../src/types/schema';
+import { Customer, Item, Supplier } from '../src/types/schema';
+import { findSupplierForItem } from '../src/lib/stockAnalytics';
 
 const mockCustomers: Customer[] = [
   {
@@ -221,6 +222,36 @@ describe('User Query Problem Areas & Robust Voice Handling', () => {
       expect(res.intent).toBe('build_order_list');
     });
 
+    it('accepts singular "order low running item"', async () => {
+      const res = await parseSpeech('order low running item', {
+        customers: mockCustomers,
+        items: mockItems,
+        language: 'en',
+      });
+      expect(res.intent).toBe('build_order_list');
+      expect(res.targetTab).toBe('stock');
+    });
+
+    it('accepts "which item is running low"', async () => {
+      const res = await parseSpeech('which item is running low', {
+        customers: mockCustomers,
+        items: mockItems,
+        language: 'en',
+      });
+      expect(res.intent).toBe('show_low_stock');
+      expect(res.targetTab).toBe('stock');
+    });
+
+    it('accepts "which items are running low"', async () => {
+      const res = await parseSpeech('which items are running low', {
+        customers: mockCustomers,
+        items: mockItems,
+        language: 'en',
+      });
+      expect(res.intent).toBe('show_low_stock');
+      expect(res.targetTab).toBe('stock');
+    });
+
     it('accepts Hindi "कम स्टॉक का ऑर्डर बनाओ"', async () => {
       const res = await parseSpeech('कम स्टॉक का ऑर्डर बनाओ', {
         customers: mockCustomers,
@@ -228,6 +259,64 @@ describe('User Query Problem Areas & Robust Voice Handling', () => {
         language: 'hi',
       });
       expect(res.intent).toBe('build_order_list');
+    });
+  });
+
+  describe('Area 4: Vendor targeting for low running items', () => {
+    const mockSuppliers: Supplier[] = [
+      {
+        id: '33333333-0000-0000-0000-000000000001',
+        shop_id: 'shop-1',
+        name: 'Aggarwal Grain Wholesale Mandi',
+        phone: '+919822200001',
+        category: 'Grains, Pulses & Sugar',
+      },
+      {
+        id: '33333333-0000-0000-0000-000000000002',
+        shop_id: 'shop-1',
+        name: 'Gupta Dairy & FMCG Agency',
+        phone: '+919822200002',
+        category: 'Dairy, Oil, Packaged Snacks & Spices',
+      },
+    ];
+
+    it('associates doodh with Gupta Dairy & FMCG Agency', () => {
+      const doodhItem: Item = {
+        id: 'item-doodh',
+        shop_id: 'shop-1',
+        name: 'doodh',
+        synonyms: ['milk', 'amul doodh'],
+        unit: 'litre',
+        cost_price: 58,
+        selling_price: 66,
+        current_stock: 8,
+        min_threshold: 15,
+        created_at: new Date().toISOString(),
+      };
+
+      const supplier = findSupplierForItem(doodhItem, mockSuppliers);
+      expect(supplier).not.toBeNull();
+      expect(supplier?.id).toBe('33333333-0000-0000-0000-000000000002');
+      expect(supplier?.name).toBe('Gupta Dairy & FMCG Agency');
+    });
+
+    it('associates chini/aata with Aggarwal Grain Wholesale Mandi', () => {
+      const chiniItem: Item = {
+        id: 'item-chini',
+        shop_id: 'shop-1',
+        name: 'chini',
+        synonyms: ['sugar'],
+        unit: 'kilo',
+        cost_price: 38,
+        selling_price: 44,
+        current_stock: 5,
+        min_threshold: 10,
+        created_at: new Date().toISOString(),
+      };
+
+      const supplier = findSupplierForItem(chiniItem, mockSuppliers);
+      expect(supplier?.id).toBe('33333333-0000-0000-0000-000000000001');
+      expect(supplier?.name).toBe('Aggarwal Grain Wholesale Mandi');
     });
   });
 });

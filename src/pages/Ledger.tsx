@@ -38,6 +38,7 @@ import { CustomerAvatar } from '../components/CustomerAvatar';
 interface LedgerProps {
   onSelectCustomer?: (customer: Customer) => void;
   selectedCustomerId?: string | null;
+  selectedCustomerTrigger?: number;
   onOpenRecovery: () => void;
   onPlayProof: (clipPath: string) => void;
   onQuickAction: (customer: Customer, action: 'credit' | 'payment') => void;
@@ -47,6 +48,7 @@ interface LedgerProps {
 export const Ledger: React.FC<LedgerProps> = ({
   onSelectCustomer,
   selectedCustomerId,
+  selectedCustomerTrigger,
   onOpenRecovery,
   onPlayProof,
   onQuickAction,
@@ -90,7 +92,7 @@ export const Ledger: React.FC<LedgerProps> = ({
         setSelectedCustomer(found);
       }
     }
-  }, [selectedCustomerId, customers]);
+  }, [selectedCustomerId, selectedCustomerTrigger, customers]);
 
   const filteredCustomers = customers.filter((c) => {
     const matchesSearch =

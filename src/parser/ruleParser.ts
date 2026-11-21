@@ -222,15 +222,16 @@ export function parseWithRules(
     };
   }
 
-  // Supplier Orders / Low Running Items: "Order low running items", "Order low stock", "Low running items", "Kam stock order karo"
-  if (
-    !firstItem && (
-    /\b(?:order|reorder|buy|get|list|create|build|generate)?\s*(?:the\s*)?(?:low\s*r[ui]n+ing|r[ui]n+ing\s*low|r[ui]n+ing\s*out|low\s*stock|out\s*of\s*stock|critical\s*stock|kam\s*stock|ghatt\s*stock|khatam\s*stock)\s*(?:items|stock|maal|goods|products|list)?\b/i.test(lower) ||
-    /\b(?:low\s*r[ui]n+ing|r[ui]n+ing\s*low|r[ui]n+ing\s*out)\s*(?:items|stock|goods|products)?\b/i.test(lower)
-    )
-  ) {
+  // Supplier Orders / Low Running Items: "Order low running items", "Order low stock", "Low running items", "Kam stock order karo", "Which item is running low"
+  const isOrderAction = /\b(order|reorder|buy|build|create|list|supplier|sheet|bhejo|mangwao|mangwana|mangwa do|mangwa)\b/i.test(lower);
+  const isLowStockInquiry =
+    /\b(?:order|reorder|buy|get|list|create|build|generate)?\s*(?:the\s*)?(?:low\s*r[ui]n+ing|r[ui]n+ing\s*low|r[ui]n+ing\s*out|low\s*stock|out\s*of\s*stock|critical\s*stock|kam\s*stock|ghatt\s*stock|khatam\s*stock)\s*(?:items?|stock|maal|goods|products?|list)?\b/i.test(lower) ||
+    /\b(?:low\s*r[ui]n+ing|r[ui]n+ing\s*low|r[ui]n+ing\s*out)\s*(?:items?|stock|goods|products?)?\b/i.test(lower) ||
+    /\b(?:which|what|kaunsa|konsa|kihda|keda)\s+(?:items?|products?|goods|stock|saman|saaman|maal)\s+(?:is|are|chal\s*raha)?\s*(?:running\s*)?(?:low|short|out|kam|ghatt|khatam)\b/i.test(lower) ||
+    /\b(?:items?|products?|saman|saaman|maal)\s+(?:running\s*)?(?:low|kam|ghatt|khatam)\b/i.test(lower);
+
+  if (!firstItem && isLowStockInquiry) {
     const isOrdering = /\b(order\s*banao|order\s*bana)\b/i.test(lower);
-    const isOrderAction = /\b(order|reorder|buy|build|create|list|supplier|sheet|bhejo)\b/i.test(lower);
     return {
       intent: isOrdering ? 'ordering' : isOrderAction ? 'build_order_list' : 'show_low_stock',
       targetTab: 'stock',
@@ -248,6 +249,29 @@ export function parseWithRules(
             : detectedLang === 'pa'
             ? 'ਘੱਟ ਸਟਾਕ ਦਿਖਾਇਆ ਜਾ ਰਿਹਾ ਹੈ'
             : 'कम स्टॉक वाले सामान दिखाए जा रहे हैं'),
+    };
+  }
+
+  // Specific Item Order: "Order doodh", "Doodh order karo", "Order 10 litre doodh", "Aata mangwao"
+  const hasKnownCustomerName = context.customers.some((c) =>
+    new RegExp(`(^|\\s)${c.name.trim().split(/\\s+/)[0].replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}(\\s|$)`, 'i').test(lower)
+  );
+  if (firstItem && isOrderAction && !isCreditPhrase && !isPaymentPhrase && !isSalePhrase && !hasCustomerMarker && !hasKnownCustomerName) {
+    return {
+      intent: 'order_item',
+      item: firstItem,
+      quantity: qtyInfo.quantity,
+      unit: qtyInfo.unit,
+      targetTab: 'stock',
+      confidence: 0.95,
+      language: detectedLang,
+      rawText: text,
+      spokenReply:
+        detectedLang === 'en'
+          ? `Preparing order for ${firstItem}`
+          : detectedLang === 'pa'
+          ? `${firstItem} ਲਈ ਆਰਡਰ ਤਿਆਰ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ`
+          : `${firstItem} का आर्डर तैयार किया जा रहा है`,
     };
   }
 

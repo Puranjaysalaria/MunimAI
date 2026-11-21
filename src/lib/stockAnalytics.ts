@@ -102,7 +102,7 @@ export function compute14DayStockAnalysis(
 /**
  * Supplier mapping table for Kirana items
  */
-const SUPPLIER_CATEGORY_MAPPING: Record<string, string[]> = {
+export const SUPPLIER_CATEGORY_MAPPING: Record<string, string[]> = {
   // Aggarwal Grain Wholesale Mandi
   '33333333-0000-0000-0000-000000000001': [
     'chini',
@@ -133,6 +133,23 @@ const SUPPLIER_CATEGORY_MAPPING: Record<string, string[]> = {
     'maggi',
   ],
 };
+
+/**
+ * Finds the matching supplier for a given item
+ */
+export function findSupplierForItem(item: Item, suppliers: Supplier[]): Supplier | null {
+  const itemName = item.name.toLowerCase();
+  for (const supplier of suppliers) {
+    const allowed = SUPPLIER_CATEGORY_MAPPING[supplier.id] || [];
+    if (
+      allowed.includes(itemName) ||
+      (item.synonyms && item.synonyms.some((s) => allowed.includes(s.toLowerCase())))
+    ) {
+      return supplier;
+    }
+  }
+  return null;
+}
 
 /**
  * Groups items needing restock by supplier

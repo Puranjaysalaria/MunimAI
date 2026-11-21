@@ -28,6 +28,7 @@ interface SupplierOrdersModalProps {
   shopName: string;
   language: LanguageCode;
   onConfirmOrder: (order: SupplierOrderDraft) => void;
+  initialSupplierId?: string | null;
 }
 
 export const SupplierOrdersModal: React.FC<SupplierOrdersModalProps> = ({
@@ -37,21 +38,33 @@ export const SupplierOrdersModal: React.FC<SupplierOrdersModalProps> = ({
   shopName,
   language,
   onConfirmOrder,
+  initialSupplierId,
 }) => {
   const { t } = useI18n();
   const [drafts, setDrafts] = useState<SupplierOrderDraft[]>(initialDrafts);
-  const [selectedSupplierId, setSelectedSupplierId] = useState<string>(
-    initialDrafts[0]?.supplier.id || ''
-  );
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string>(() => {
+    if (initialSupplierId && initialDrafts.some((d) => d.supplier.id === initialSupplierId)) {
+      return initialSupplierId;
+    }
+    const withItems = initialDrafts.find((d) => d.items.length > 0);
+    return withItems ? withItems.supplier.id : (initialDrafts[0]?.supplier.id || '');
+  });
   const [orderSentMap, setOrderSentMap] = useState<Record<string, boolean>>({});
 
-  // Sync drafts when initialDrafts changes
+  // Sync drafts and selected supplier when initialDrafts or initialSupplierId changes
   React.useEffect(() => {
     setDrafts(initialDrafts);
-    if (!selectedSupplierId && initialDrafts.length > 0) {
-      setSelectedSupplierId(initialDrafts[0].supplier.id);
+    if (initialSupplierId && initialDrafts.some((d) => d.supplier.id === initialSupplierId)) {
+      setSelectedSupplierId(initialSupplierId);
+    } else {
+      const withItems = initialDrafts.find((d) => d.items.length > 0);
+      if (withItems) {
+        setSelectedSupplierId(withItems.supplier.id);
+      } else if (initialDrafts.length > 0) {
+        setSelectedSupplierId(initialDrafts[0].supplier.id);
+      }
     }
-  }, [initialDrafts]);
+  }, [initialDrafts, initialSupplierId]);
 
   if (!isOpen) return null;
 
