@@ -291,6 +291,13 @@ export const Ledger: React.FC<LedgerProps> = ({
                 });
 
                 const url = buildWhatsAppLink(cust.phone || '', messageText);
+                const announceMsg =
+                  language === 'pa'
+                    ? `${cust.name} ਲਈ ਵਟਸਐਪ ਰੀਮਾਈਂਡਰ ਖੋਲ੍ਹ ਰਹੇ ਹਾਂ`
+                    : language === 'en'
+                    ? `Opening WhatsApp reminder for ${cust.name}.`
+                    : `${cust.name} के लिए व्हाट्सएप रिमाइंडर खोला जा रहा है`;
+                speechSynthesizer.speak(announceMsg, language);
 
                 setTimeout(() => {
                   window.open(url, '_blank');
@@ -574,6 +581,13 @@ export const Ledger: React.FC<LedgerProps> = ({
                       triggerHaptic('light');
                       setSelectedCustomer(cust);
                       onSelectCustomer?.(cust);
+                      const openMsg =
+                        language === 'pa'
+                          ? `${cust.name} ਦਾ ਖਾਤਾ ਖੋਲ੍ਹਿਆ ਗਿਆ`
+                          : language === 'en'
+                          ? `Opening ${cust.name}'s ledger record.`
+                          : `${cust.name} का खाता खोला गया`;
+                      speechSynthesizer.speak(openMsg, language);
                     }}
                   >
                     <div className="flex items-start justify-between">

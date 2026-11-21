@@ -128,7 +128,16 @@ export const SupplierOrdersModal: React.FC<SupplierOrdersModalProps> = ({
     triggerHaptic('start');
     const msg = generateOrderMessage(draft);
     const url = buildWhatsAppLink(draft.supplier.phone || '', msg);
-    window.open(url, '_blank');
+    const announceMsg =
+      language === 'pa'
+        ? `${draft.supplier.name} ਲਈ ਵਟਸਐਪ ਖੋਲ੍ਹ ਰਹੇ ਹਾਂ`
+        : language === 'en'
+        ? `Opening WhatsApp for ${draft.supplier.name}.`
+        : `${draft.supplier.name} के लिए व्हाट्सएप खोला जा रहा है`;
+    speechSynthesizer.speak(announceMsg, language);
+    setTimeout(() => {
+      window.open(url, '_blank');
+    }, 300);
     setOrderSentMap((prev) => ({ ...prev, [draft.supplier.id]: true }));
     onConfirmOrder(draft);
   };
@@ -138,7 +147,16 @@ export const SupplierOrdersModal: React.FC<SupplierOrdersModalProps> = ({
     triggerHaptic('start');
     const msg = generateOrderMessage(draft);
     const smsUrl = buildSMSLink(draft.supplier.phone || '', msg);
-    window.location.href = smsUrl;
+    const announceMsg =
+      language === 'pa'
+        ? `${draft.supplier.name} ਲਈ ਐਸਐਮਐਸ ਖੋਲ੍ਹ ਰਹੇ ਹਾਂ`
+        : language === 'en'
+        ? `Opening SMS for ${draft.supplier.name}.`
+        : `${draft.supplier.name} के लिए एसएमएस खोला जा रहा है`;
+    speechSynthesizer.speak(announceMsg, language);
+    setTimeout(() => {
+      window.location.href = smsUrl;
+    }, 300);
     setOrderSentMap((prev) => ({ ...prev, [draft.supplier.id]: true }));
     onConfirmOrder(draft);
   };
@@ -198,6 +216,13 @@ export const SupplierOrdersModal: React.FC<SupplierOrdersModalProps> = ({
                 onClick={() => {
                   triggerHaptic('light');
                   setSelectedSupplierId(d.supplier.id);
+                  const openMsg =
+                    language === 'pa'
+                      ? `${d.supplier.name} ਦਾ ਆਰਡਰ ਖੋਲ੍ਹਿਆ ਗਿਆ`
+                      : language === 'en'
+                      ? `Opening order for ${d.supplier.name}.`
+                      : `${d.supplier.name} का आर्डर खोला गया`;
+                  speechSynthesizer.speak(openMsg, language);
                 }}
                 className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap active:scale-95 flex items-center space-x-1.5 ${
                   isSelected
@@ -230,10 +255,22 @@ export const SupplierOrdersModal: React.FC<SupplierOrdersModalProps> = ({
                 <h3 className="font-bold text-sm text-app-text">
                   {currentDraft.supplier.name}
                 </h3>
-                <p className="text-xs text-app-muted flex items-center mt-0.5">
+                <a
+                  href={`tel:${currentDraft.supplier.phone}`}
+                  onClick={() => {
+                    const callMsg =
+                      language === 'pa'
+                        ? `${currentDraft.supplier.name} ਨੂੰ ਕਾਲ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ`
+                        : language === 'en'
+                        ? `Calling ${currentDraft.supplier.name}.`
+                        : `${currentDraft.supplier.name} को कॉल किया जा रहा है`;
+                    speechSynthesizer.speak(callMsg, language);
+                  }}
+                  className="text-xs text-app-muted hover:text-primary flex items-center mt-0.5"
+                >
                   <Phone className="w-3 h-3 mr-1 text-primary" />
                   {currentDraft.supplier.phone}
-                </p>
+                </a>
               </div>
               <div className="text-right">
                 <span className="text-[10px] text-app-muted">{t.stock.totalEstimatedCost}</span>

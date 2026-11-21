@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useI18n } from '../../i18n';
 import {
@@ -10,10 +10,14 @@ import {
   Check,
   Building2,
   ChevronDown,
+  Mic,
+  Edit2,
 } from 'lucide-react';
 import { triggerHaptic, playAudioCue } from '../../lib/sound';
 import { formatINR } from '../../lib/utils';
 import { formatItemName, formatUnit } from '../../lib/nameTranslation';
+import { createSTTProvider, STTProvider } from '../../stt';
+import { speechSynthesizer } from '../../tts/speechSynthesizer';
 import {
   parseBillPhotoWithGemini,
   ExtractedBillItem,
@@ -41,6 +45,169 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
   const [extractedItems, setExtractedItems] = useState<ExtractedBillItem[]>([]);
   const [showPhotoPreview, setShowPhotoPreview] = useState(false);
 
+  // Voice discrepancy adjustment & spoken verification states
+  const [isListening, setIsListening] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [voiceFeedback, setVoiceFeedback] = useState<string | null>(null);
+  const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editPriceVal, setEditPriceVal] = useState('');
+  const sttProviderRef = useRef<STTProvider | null>(null);
+  const extractedItemsRef = useRef<ExtractedBillItem[]>([]);
+  extractedItemsRef.current = extractedItems;
+
+  useEffect(() => {
+    return () => {
+      if (sttProviderRef.current) {
+        try {
+          sttProviderRef.current.stopListening();
+        } catch {}
+      }
+    };
+  }, []);
+
+  const stopVoiceListening = useCallback(() => {
+    if (sttProviderRef.current) {
+      try {
+        sttProviderRef.current.stopListening();
+      } catch {}
+    }
+    setIsListening(false);
+  }, []);
+
+  const handleApplyUpdates = useCallback(() => {
+    stopVoiceListening();
+    const selected = extractedItemsRef.current.filter((i) => i.selected);
+    if (selected.length === 0) return;
+
+    triggerHaptic('success');
+    playAudioCue('success');
+
+    if (onPricesExtracted) {
+      onPricesExtracted(selected);
+    }
+    onClose();
+  }, [stopVoiceListening, onPricesExtracted, onClose]);
+
+  const handleVoiceInput = useCallback(
+    (text: string, currentItems: ExtractedBillItem[]) => {
+      if (!text) return;
+      const lower = text.toLowerCase();
+
+      // 1. Check for confirmation / "yes" intent
+      const latinYes = /\b(haan|ha|haa|yes|yeah|yup|ok|okay|confirm|save|update|theek\s*hai|theek|sahi|sahi\s*hai|kar\s*do|karo|done|right|aaho|ho)\b/i;
+      const indicYes = /(?:^|\s|[^\p{L}\p{N}])(हाँ|हां|हाँजी|जी\s*हाँ|लिख\s*दो|कर\s*दो|ठीक\s*है|सही\s*है|ਹਾਂ|ਹਾਂਜੀ|ਜੀ\s*ਹਾਂ|ਆਹੋ|ਠੀਕ\s*ਹੈ)(?:$|\s|[^\p{L}\p{N}])/u;
+
+      if (latinYes.test(lower) || indicYes.test(text)) {
+        handleApplyUpdates();
+        return;
+      }
+
+      // 2. Check for item price discrepancy adjustment (e.g. "Butter biscuit 45", "Rusk 25 rupaye")
+      const numMatches = text.match(/\b(\d+(?:\.\d+)?)\b/g);
+      const itemsToSearch = currentItems.length > 0 ? currentItems : extractedItemsRef.current;
+      if (numMatches && numMatches.length > 0 && itemsToSearch.length > 0) {
+        const newPrice = Number(numMatches[numMatches.length - 1]);
+        const query = text
+          .replace(/\b(\d+(?:\.\d+)?)\b/g, '')
+          .replace(
+            /\b(rupaye|rupayee|rupees|rs|inr|daam|bhaav|price|rate|karo|kar|do|ka|to|change|set|update|badlo|kardo|packet|piece|litre|kg|kilo|cost|selling)\b/gi,
+            ''
+          )
+          .trim()
+          .toLowerCase();
+
+        let bestMatch: ExtractedBillItem | null = null;
+        let highestScore = 0;
+
+        for (const it of itemsToSearch) {
+          const itName = it.name.toLowerCase();
+          let score = 0;
+
+          if (query.length > 1 && (itName.includes(query) || query.includes(itName))) {
+            score += 10;
+          }
+
+          const tokens = query.split(/\s+/).filter((t) => t.length > 1);
+          for (const token of tokens) {
+            if (itName.includes(token)) score += 3;
+          }
+
+          const localized = formatItemName(it.name, language).toLowerCase();
+          if (query.length > 1 && (localized.includes(query) || query.includes(localized))) {
+            score += 10;
+          }
+          for (const token of tokens) {
+            if (localized.includes(token)) score += 3;
+          }
+
+          if (score > highestScore) {
+            highestScore = score;
+            bestMatch = it;
+          }
+        }
+
+        if (bestMatch && newPrice > 0 && highestScore > 0) {
+          setExtractedItems((prev) =>
+            prev.map((it) => (it.id === bestMatch!.id ? { ...it, price: newPrice, selected: true } : it))
+          );
+          setHighlightedItemId(bestMatch.id);
+          setTimeout(() => setHighlightedItemId(null), 3000);
+          triggerHaptic('success');
+          playAudioCue('success');
+
+          const localizedName = formatItemName(bestMatch.name, language);
+          const feedback =
+            language === 'pa'
+              ? `${localizedName} ਦਾ ਮੁੱਲ ₹${newPrice} ਕਰ ਦਿੱਤਾ ਗਿਆ ਹੈ। ਅਪਡੇਟ ਕਰਨ ਲਈ 'ਹਾਂ' ਕਹੋ।`
+              : language === 'en'
+              ? `Updated ${localizedName} to ₹${newPrice}. Say 'Yes' to update prices.`
+              : `${localizedName} का दाम ₹${newPrice} कर दिया गया है। अपडेट करने के लिए 'हाँ' कहें।`;
+
+          setVoiceFeedback(feedback);
+          speechSynthesizer.speak(feedback, language);
+        }
+      }
+    },
+    [language, handleApplyUpdates]
+  );
+
+  const startVoiceListening = useCallback(
+    (itemsToMatch?: ExtractedBillItem[]) => {
+      if (sttProviderRef.current) {
+        try {
+          sttProviderRef.current.stopListening();
+        } catch {}
+      }
+      setIsListening(true);
+      setVoiceTranscript('');
+
+      const provider = createSTTProvider();
+      sttProviderRef.current = provider;
+
+      provider.startListening(
+        { language, continuous: true, interimResults: true },
+        {
+          onResult: (result) => {
+            const text = result.transcript.trim();
+            setVoiceTranscript(text);
+            handleVoiceInput(text, itemsToMatch || extractedItemsRef.current);
+          },
+          onError: (err) => {
+            console.warn('Bill scan STT error:', err);
+            setIsListening(false);
+          },
+          onStateChange: (state) => {
+            if (state === 'idle' || state === 'error') {
+              setIsListening(false);
+            }
+          },
+        }
+      );
+    },
+    [language, handleVoiceInput]
+  );
+
   if (!isOpen) return null;
 
   const handleCaptureClick = () => {
@@ -66,6 +233,8 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
         setIsProcessing(true);
         setOcrResult(null);
         setExtractedItems([]);
+        setVoiceFeedback(null);
+        setVoiceTranscript('');
 
         try {
           const res = await parseBillPhotoWithGemini(dataUrl);
@@ -73,6 +242,23 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
           setExtractedItems(res.items);
           triggerHaptic('success');
           playAudioCue('success');
+
+          if (res.items && res.items.length > 0) {
+            const count = res.items.length;
+            const promptMsg =
+              language === 'pa'
+                ? `ਬਿੱਲ ਤੋਂ ${count} ਚੀਜ਼ਾਂ ਦੇ ਮੁੱਲ ਮਿਲੇ ਹਨ। ਜੇ ਕੋਈ ਫ਼ਰਕ ਹੈ ਤਾਂ ਦੱਸੋ, ਜਾਂ ਮੁੱਲ ਅਪਡੇਟ ਕਰਨ ਲਈ 'ਹਾਂ' ਕਹੋ।`
+                : language === 'en'
+                ? `Found ${count} items from bill. Check if any price is different. Say 'Yes' to update prices, or speak to change any price.`
+                : `बिल से ${count} सामान के दाम मिले हैं। अगर कोई अंतर है तो बताएं, या दाम अपडेट करने के लिए 'हाँ' कहें।`;
+
+            setVoiceFeedback(promptMsg);
+            speechSynthesizer.speak(promptMsg, language);
+
+            setTimeout(() => {
+              startVoiceListening(res.items);
+            }, 2200);
+          }
         } catch (err) {
           console.error('Failed to parse bill photo:', err);
         } finally {
@@ -101,25 +287,20 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
     );
   };
 
-  const handleApplyUpdates = () => {
-    const selected = extractedItems.filter((i) => i.selected);
-    if (selected.length === 0) return;
-
-    triggerHaptic('success');
-    playAudioCue('success');
-
-    if (onPricesExtracted) {
-      onPricesExtracted(selected);
-    }
-    onClose();
-  };
-
   const handleRetake = () => {
+    stopVoiceListening();
     triggerHaptic('light');
     setPreviewImage(null);
     setOcrResult(null);
     setExtractedItems([]);
+    setVoiceFeedback(null);
+    setVoiceTranscript('');
     setShowPhotoPreview(false);
+  };
+
+  const handleModalClose = () => {
+    stopVoiceListening();
+    onClose();
   };
 
   const selectedCount = extractedItems.filter((i) => i.selected).length;
@@ -151,7 +332,7 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
             </div>
 
             <button
-              onClick={onClose}
+              onClick={handleModalClose}
               className="touch-target-64 p-2 text-slate-400 hover:text-slate-700 active:scale-95 rounded-full"
               aria-label={t.billScan.close}
             >
@@ -295,6 +476,60 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
                   </div>
                 )}
 
+                {/* Voice Discrepancy & Confirmation Bar */}
+                <div
+                  className={`p-3 rounded-2xl border transition-all flex items-center justify-between ${
+                    isListening
+                      ? 'bg-emerald-50 border-emerald-400 ring-2 ring-emerald-400/40'
+                      : 'bg-emerald-50/50 border-emerald-200/90'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2.5 overflow-hidden flex-1 mr-2">
+                    <button
+                      type="button"
+                      onClick={isListening ? stopVoiceListening : () => startVoiceListening()}
+                      className={`touch-target-64 w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${
+                        isListening
+                          ? 'bg-rose-500 text-white animate-pulse shadow-md'
+                          : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+                      }`}
+                      aria-label="Voice input for price discrepancy"
+                    >
+                      <Mic className="w-4 h-4" />
+                    </button>
+                    <div className="truncate">
+                      <p className="text-xs font-black text-slate-800 truncate">
+                        {isListening
+                          ? voiceTranscript ||
+                            (language === 'pa'
+                              ? 'ਸੁਣ ਰਿਹਾ ਹੈ... ਮੁੱਲ ਬੋਲੋ ਜਾਂ "ਹਾਂ" ਕਹੋ'
+                              : language === 'en'
+                              ? 'Listening... speak price or say "Yes"'
+                              : 'सुन रहे हैं... दाम बोलें या "हाँ" कहें')
+                          : voiceFeedback ||
+                            (language === 'pa'
+                              ? 'ਕੋਈ ਫ਼ਰਕ ਹੈ ਤਾਂ ਮੁੱਲ ਬੋਲੋ, ਜਾਂ "ਹਾਂ" ਕਹੋ'
+                              : language === 'en'
+                              ? 'Speak price discrepancy, or say "Yes"'
+                              : 'कोई अंतर है तो दाम बोलें, या "हाँ" कहें')}
+                      </p>
+                      <p className="text-[10px] text-slate-500 font-medium truncate">
+                        {language === 'pa'
+                          ? 'ਉਦਾਹਰਣ: "Butter biscuit 45" ਜਾਂ "ਹਾਂ"'
+                          : language === 'en'
+                          ? 'e.g. "Butter biscuit 45" or say "Yes"'
+                          : 'उदाहरण: "Butter biscuit 45" या "हाँ"'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {isListening && (
+                    <span className="text-[10px] font-black text-rose-800 bg-rose-100 px-2 py-0.5 rounded-full flex-shrink-0 animate-pulse">
+                      REC
+                    </span>
+                  )}
+                </div>
+
                 {/* Extracted Items List */}
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                   {extractedItems.map((item) => (
@@ -303,7 +538,9 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
                       whileTap={{ scale: 0.99 }}
                       onClick={() => toggleItemSelection(item.id)}
                       className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                        item.selected
+                        highlightedItemId === item.id
+                          ? 'border-amber-400 ring-2 ring-amber-400/80 bg-amber-50/70 shadow-md'
+                          : item.selected
                           ? 'bg-emerald-50/40 border-emerald-300 shadow-xs'
                           : 'bg-gray-50/70 border-gray-200 opacity-60'
                       }`}
@@ -351,9 +588,57 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
                             : t.billScan.priceTypeSell}
                         </button>
 
-                        <span className="text-sm font-black text-slate-900">
-                          {formatINR(item.price)}
-                        </span>
+                        {editingItemId === item.id ? (
+                          <div
+                            className="flex items-center space-x-1"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <span className="text-xs font-bold text-slate-500">₹</span>
+                            <input
+                              type="number"
+                              autoFocus
+                              value={editPriceVal}
+                              onChange={(e) => setEditPriceVal(e.target.value)}
+                              onBlur={() => {
+                                const val = parseFloat(editPriceVal);
+                                if (!isNaN(val) && val > 0) {
+                                  setExtractedItems((prev) =>
+                                    prev.map((it) => (it.id === item.id ? { ...it, price: val } : it))
+                                  );
+                                }
+                                setEditingItemId(null);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  const val = parseFloat(editPriceVal);
+                                  if (!isNaN(val) && val > 0) {
+                                    setExtractedItems((prev) =>
+                                      prev.map((it) => (it.id === item.id ? { ...it, price: val } : it))
+                                    );
+                                  }
+                                  setEditingItemId(null);
+                                }
+                              }}
+                              className="w-16 px-1.5 py-0.5 text-xs font-black border border-emerald-500 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            />
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingItemId(item.id);
+                              setEditPriceVal(String(item.price));
+                            }}
+                            className="flex items-center space-x-1 hover:bg-emerald-100/60 p-1 rounded-lg transition-colors group"
+                            title="Tap to change price"
+                          >
+                            <span className="text-sm font-black text-slate-900 group-hover:text-emerald-700">
+                              {formatINR(item.price)}
+                            </span>
+                            <Edit2 className="w-3 h-3 text-slate-400 group-hover:text-emerald-600 transition-colors" />
+                          </button>
+                        )}
                       </div>
                     </motion.div>
                   ))}
