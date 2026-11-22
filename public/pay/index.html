@@ -658,12 +658,17 @@
         }, 2500);
       }
 
-      // Try opening the UPI app automatically once after load
-      setTimeout(function () {
-        try {
-          window.location.href = upiDeepLink;
-        } catch (err) {}
-      }, 400);
+      // Try opening the UPI app automatically once per page session without repeating
+      try {
+        if (!sessionStorage.getItem('upi_auto_attempted')) {
+          sessionStorage.setItem('upi_auto_attempted', '1');
+          setTimeout(function () {
+            try {
+              window.location.href = upiDeepLink;
+            } catch (err) {}
+          }, 500);
+        }
+      } catch (e) {}
     })();
   </script>
 </body>
