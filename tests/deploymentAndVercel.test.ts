@@ -18,6 +18,15 @@ describe('Vercel & Production Deployment Invariants', () => {
       expect(Array.isArray(config.rewrites)).toBe(true);
       expect(config.rewrites.length).toBeGreaterThan(0);
 
+      // Verify explicit api routing rule
+      const apiRewrite = config.rewrites.find((r: any) => r.source === '/api/(.*)');
+      expect(apiRewrite).toBeDefined();
+      expect(apiRewrite.destination).toBe('/api/$1');
+
+      // Verify explicit pay routing rule
+      const payRewrite = config.rewrites.find((r: any) => r.source === '/pay');
+      expect(payRewrite).toBeDefined();
+
       const mainRewrite = config.rewrites.find((r: any) => r.destination === '/index.html');
       expect(mainRewrite).toBeDefined();
 
@@ -41,6 +50,23 @@ describe('Vercel & Production Deployment Invariants', () => {
       expect(pattern.test('/ledger')).toBe(true);
       expect(pattern.test('/today')).toBe(true);
       expect(pattern.test('/orders')).toBe(true);
+    });
+
+    it('verifies that all PWA and web manifest icons exist in public/', () => {
+      const publicDir = path.join(rootDir, 'public');
+      const requiredIcons = [
+        'favicon.ico',
+        'favicon.svg',
+        'pwa-192x192.png',
+        'pwa-512x512.png',
+        'apple-touch-icon.png',
+      ];
+      for (const icon of requiredIcons) {
+        const iconPath = path.join(publicDir, icon);
+        expect(fs.existsSync(iconPath)).toBe(true);
+        const stat = fs.statSync(iconPath);
+        expect(stat.size).toBeGreaterThan(0);
+      }
     });
   });
 

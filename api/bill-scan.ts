@@ -1,16 +1,4 @@
-import type { IncomingMessage, ServerResponse } from 'http';
-
-interface VercelRequest extends IncomingMessage {
-  body?: any;
-  query?: Record<string, string | string[]>;
-  cookies?: Record<string, string>;
-}
-
-interface VercelResponse extends ServerResponse {
-  status(statusCode: number): this;
-  json(data: any): this;
-  send(body: any): this;
-}
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // In-memory per-shop daily quota tracker
 // Key format: `${shopId}:${YYYY-MM-DD}`

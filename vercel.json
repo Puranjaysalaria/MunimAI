@@ -3,7 +3,19 @@
   "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/((?!pay|api|assets|favicon\\.ico|apple-touch-icon\\.png|pwa-|sw\\.js|workbox-|manifest\\.webmanifest|registerSW\\.js).*)",
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/pay",
+      "destination": "/pay/index.html"
+    },
+    {
+      "source": "/pay/:path*",
+      "destination": "/pay/:path*"
+    },
+    {
+      "source": "/((?!api|pay|assets|favicon|apple-touch-icon|pwa-|sw\\.js|workbox-|manifest\\.webmanifest|registerSW\\.js).*)",
       "destination": "/index.html"
     }
   ]

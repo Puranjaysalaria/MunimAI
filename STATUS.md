@@ -172,3 +172,18 @@
     - Zero TypeScript errors in `tsc --noEmit`.
     - 100% i18n coverage across all 10 locales (415 keys).
     - Production build passing cleanly via `npm run build` with PWA service worker precaching.
+- [x] **Step 16: PWA Web Manifest Icons, Vercel Serverless Routing Fix, and Edge OCR Fallback Guard**
+  - **PWA Web Manifest & Favicon Assets**:
+    - Generated valid PNG and ICO assets matching the DukaanAI emerald theme (`#0B6E4F`): `public/favicon.ico`, `public/favicon.svg`, `public/apple-touch-icon.png`, `public/pwa-192x192.png`, and `public/pwa-512x512.png`.
+    - Resolved manifest download errors (`/pwa-192x192.png` 404) and browser favicon 404.
+  - **Vercel Serverless API Routing (`vercel.json`)**:
+    - Added explicit rewrite rule `{"source": "/api/(.*)", "destination": "/api/$1"}` at the top of `rewrites` in `vercel.json`.
+    - Installed `@vercel/node` in `devDependencies` and imported `VercelRequest, VercelResponse` in `api/bill-scan.ts`.
+    - Ensures `/api/bill-scan` resolves to the Vercel serverless function rather than falling into the static SPA fallback or returning 404.
+  - **Supabase Edge Function Fallback Guard (`src/lib/billOcrService.ts`)**:
+    - Guarded un-deployed Supabase Edge Function calls behind `VITE_USE_SUPABASE_OCR === 'true'`.
+    - Prevents browser CORS preflight errors against `https://<supabase-id>.supabase.co/functions/v1/bill-ocr`.
+  - **Verification**:
+    - 526/526 unit tests passing in `vitest` across 15 test files.
+    - Zero TypeScript errors in `tsc --noEmit`.
+    - Clean production build via `npm run build`.

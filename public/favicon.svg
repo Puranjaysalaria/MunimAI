@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="128" fill="#0B6E4F"/>
+  <!-- Stylized Ledger / Book -->
+  <path d="M128 128h224c17.7 0 32 14.3 32 32v224c0 17.7-14.3 32-32 32H128c-17.7 0-32-14.3-32-32V160c0-17.7 14.3-32 32-32z" fill="#FAF7F2" opacity="0.95"/>
+  <path d="M160 96h224c17.7 0 32 14.3 32 32v224c0 17.7-14.3 32-32 32H160" fill="none" stroke="#D8973C" stroke-width="24" stroke-linecap="round"/>
+  <!-- Rupee Symbol in Center -->
+  <path d="M216 200h80M216 236h80M216 200v112M256 200c24 0 40 12 40 36s-16 36-40 36h-40l60 64" fill="none" stroke="#0B6E4F" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

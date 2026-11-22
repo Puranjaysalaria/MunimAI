@@ -104,8 +104,9 @@ export async function parseBillPhotoWithGemini(
     }
   }
 
-  // 2. Try server-side Supabase Edge Function if available
-  if (supabaseUrl && !supabaseUrl.includes('your-project') && !supabaseUrl.includes('placeholder')) {
+  // 2. Try server-side Supabase Edge Function only if explicitly enabled
+  const useSupabaseOcr = import.meta.env.VITE_USE_SUPABASE_OCR === 'true';
+  if (useSupabaseOcr && supabaseUrl && !supabaseUrl.includes('your-project') && !supabaseUrl.includes('placeholder')) {
     try {
       const edgeRes = await fetch(`${supabaseUrl}/functions/v1/bill-ocr`, {
         method: 'POST',
