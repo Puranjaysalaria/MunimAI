@@ -125,11 +125,23 @@
       background: #047857;
       transform: scale(0.98);
     }
+    .action-prompt {
+      text-align: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: #047857;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+      line-height: 1.4;
+    }
     .app-divider {
       display: flex;
       align-items: center;
       text-align: center;
-      margin: 14px 0 10px;
+      margin: 16px 0 12px;
       color: #94a3b8;
       font-size: 11px;
       font-weight: 700;
@@ -147,23 +159,22 @@
     }
     .app-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin-bottom: 4px;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 6px;
     }
     .app-btn {
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 4px;
-      padding: 10px 4px;
+      gap: 6px;
+      padding: 13px 8px;
       border-radius: 14px;
       text-decoration: none;
-      font-size: 11px;
+      font-size: 13px;
       font-weight: 800;
       transition: transform 0.1s, opacity 0.15s;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.07);
     }
     .app-btn:active {
       transform: scale(0.96);
@@ -180,6 +191,22 @@
     .app-paytm {
       background: #00b9f1;
       color: #ffffff;
+    }
+    .app-bhim {
+      background: #008444;
+      color: #ffffff;
+    }
+    .no-app-alert {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 10px 12px;
+      border-radius: 12px;
+      margin-top: 12px;
+      line-height: 1.4;
+      text-align: center;
     }
     .btn-copy {
       display: flex;
@@ -479,18 +506,14 @@
         "&am=" + cleanAm +
         "&cu=INR&tn=" + cleanTn;
 
-      // Android universal intent to trigger system UPI app chooser safely from any in-app browser
-      var androidIntentLink = "intent://pay?pa=" + cleanPa +
-        "&pn=" + cleanPn +
-        "&am=" + cleanAm +
-        "&cu=INR&tn=" + cleanTn +
-        "#Intent;scheme=upi;end";
-
-      // Direct app links
-      var phonepeLink = "phonepe://pay?pa=" + cleanPa +
-        "&pn=" + cleanPn +
-        "&am=" + cleanAm +
-        "&cu=INR&tn=" + cleanTn;
+      // Direct app links with Android intent package targeting
+      var phonepeLink = isAndroid
+        ? "intent://pay?pa=" + cleanPa +
+          "&pn=" + cleanPn +
+          "&am=" + cleanAm +
+          "&cu=INR&tn=" + cleanTn +
+          "#Intent;scheme=upi;package=com.phonepe.app;end"
+        : upiDeepLink;
 
       var gpayLink = isAndroid
         ? "intent://pay?pa=" + cleanPa +
@@ -500,12 +523,27 @@
           "#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end"
         : upiDeepLink;
 
-      var paytmLink = "paytmmp://pay?pa=" + cleanPa +
-        "&pn=" + cleanPn +
-        "&am=" + cleanAm +
-        "&cu=INR&tn=" + cleanTn;
+      var paytmLink = isAndroid
+        ? "intent://pay?pa=" + cleanPa +
+          "&pn=" + cleanPn +
+          "&am=" + cleanAm +
+          "&cu=INR&tn=" + cleanTn +
+          "#Intent;scheme=upi;package=net.one97.paytm;end"
+        : upiDeepLink;
 
-      var primaryPayLink = isAndroid ? androidIntentLink : upiDeepLink;
+      var bhimLink = isAndroid
+        ? "intent://pay?pa=" + cleanPa +
+          "&pn=" + cleanPn +
+          "&am=" + cleanAm +
+          "&cu=INR&tn=" + cleanTn +
+          "#Intent;scheme=upi;package=in.org.npci.upiapp;end"
+        : upiDeepLink;
+
+      var promptMsg = lang === 'pa'
+        ? "👉 ਭੁਗਤਾਨ ਕਰਨ ਲਈ ਹੇਠਾਂ ਬਟਨ ਦਬਾਓ ਜਾਂ ਆਪਣੀ ਮਨਪਸੰਦ ਐਪ ਚੁਣੋ:"
+        : lang === 'en'
+        ? "👉 Tap the button below to pay or select your preferred UPI app:"
+        : "👉 भुगतान करने के लिए नीचे हरा बटन दबाएं या अपनी ऐप चुनें:";
 
       appEl.innerHTML =
         '<div class="header">' +
@@ -530,30 +568,48 @@
             '<span class="info-value">' + escapeHTML(safeNote) + '</span>' +
           '</div>' : '') +
         '</div>' +
-        '<a href="' + escapeHTML(primaryPayLink) + '" class="btn-pay" id="payBtn">' +
-          '<span>💳</span> ' + escapeHTML(t.payWithApp) +
+        '<div class="action-prompt">' + escapeHTML(promptMsg) + '</div>' +
+        '<a href="' + escapeHTML(upiDeepLink) + '" class="btn-pay" id="payBtn">' +
+          '<span>⚡</span> ' + escapeHTML(t.payWithApp) +
         '</a>' +
-        '<div class="app-divider"><span>या सीधे ऐप से भुगतान करें (Direct Apps)</span></div>' +
+        '<div class="app-divider"><span>सीधे ऐप से भुगतान करें (Direct Apps)</span></div>' +
         '<div class="app-grid">' +
           '<a href="' + escapeHTML(phonepeLink) + '" class="app-btn app-phonepe" id="phonepeBtn">' +
             '<span>🟣</span><span>PhonePe</span>' +
           '</a>' +
           '<a href="' + escapeHTML(gpayLink) + '" class="app-btn app-gpay" id="gpayBtn">' +
-            '<span>🔵</span><span>GPay</span>' +
+            '<span>🔵</span><span>Google Pay</span>' +
           '</a>' +
           '<a href="' + escapeHTML(paytmLink) + '" class="app-btn app-paytm" id="paytmBtn">' +
             '<span>🔷</span><span>Paytm</span>' +
+          '</a>' +
+          '<a href="' + escapeHTML(bhimLink) + '" class="app-btn app-bhim" id="bhimBtn">' +
+            '<span>🟢</span><span>BHIM UPI</span>' +
           '</a>' +
         '</div>' +
         '<button type="button" class="btn-copy" id="copyBtn">' +
           '<span>📋</span> <span id="copyBtnText">' + escapeHTML(t.copyUpiId) + '</span>' +
         '</button>' +
+        '<div id="noAppAlert" class="no-app-alert" style="display: none;">' +
+          '⚠️ कोई UPI ऐप नहीं खुला? ऊपर <strong>"UPI ID कॉपी करें"</strong> दबाएं और अपने GPay/PhonePe में पेस्ट करें।' +
+        '</div>' +
         '<div class="help-notice">' +
           '💡 ' + escapeHTML(t.helpNote) +
         '</div>' +
         '<div class="secure-footer">' +
           '🔒 ' + escapeHTML(t.secureNote) +
         '</div>';
+
+      // Pay button click handler
+      var payBtn = document.getElementById('payBtn');
+      if (payBtn) {
+        payBtn.addEventListener('click', function () {
+          setTimeout(function () {
+            var noAppAlert = document.getElementById('noAppAlert');
+            if (noAppAlert) noAppAlert.style.display = 'block';
+          }, 2500);
+        });
+      }
 
       // Copy UPI ID button interaction
       var copyBtn = document.getElementById('copyBtn');
@@ -589,14 +645,12 @@
         }, 2500);
       }
 
-      // Try opening the UPI app automatically once after user-allowed load
+      // Try opening the UPI app automatically once after load
       setTimeout(function () {
         try {
-          if (!isIOS) {
-            window.location.href = primaryPayLink;
-          }
+          window.location.href = upiDeepLink;
         } catch (err) {}
-      }, 500);
+      }, 400);
     })();
   </script>
 </body>
