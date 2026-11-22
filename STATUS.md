@@ -187,3 +187,14 @@
     - 526/526 unit tests passing in `vitest` across 15 test files.
     - Zero TypeScript errors in `tsc --noEmit`.
     - Clean production build via `npm run build`.
+- [x] **Step 17: Production Gemini OCR Model Update & Fallback Chain**
+  - **Gemini Model Upgrade (`gemini-3.8-flash`)**:
+    - Google Generative Language API deprecated `gemini-2.0-flash` on the endpoint, returning 404 with recommendation to use `gemini-3.8-flash`.
+    - Updated [api/bill-scan.ts](file:///C:/Users/Croma/Desktop/DukaanAI/api/bill-scan.ts) to use a resilient candidate model chain: `process.env.GEMINI_MODEL`, `gemini-3.8-flash`, `gemini-2.5-flash`, `gemini-1.5-flash`.
+    - Verified live against production Vercel: returns HTTP 200 with JSON parsing and quota deduction.
+  - **Error Propagation & User Feedback**:
+    - Updated [src/lib/billOcrService.ts](file:///C:/Users/Croma/Desktop/DukaanAI/src/lib/billOcrService.ts) to propagate server errors instead of silently swallowing them.
+    - Updated [src/components/BillScan/BillScanModal.tsx](file:///C:/Users/Croma/Desktop/DukaanAI/src/components/BillScan/BillScanModal.tsx) to display exact error messages in the fallback state when a scan fails.
+  - **Verification**:
+    - 526/526 tests passing, zero TypeScript errors, clean production build.
+    - Live end-to-end verification succeeded (`HTTP 200 OK`).
