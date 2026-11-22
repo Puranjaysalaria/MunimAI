@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/((?!pay|api|assets|favicon\\.ico|apple-touch-icon\\.png|pwa-|sw\\.js|workbox-|manifest\\.webmanifest|registerSW\\.js).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

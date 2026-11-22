@@ -31,8 +31,10 @@ function normalizeUnit(unitStr?: string): ItemUnit {
   return 'piece';
 }
 
-export async function parseBillPhotoWithGemini(imageDataUrl: string): Promise<BillOcrResult> {
-  const apiKey = (import.meta.env.VITE_GEMINI_API_KEY || '').trim();
+export async function parseBillPhotoWithGemini(
+  imageDataUrl: string,
+  shopId?: string
+): Promise<BillOcrResult> {
   const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
   const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
 
@@ -45,8 +47,65 @@ export async function parseBillPhotoWithGemini(imageDataUrl: string): Promise<Bi
     base64Data = match[2];
   }
 
-  // 1. Try server-side Supabase Edge Function first if available
-  if (supabaseUrl && !supabaseUrl.includes('your-project')) {
+  // 1. Try server-side Vercel serverless function (/api/bill-scan) first
+  // Protects the GEMINI_API_KEY secret and enforces per-shop daily quota
+  if (typeof window !== 'undefined') {
+    try {
+      const apiRes = await fetch('/api/bill-scan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-shop-id': shopId || 'shop-1',
+        },
+        body: JSON.stringify({
+          imageBase64: base64Data,
+          mimeType,
+          shopId: shopId || 'shop-1',
+        }),
+      });
+
+      if (apiRes.status === 429) {
+        const errData = await apiRes.json().catch(() => ({}));
+        return {
+          success: false,
+          error:
+            errData.error ||
+            'Daily bill scan quota exceeded for your store (max 20 scans per day). Quota resets at midnight.',
+          items: [],
+        };
+      }
+
+      if (apiRes.ok) {
+        const apiData = await apiRes.json();
+        if (apiData.items && Array.isArray(apiData.items)) {
+          const items: ExtractedBillItem[] = apiData.items.map((it: any, idx: number) => ({
+            id: `bill-item-${Date.now()}-${idx}`,
+            name: String(it.name || `Item ${idx + 1}`).trim(),
+            quantity: Number(it.quantity) || 1,
+            unit: normalizeUnit(it.unit),
+            price: Number(it.price) || 0,
+            mrp: it.mrp ? Number(it.mrp) : undefined,
+            selected: true,
+            priceType: 'cost', // Bills from distributors / suppliers are cost prices by default
+          }));
+
+          if (items.length > 0) {
+            return {
+              success: true,
+              storeName: apiData.storeName || 'Supermarket / Store',
+              totalAmount: Number(apiData.totalAmount) || items.reduce((sum, i) => sum + i.price * i.quantity, 0),
+              items,
+            };
+          }
+        }
+      }
+    } catch (apiErr) {
+      console.warn('[BillScan] /api/bill-scan not reachable or failed:', apiErr);
+    }
+  }
+
+  // 2. Try server-side Supabase Edge Function if available
+  if (supabaseUrl && !supabaseUrl.includes('your-project') && !supabaseUrl.includes('placeholder')) {
     try {
       const edgeRes = await fetch(`${supabaseUrl}/functions/v1/bill-ocr`, {
         method: 'POST',
@@ -79,149 +138,79 @@ export async function parseBillPhotoWithGemini(imageDataUrl: string): Promise<Bi
         }
       }
     } catch {
-      // Fall through to client API key or offline mock
+      // Fall through to offline mock or error
     }
   }
 
-  if (apiKey) {
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+  // 3. Graceful Local / Demo Fallback (controlled by flag or demo mode)
+  const isDemoOrMockAllowed =
+    import.meta.env.VITE_DEMO_MODE === 'true' ||
+    import.meta.env.VITE_ENABLE_MOCK_BILL_SCAN === 'true' ||
+    (typeof process !== 'undefined' && process.env.NODE_ENV === 'test');
+
+  if (isDemoOrMockAllowed) {
+    return {
+      success: true,
+      storeName: 'Local Store Receipt',
+      totalAmount: 559,
+      items: [
         {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: `You are an expert OCR parser for Indian kirana store, retail, and supermarket printed or handwritten receipts, invoices, and bills.
-Analyze this bill photo and extract:
-1. storeName: The name of the store or supermarket printed at the top (or "Retail Store" if unknown).
-2. totalAmount: The final net payable or total amount printed on the bill as a number.
-3. items: Array of all purchased or billed items. For each item extract:
-   - name: readable standard product name (e.g. "Hatsun Curd 500g", "Refined Oil", "Butter Biscuit", "Toastea Rusk", "Pure Ghee 500ml")
-   - quantity: numeric quantity (default 1)
-   - unit: one of "kilo", "litre", "gram", "packet", "piece", "bottle", "dozen", "box", "bag"
-   - price: unit rate or item price (Rate or Amount) as a number
-   - mrp: original MRP if printed, else same as price
-
-Return STRICT valid JSON without markdown fences matching:
-{
-  "storeName": string,
-  "totalAmount": number,
-  "items": [
-    { "name": string, "quantity": number, "unit": string, "price": number, "mrp": number }
-  ]
-}`,
-                  },
-                  {
-                    inlineData: {
-                      mimeType,
-                      data: base64Data,
-                    },
-                  },
-                ],
-              },
-            ],
-            generationConfig: {
-              responseMimeType: 'application/json',
-              temperature: 0.1,
-            },
-          }),
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        const rawJsonText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (rawJsonText) {
-          const parsed = JSON.parse(rawJsonText);
-          const rawItems = Array.isArray(parsed.items) ? parsed.items : [];
-          const items: ExtractedBillItem[] = rawItems.map((it: any, idx: number) => ({
-            id: `bill-item-${Date.now()}-${idx}`,
-            name: String(it.name || `Item ${idx + 1}`).trim(),
-            quantity: Number(it.quantity) || 1,
-            unit: normalizeUnit(it.unit),
-            price: Number(it.price) || 0,
-            mrp: it.mrp ? Number(it.mrp) : undefined,
-            selected: true,
-            priceType: 'cost', // Bills from distributors / suppliers are cost prices by default
-          }));
-
-          if (items.length > 0) {
-            return {
-              success: true,
-              storeName: parsed.storeName || 'Supermarket / Store',
-              totalAmount: Number(parsed.totalAmount) || items.reduce((sum, i) => sum + i.price * i.quantity, 0),
-              items,
-            };
-          }
-        }
-      } else {
-        console.warn('Gemini Bill OCR API non-200 status:', response.status);
-      }
-    } catch (err: any) {
-      console.warn('Gemini Bill OCR API failed, using fallback:', err);
-    }
+          id: `bill-item-${Date.now()}-1`,
+          name: 'Hatsun Curd 500g',
+          quantity: 1,
+          unit: 'packet',
+          price: 40,
+          mrp: 40,
+          selected: true,
+          priceType: 'cost',
+        },
+        {
+          id: `bill-item-${Date.now()}-2`,
+          name: 'Idhayam Oil 500ml',
+          quantity: 1,
+          unit: 'litre',
+          price: 23,
+          mrp: 23,
+          selected: true,
+          priceType: 'cost',
+        },
+        {
+          id: `bill-item-${Date.now()}-3`,
+          name: 'Butter Biscuit',
+          quantity: 1,
+          unit: 'packet',
+          price: 46,
+          mrp: 50,
+          selected: true,
+          priceType: 'cost',
+        },
+        {
+          id: `bill-item-${Date.now()}-4`,
+          name: 'Toastea Rusk',
+          quantity: 2,
+          unit: 'packet',
+          price: 20,
+          mrp: 20,
+          selected: true,
+          priceType: 'cost',
+        },
+        {
+          id: `bill-item-${Date.now()}-5`,
+          name: 'Udhayakrishna Ghee 500ml',
+          quantity: 1,
+          unit: 'packet',
+          price: 430,
+          mrp: 445,
+          selected: true,
+          priceType: 'cost',
+        },
+      ],
+    };
   }
 
-  // Graceful Local / Demo Fallback
   return {
-    success: true,
-    storeName: 'Local Store Receipt',
-    totalAmount: 559,
-    items: [
-      {
-        id: `bill-item-${Date.now()}-1`,
-        name: 'Hatsun Curd 500g',
-        quantity: 1,
-        unit: 'packet',
-        price: 40,
-        mrp: 40,
-        selected: true,
-        priceType: 'cost',
-      },
-      {
-        id: `bill-item-${Date.now()}-2`,
-        name: 'Idhayam Oil 500ml',
-        quantity: 1,
-        unit: 'litre',
-        price: 23,
-        mrp: 23,
-        selected: true,
-        priceType: 'cost',
-      },
-      {
-        id: `bill-item-${Date.now()}-3`,
-        name: 'Butter Biscuit',
-        quantity: 1,
-        unit: 'packet',
-        price: 46,
-        mrp: 50,
-        selected: true,
-        priceType: 'cost',
-      },
-      {
-        id: `bill-item-${Date.now()}-4`,
-        name: 'Toastea Rusk',
-        quantity: 2,
-        unit: 'packet',
-        price: 20,
-        mrp: 20,
-        selected: true,
-        priceType: 'cost',
-      },
-      {
-        id: `bill-item-${Date.now()}-5`,
-        name: 'Udhayakrishna Ghee 500ml',
-        quantity: 1,
-        unit: 'packet',
-        price: 430,
-        mrp: 445,
-        selected: true,
-        priceType: 'cost',
-      },
-    ],
+    success: false,
+    items: [],
+    error: 'Bill scan server function is unavailable. Please check your internet connection or server configuration.',
   };
 }

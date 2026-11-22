@@ -147,3 +147,28 @@
     - Zero TypeScript errors in `tsc --noEmit`.
     - 100% i18n coverage across all 10 locales (415 keys).
     - Production build passing cleanly via `npm run build` with PWA service worker precaching.
+- [x] **Step 15: Vercel Production Deployment Preparation, Service Worker Isolation, and Serverless OCR with Daily Cap**
+  - **Vercel Routing Rewrites (`vercel.json`)**:
+    - Added clean SPA routing rewrite targeting `/index.html` with negative lookahead pattern.
+    - Excludes `/pay`, `/pay/*`, `/api/*`, and static asset bundles so static pages and API functions resolve cleanly without SPA interception.
+  - **Workbox PWA Service Worker Isolation (`vite.config.mjs`)**:
+    - Configured `navigateFallbackDenylist: [/^\/pay(\/.*)?$/, /^\/api(\/.*)?$/]`.
+    - Added `globIgnores: ['**/pay/**', 'pay/**', '**/pay/index.html']` so `pay/index.html` is never precached as the app shell.
+    - Verified generated `dist/sw.js` excludes `pay/index.html` from precache (9 entries vs 10 previously) and includes explicit navigation denylist.
+  - **Secure Serverless Bill OCR with Daily Quota (`api/bill-scan.ts` & `src/lib/billOcrService.ts`)**:
+    - Created Vercel serverless function `api/bill-scan.ts` that accesses `GEMINI_API_KEY` strictly on the server.
+    - Implemented per-shop daily quota cap (`BILL_SCAN_DAILY_CAP`, default 20 scans per shop per day).
+    - Exceeding the quota returns HTTP 429 with clear remaining count and reset time.
+    - Completely removed `VITE_GEMINI_API_KEY` from all frontend code, `.env`, and `.env.example`.
+    - Confirmed that **zero secrets use a `VITE_` prefix**.
+    - In development/offline demo mode, `VITE_ENABLE_MOCK_BILL_SCAN=true` / `VITE_DEMO_MODE=true` allows safe mock item extraction without key requirements.
+  - **Deployment Documentation & Verification Checklist (`DEPLOY.md`)**:
+    - Full environment variables inventory categorizing public browser vs server secrets.
+    - Step-by-step instructions for Supabase Auth redirect URLs (`https://<app>.vercel.app/**`, `http://localhost:5173/**`) and storage buckets.
+    - Complete 10-point post-deployment verification checklist.
+  - **Verification**:
+    - Added `tests/deploymentAndVercel.test.ts` (6 new unit tests).
+    - Full test suite: 525/525 unit tests passing in `vitest` across 15 test files.
+    - Zero TypeScript errors in `tsc --noEmit`.
+    - 100% i18n coverage across all 10 locales (415 keys).
+    - Production build passing cleanly via `npm run build` with PWA service worker precaching.

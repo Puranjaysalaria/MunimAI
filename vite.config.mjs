@@ -43,7 +43,10 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,ico,png,svg,woff2}', 'index.html'],
+        globIgnores: ['**/pay/**', 'pay/**', '**/pay/index.html'],
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/pay(\/.*)?$/, /^\/api(\/.*)?$/],
       },
     }),
   ],

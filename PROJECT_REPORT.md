@@ -253,7 +253,7 @@ Browser security and application design mandate that the following actions **str
 | Priority | Issue / Risk | Impact | Mitigation / Status |
 |---|---|---|---|
 | **High** | **iOS Safari Speech Recognition** | Web Speech API on iOS Safari does not support Indian regional languages natively. | Must use `VITE_STT_PROVIDER=server` with Sarvam or Google Speech proxy on iOS. |
-| **High** | **Client-Side Gemini API Key** | `VITE_GEMINI_API_KEY` in `.env` is bundled into client JS for Bill Scan OCR. | In production, route bill images through a Supabase Edge Function to keep the key private. |
+| **High** | **Client-Side Gemini API Key** | Previously `VITE_GEMINI_API_KEY` was bundled into client JS for Bill Scan. | **RESOLVED**: Moved behind Vercel serverless function `/api/bill-scan` with per-shop daily quota cap. Key is strictly server-side. |
 | **Medium** | **Wake Word Postponed** | "Munim" hands-free wake word is not active; microphone must be activated via button tap. | Documented in DECISION-025; avoids mobile battery drain and browser audio lockouts. |
 | **Medium** | **MRP Field Missing** | Item schema contains `cost_price` and `selling_price` but lacks an explicit `mrp` column. | Kirana shopkeepers frequently refer to MRP on packaged goods. Should add `mrp?: number` to schema. |
 | **Low** | **Large Client Bundle Chunk** | Production build outputs a single main chunk of 1,335 kB (exceeds Vite's 500 kB recommendation). | Code-split heavy modals (BillScanModal, RecoveryModal) using React `lazy()` and dynamic imports. |
@@ -270,14 +270,15 @@ Create a `.env` file at the root with the following variable names:
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 VITE_STT_PROVIDER=browser               # 'browser' or 'server'
-VITE_GEMINI_API_KEY=your-gemini-key     # Required for Bill Photo OCR
 VITE_DEMO_MODE=true                     # Enables offline demo shopkeeper mode
 VITE_DEFAULT_LANGUAGE=hi
 VITE_CURRENCY_SYMBOL=₹
+VITE_PAYMENT_PAGE_BASE_URL=munim-ai.vercel.app
 
-# Server / Edge Function Variables (Optional for local demo)
+# Server / Edge Function Variables (Secrets - NEVER use VITE_ prefix!)
 SUPABASE_SERVICE_ROLE_KEY=
-GEMINI_API_KEY=
+GEMINI_API_KEY=                         # Required for Bill Photo OCR in /api/bill-scan
+BILL_SCAN_DAILY_CAP=20                  # Daily scan quota per shop (default: 20)
 SARVAM_API_KEY=
 SMS_GATEWAY_API_KEY=
 ```
