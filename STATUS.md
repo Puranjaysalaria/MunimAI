@@ -213,3 +213,16 @@
     - 526/526 vitest tests passing across 15 test suites.
     - Zero TypeScript errors (`tsc --noEmit`).
     - Production build passing cleanly via `npm run build`.
+- [x] **Step 19: Plain-Text UPI Payment Details in Reminders & Clean Console Auditing**
+  - **Plain-Text UPI Details (`src/lib/reminderService.ts`)**:
+    - Per user requirement, removed web links from reminder messages. Messages sent via WhatsApp or SMS now strictly contain plain-text UPI payment details (UPI ID, payee store name, formatted amount with Indian digit grouping e.g. `₹20,500`).
+    - Eliminates in-app browser redirect friction and mobile WebView intent blocks, ensuring recipients can effortlessly copy or use the UPI ID in any payment app.
+  - **UI Reminder Generation Alignment**:
+    - Updated [RecoveryModal.tsx](file:///C:/Users/Croma/Desktop/DukaanAI/src/components/Reminders/RecoveryModal.tsx), [ReminderSettingsModal.tsx](file:///C:/Users/Croma/Desktop/DukaanAI/src/components/Reminders/ReminderSettingsModal.tsx), and [Ledger.tsx](file:///C:/Users/Croma/Desktop/DukaanAI/src/pages/Ledger.tsx) to generate plain-text UPI reminders.
+  - **Console & Intervention Cleanups**:
+    - Guarded `triggerHaptic` in [src/lib/sound.ts](file:///C:/Users/Croma/Desktop/DukaanAI/src/lib/sound.ts) using `navigator.userActivation?.hasBeenActive` to prevent Chrome `[Intervention] Blocked call to navigator.vibrate` warnings on initial page load / wake word detection before user tap.
+    - Removed deprecated `<meta name="apple-mobile-web-app-capable" content="yes" />` from [index.html](file:///C:/Users/Croma/Desktop/DukaanAI/index.html) to eliminate Chrome deprecation warnings while retaining standard `<meta name="mobile-web-app-capable" content="yes" />`.
+  - **Verification**:
+    - 526/526 vitest tests passing across 15 test suites.
+    - Zero TypeScript errors (`tsc --noEmit`).
+    - Production build passing cleanly via `npm run build`.

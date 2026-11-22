@@ -5,7 +5,6 @@ import {
   buildDraftReminders,
   isQuietHours,
   generateReminderMessage,
-  generatePaymentPageLink,
   resolveMessageLanguage,
 } from '../../lib/reminderService';
 import { buildWhatsAppLink, buildSMSLink } from '../../lib/slipService';
@@ -89,22 +88,11 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
     );
     const resolvedTone: ReminderTone = draft.customer.reminder_tone_override || reminderSettings.message_tone;
 
-    const paymentPageUrl =
-      reminderSettings.include_upi_link && shop.upi_id?.trim()
-        ? generatePaymentPageLink({
-            upiId: shop.upi_id,
-            shopName: shop.name,
-            amount: draft.customer.balance_owed,
-            language: resolvedLang,
-          })
-        : null;
-
     const messageText = generateReminderMessage({
       customerName: draft.customer.name,
       shopName: shop.name,
       amount: draft.customer.balance_owed,
       upiId: reminderSettings.include_upi_link ? shop.upi_id : null,
-      upiLink: paymentPageUrl,
       language: resolvedLang,
       tone: resolvedTone,
       customNote: reminderSettings.custom_note,

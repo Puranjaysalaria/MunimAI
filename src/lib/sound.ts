@@ -6,6 +6,10 @@
 export const triggerHaptic = (type: 'start' | 'stop' | 'success' | 'warning' | 'error' | 'light' = 'start') => {
   if (typeof window !== 'undefined' && 'vibrate' in navigator) {
     try {
+      // Avoid browser intervention if user hasn't interacted with page yet
+      if ('userActivation' in navigator && !(navigator as any).userActivation?.hasBeenActive) {
+        return;
+      }
       switch (type) {
         case 'light':
           navigator.vibrate(20); // Very light tick

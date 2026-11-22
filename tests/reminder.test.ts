@@ -302,7 +302,7 @@ describe('Reminder Service - Safety Rules & Template Engine', () => {
           });
           expect(withUpi).toContain('20,500');
           expect(withUpi).toContain('sharma@okaxis');
-          expect(withUpi).toContain('https://munim-ai.pages.dev/pay?');
+          expect(withUpi).not.toContain('https://');
           expect(withUpi).not.toContain('upi://pay');
 
           const withoutUpi = generateReminderMessage({

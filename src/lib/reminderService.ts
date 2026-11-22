@@ -504,7 +504,7 @@ const TEMPLATES: Record<string, TemplateSet> = {
 /**
  * Formulate personalized reminder message in selected tone & language
  * Plain-text first: includes UPI ID, Name, Amount in plain text.
- * If baseUrl is set, includes https:// payment page link. Never contains raw upi://.
+ * Strictly plain-text payment details without web links per user requirement.
  */
 export function generateReminderMessage(params: {
   customerName: string;
@@ -526,7 +526,6 @@ export function generateReminderMessage(params: {
     language = 'hi',
     tone = 'polite',
     customNote,
-    baseUrl,
   } = params;
 
   if (!TEMPLATES[language]) {
@@ -535,34 +534,20 @@ export function generateReminderMessage(params: {
   const langKey = TEMPLATES[language] ? language : 'hi';
   const toneKey: ReminderTone = ['polite', 'standard', 'firm'].includes(tone) ? tone : 'polite';
 
-  // 1. Resolve UPI ID and Payment Page Link
+  // 1. Resolve UPI ID
   let resolvedUpiId = upiId ? upiId.trim() : '';
-  let resolvedPaymentLink = upiLink ? upiLink.trim() : '';
 
   // If a legacy upi:// URL was passed, parse UPI ID from it and NEVER put raw upi:// in the message
-  if (resolvedPaymentLink.startsWith('upi://')) {
+  if (upiLink && upiLink.startsWith('upi://')) {
     try {
-      const parsed = new URL(resolvedPaymentLink.replace('upi://pay', 'http://localhost/pay'));
+      const parsed = new URL(upiLink.replace('upi://pay', 'http://localhost/pay'));
       if (!resolvedUpiId) {
         resolvedUpiId = parsed.searchParams.get('pa') || '';
       }
     } catch {}
-    resolvedPaymentLink = '';
   }
 
-  // If we have a UPI ID and haven't built the https payment page link yet, generate it
-  if (resolvedUpiId && !resolvedPaymentLink) {
-    resolvedPaymentLink =
-      generatePaymentPageLink({
-        upiId: resolvedUpiId,
-        shopName,
-        amount,
-        language: langKey,
-        baseUrl,
-      }) || '';
-  }
-
-  const hasUpi = Boolean(resolvedUpiId || (resolvedPaymentLink && !resolvedPaymentLink.startsWith('upi://')));
+  const hasUpi = Boolean(resolvedUpiId);
   const variant: TemplateVariant = hasUpi ? 'with_upi' : 'without_upi';
 
   // Format amount with Indian digit grouping: 20500 -> 20,500; 145000 -> 1,45,000
@@ -579,7 +564,7 @@ export function generateReminderMessage(params: {
       shopName,
       amount,
       language: langKey,
-      paymentPageUrl: resolvedPaymentLink || null,
+      paymentPageUrl: null, // Strictly plain-text UPI details without web link
     });
     message = message.replace('{upiLink}', paymentBlock);
   }
@@ -657,23 +642,14 @@ export function buildDraftReminders(
     // 2. Resolve language: customer preferred -> shop active -> 'hi'
     const resolvedLanguage = resolveMessageLanguage(customer.preferred_language, appLanguage);
 
-    // 3. Payment page link: only if include_upi_link is true AND shop has a valid upi_id
-    const paymentPageUrl =
-      settings.include_upi_link && shop.upi_id?.trim()
-        ? generatePaymentPageLink({
-            upiId: shop.upi_id,
-            shopName: shop.name,
-            amount: customer.balance_owed,
-            language: resolvedLanguage,
-          })
-        : null;
+    // 3. Plain-text UPI ID details: included if include_upi_link is true AND shop has a valid upi_id
+    const upiId = settings.include_upi_link && shop.upi_id?.trim() ? shop.upi_id.trim() : null;
 
     const messageText = generateReminderMessage({
       customerName: customer.name,
       shopName: shop.name,
       amount: customer.balance_owed,
-      upiId: settings.include_upi_link ? shop.upi_id : null,
-      upiLink: paymentPageUrl,
+      upiId,
       language: resolvedLanguage,
       tone: resolvedTone,
       customNote: settings.custom_note,
@@ -683,7 +659,7 @@ export function buildDraftReminders(
       customer,
       amount: customer.balance_owed,
       messageText,
-      upiLink: paymentPageUrl,
+      upiLink: upiId,
       language: resolvedLanguage,
       tone: resolvedTone,
       isSentToday: hasSentReminderToday(customer.last_reminded_at, now),

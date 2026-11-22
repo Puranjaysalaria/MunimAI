@@ -8,7 +8,7 @@ import { exportLedgerToCSV, printCustomerStatement } from '../lib/exportService'
 import { calculateCustomerTrustScore } from '../lib/trustScore';
 import { firePaymentConfetti } from '../lib/celebration';
 import { getLocalizedCustomerName } from '../lib/nameTranslation';
-import { generateReminderMessage, generatePaymentPageLink, resolveMessageLanguage } from '../lib/reminderService';
+import { generateReminderMessage, resolveMessageLanguage } from '../lib/reminderService';
 import { buildWhatsAppLink } from '../lib/slipService';
 import { speechSynthesizer } from '../tts/speechSynthesizer';
 import {
@@ -275,22 +275,11 @@ export const Ledger: React.FC<LedgerProps> = ({
 
                 const targetTone = cust.reminder_tone_override || reminderSettings.message_tone;
                 const resolvedLang = resolveMessageLanguage(cust.preferred_language, language);
-                const paymentPageUrl =
-                  reminderSettings.include_upi_link && shop.upi_id?.trim()
-                    ? generatePaymentPageLink({
-                        upiId: shop.upi_id,
-                        shopName: shop.name || 'Store',
-                        amount: cust.balance_owed,
-                        language: resolvedLang,
-                      })
-                    : null;
-
                 const messageText = generateReminderMessage({
                   customerName: cust.name,
                   amount: cust.balance_owed,
                   shopName: shop.name || 'Store',
                   upiId: reminderSettings.include_upi_link ? shop.upi_id : null,
-                  upiLink: paymentPageUrl,
                   language: resolvedLang,
                   tone: targetTone,
                 });

@@ -7,7 +7,7 @@ import {
   ReminderChannel,
   DEFAULT_REMINDER_SETTINGS,
 } from '../../types/schema';
-import { generateReminderMessage, generatePaymentPageLink } from '../../lib/reminderService';
+import { generateReminderMessage } from '../../lib/reminderService';
 import { LanguageCode, useI18n } from '../../i18n';
 import {
   X,
@@ -57,22 +57,11 @@ export const ReminderSettingsModal: React.FC<ReminderSettingsModalProps> = ({
   const thresholdPresets = [500, 1000, 2000, 5000];
 
   // Dynamic preview message
-  const previewPaymentUrl =
-    includeUpiLink && shop.upi_id?.trim()
-      ? generatePaymentPageLink({
-          upiId: shop.upi_id,
-          shopName: shop.name || 'Sharma Kirana',
-          amount: 1450,
-          language: (language as LanguageCode) || 'hi',
-        })
-      : null;
-
   const previewMessage = generateReminderMessage({
     customerName: language === 'en' ? 'Ramesh Kumar' : language === 'pa' ? 'ਰਮੇਸ਼ ਕੁਮਾਰ' : 'रमेश कुमार',
     amount: 1450,
     shopName: shop.name || (language === 'en' ? 'Sharma Kirana' : language === 'pa' ? 'ਸ਼ਰਮਾ ਕਿਰਾਨਾ ਸਟੋਰ' : 'शर्मा किराना स्टोर'),
     upiId: includeUpiLink ? shop.upi_id : null,
-    upiLink: previewPaymentUrl,
     language: (language as LanguageCode) || 'hi',
     tone,
   });
