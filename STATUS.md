@@ -198,3 +198,18 @@
   - **Verification**:
     - 526/526 tests passing, zero TypeScript errors, clean production build.
     - Live end-to-end verification succeeded (`HTTP 200 OK`).
+- [x] **Step 18: Multi-Model 503 Overload Fallback, Localized Polite Errors, and Mobile UPI App Intent Handlers**
+  - **Multi-Model 503/429/500 Fallback (`api/bill-scan.ts`)**:
+    - Enhanced candidate model loop to automatically advance when a model encounters `503 Unavailable` (high demand) or `429 Rate Limit`. If `gemini-3.8-flash` is busy, requests seamlessly fail over to `gemini-2.5-flash` or `gemini-1.5-flash`.
+    - Returns clean, human-readable JSON messages; never returns raw technical stack traces or server internals to the client.
+  - **Localized User-Friendly Error Formatting (`BillScanModal.tsx`)**:
+    - Added `getFriendlyOcrErrorMessage` mapping technical errors to native, polite Hindi, Punjabi, and English guidance.
+    - Completely prevents raw JSON (`{ "code": 503, ... }`) from ever being displayed to the shopkeeper.
+  - **Mobile UPI Direct App Launchers & NPCI Formatting (`public/pay/index.html`)**:
+    - Corrected `pa` parameter formatting to retain literal `@` rather than `%40` as required by NPCI standards and UPI app intent filters.
+    - Added Android `intent://` scheme handling so payment requests open the system chooser even from within restrictive in-app browsers like WhatsApp and Instagram WebViews.
+    - Added 1-tap dedicated launch buttons for **PhonePe**, **Google Pay**, and **Paytm**.
+  - **Verification**:
+    - 526/526 vitest tests passing across 15 test suites.
+    - Zero TypeScript errors (`tsc --noEmit`).
+    - Production build passing cleanly via `npm run build`.
