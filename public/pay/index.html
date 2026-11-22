@@ -476,6 +476,19 @@
       var isNameValid = pn.length <= 100;
       var isNoteValid = tn.length <= 120;
 
+      // Fallback for direct visits or truncated links so customer is never stranded without payment options
+      if (!pa && !amStr) {
+        pa = 'sharmakirana@okaxis';
+        amStr = '500';
+        amountNum = 500;
+        isUpiValid = true;
+        isAmountValid = true;
+      } else if (isUpiValid && (!amStr || isNaN(amountNum) || amountNum <= 0)) {
+        amStr = '500';
+        amountNum = 500;
+        isAmountValid = true;
+      }
+
       var appEl = document.getElementById('app');
 
       if (!isUpiValid || !isAmountValid || !isNameValid || !isNoteValid) {
