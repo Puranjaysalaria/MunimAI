@@ -117,7 +117,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const cleanBase64 = imageBase64.replace(/^data:[^;]+;base64,/, '');
 
   try {
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const candidateModels = [
+      process.env.GEMINI_MODEL,
+      'gemini-3.8-flash',
+      'gemini-2.5-flash',
+      'gemini-1.5-flash',
+    ].filter(Boolean) as string[];
 
     const promptText = `You are an expert OCR parser for Indian kirana store, retail, and supermarket receipts, invoices, and bills.
 Analyze this bill photo and extract:
@@ -139,35 +144,62 @@ Respond STRICTLY with valid JSON in this exact structure, with no markdown fence
   ]
 }`;
 
-    const response = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: promptText },
+    let lastError = '';
+    let response: Response | null = null;
+
+    for (const model of candidateModels) {
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+      try {
+        const resAttempt = await fetch(geminiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
               {
-                inlineData: {
-                  mimeType,
-                  data: cleanBase64,
-                },
+                parts: [
+                  { text: promptText },
+                  {
+                    inlineData: {
+                      mimeType,
+                      data: cleanBase64,
+                    },
+                  },
+                ],
               },
             ],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.1,
-          responseMimeType: 'application/json',
-        },
-      }),
-    });
+            generationConfig: {
+              temperature: 0.1,
+              responseMimeType: 'application/json',
+            },
+          }),
+        });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      res.status(response.status).json({
+        if (resAttempt.ok) {
+          response = resAttempt;
+          break;
+        }
+
+        const errText = await resAttempt.text();
+        lastError = `Model ${model} returned ${resAttempt.status}: ${errText.slice(0, 300)}`;
+
+        // If model not found or deprecated (404), continue trying next candidate
+        if (resAttempt.status === 404) {
+          continue;
+        } else {
+          // If auth or key issue or rate limit, stop and report immediately
+          response = resAttempt;
+          break;
+        }
+      } catch (fetchErr: any) {
+        lastError = `Network error calling ${model}: ${fetchErr?.message || String(fetchErr)}`;
+      }
+    }
+
+    if (!response || !response.ok) {
+      res.status(response?.status || 500).json({
         success: false,
-        error: `Gemini API returned status ${response.status}: ${errText.slice(0, 300)}`,
+        error: lastError || 'Gemini API call failed across candidate models.',
       });
       return;
     }

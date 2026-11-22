@@ -670,7 +670,7 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
               </div>
             )}
 
-            {/* 4. NO ITEMS DETECTED FALLBACK STATE */}
+            {/* 4. NO ITEMS DETECTED OR ERROR FALLBACK STATE */}
             {previewImage && !isProcessing && extractedItems.length === 0 && (
               <div className="space-y-4 py-4 text-center">
                 <div className="w-14 h-14 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto shadow-inner">
@@ -678,10 +678,11 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
                 </div>
                 <div className="space-y-1">
                   <h4 className="text-base font-black text-slate-900">
-                    No items could be read
+                    {ocrResult?.error ? 'Scan Could Not Be Completed' : 'No items could be read'}
                   </h4>
                   <p className="text-xs text-slate-500 font-medium max-w-xs mx-auto">
-                    Please take another clear photo with good lighting, or choose a clearer receipt image.
+                    {ocrResult?.error ||
+                      'Please take another clear photo with good lighting, or choose a clearer receipt image.'}
                   </p>
                 </div>
                 <motion.button

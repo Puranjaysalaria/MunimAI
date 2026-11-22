@@ -98,6 +98,15 @@ export async function parseBillPhotoWithGemini(
             };
           }
         }
+      } else {
+        const errData = await apiRes.json().catch(() => ({}));
+        const message = errData.error || `Bill scan failed with status ${apiRes.status}`;
+        console.warn('[BillScan] /api/bill-scan error:', apiRes.status, message);
+        return {
+          success: false,
+          error: message,
+          items: [],
+        };
       }
     } catch (apiErr) {
       console.warn('[BillScan] /api/bill-scan not reachable or failed:', apiErr);
