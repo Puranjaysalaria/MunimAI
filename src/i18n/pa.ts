@@ -328,6 +328,11 @@ export const pa: Translations = {
     openingSmsVoice: '{name} ਲਈ SMS ਯਾਦ-ਪੱਤਰ ਖੋਲ੍ਹਿਆ ਜਾ ਰਿਹਾ ਹੈ।',
     queueNextVoice: '{name} ਲਈ WhatsApp ਖੋਲ੍ਹਿਆ ਗਿਆ। ਕਤਾਰ ਵਿੱਚ {remaining} ਬਾਕੀ ਹਨ।',
     queueCompleteVoice: '{name} ਲਈ WhatsApp ਖੋਲ੍ਹਿਆ ਗਿਆ। ਸਾਰੇ ਤਿਆਰ ਹਨ।',
+    upiDetailsTitle: 'UPI ਭੁਗਤਾਨ ਵੇਰਵੇ:',
+    payeeNameLabel: 'ਨਾਮ',
+    upiIdLabel: 'UPI ID',
+    amountLabel: 'ਰਕਮ',
+    onlinePaymentLink: 'ਔਨਲਾਈਨ ਭੁਗਤਾਨ ਲਿੰਕ:',
   },
   settings: {
     title: 'ਸੈਟਿੰਗਜ਼',
@@ -353,6 +358,10 @@ export const pa: Translations = {
     privacySub: 'ਦੁਕਾਨ ਦਾ ਡਾਟਾ ਨਿੱਜੀ ਹੈ। ਗਾਹਕ ਦੀ ਆਵਾਜ਼ ਸਿਰਫ਼ ਸਹਿਮਤੀ ਨਾਲ ਰਿਕਾਰਡ ਹੁੰਦੀ ਹੈ।',
     saveSettings: 'ਸੈਟਿੰਗਾਂ ਸੇਵ ਕਰੋ',
     savedNotice: 'ਸਫਲਤਾਪੂਰਵਕ ਸੇਵ ਹੋ ਗਿਆ!',
+    doubleCheckUpiNote: 'ਆਪਣਾ UPI ID ਦੁਬਾਰਾ ਚੈੱਕ ਕਰੋ: ਜੇ ਇਹ ਗਲਤ ਹੋਇਆ ਤਾਂ ਗਾਹਕ ਭੁਗਤਾਨ ਨਹੀਂ ਕਰ ਸਕਣਗੇ ਜਾਂ ਪੈਸੇ ਗਲਤ ਖਾਤੇ ਵਿੱਚ ਜਾ ਸਕਦੇ ਹਨ।',
+    savedUpiLabel: 'ਮੌਜੂਦਾ ਸੰਭਾਲਿਆ ਗਿਆ UPI ID',
+    validUpiFormat: 'ਸਹੀ UPI ID ਫਾਰਮੈਟ',
+    invalidUpiFormat: 'ਗਲਤ UPI ID (ਜਿਵੇਂ mobile@upi, name@bank)',
   },
   summary: {
     dailyNetProfit: 'ਅੱਜ ਦਾ ਸ਼ੁੱਧ ਮੁਨਾਫ਼ਾ',

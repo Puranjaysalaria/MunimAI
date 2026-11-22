@@ -328,6 +328,11 @@ export const en: Translations = {
     openingSmsVoice: 'Opening SMS reminder for {name}.',
     queueNextVoice: 'Opening WhatsApp for {name}. {remaining} remaining in queue.',
     queueCompleteVoice: 'Opening WhatsApp for {name}. All reminders complete.',
+    upiDetailsTitle: 'UPI Payment Details:',
+    payeeNameLabel: 'Name',
+    upiIdLabel: 'UPI ID',
+    amountLabel: 'Amount',
+    onlinePaymentLink: 'Payment Link:',
   },
   settings: {
     title: 'Settings',
@@ -353,6 +358,10 @@ export const en: Translations = {
     privacySub: 'Shop data is private. Customer voice is recorded for 5 seconds with explicit consent only.',
     saveSettings: 'Save Settings',
     savedNotice: 'Saved successfully!',
+    doubleCheckUpiNote: 'Double-check your UPI ID: If this ID is incorrect, customers cannot pay or payments could go to the wrong account.',
+    savedUpiLabel: 'Current Saved UPI ID',
+    validUpiFormat: 'Valid UPI ID format',
+    invalidUpiFormat: 'Invalid UPI ID (e.g. mobile@upi, name@bank)',
   },
   summary: {
     dailyNetProfit: 'Daily Net Profit',

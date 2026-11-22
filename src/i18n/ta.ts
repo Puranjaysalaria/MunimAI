@@ -328,6 +328,11 @@ export const ta: Translations = {
     openingSmsVoice: '{name} க்கான SMS நினைவூட்டல் திறக்கப்படுகிறது.',
     queueNextVoice: '{name} க்காக WhatsApp திறக்கப்பட்டது. வரிசையில் {remaining} பேர் உள்ளனர்.',
     queueCompleteVoice: '{name} க்காக WhatsApp திறக்கப்பட்டது. அனைத்தும் முடிந்தது.',
+    upiDetailsTitle: 'UPI கட்டண விவரங்கள்:',
+    payeeNameLabel: 'பெயர்',
+    upiIdLabel: 'UPI ID',
+    amountLabel: 'தொகை',
+    onlinePaymentLink: 'ஆன்லைன் கட்டண இணைப்பு:',
   },
   settings: {
     title: 'அமைப்புகள் (Settings)',
@@ -353,6 +358,10 @@ export const ta: Translations = {
     privacySub: 'கடைத் தரவு தனிப்பட்டது. வாடிக்கையாளர் குரல் சம்மதத்துடன் மட்டுமே 5 வினாடிகள் பதிவு செய்யப்படுகிறது.',
     saveSettings: 'அமைப்புகளைச் சேமிக்கவும்',
     savedNotice: 'வெற்றிகரமாகச் சேமிக்கப்பட்டது!',
+    doubleCheckUpiNote: 'உங்கள் UPI ID-ஐ இருமுறை சரிபார்க்கவும்: இது தவறாக இருந்தால், வாடிக்கையாளர்கள் பணம் செலுத்த முடியாது அல்லது தவறான கணக்கிற்குச் செல்லலாம்.',
+    savedUpiLabel: 'தற்போது சேமிக்கப்பட்ட UPI ID',
+    validUpiFormat: 'சரியான UPI ID வடிவம்',
+    invalidUpiFormat: 'தவறான UPI ID (உதா. mobile@upi, name@bank)',
   },
   summary: {
     dailyNetProfit: 'இன்றைய நிகர லாபம்',

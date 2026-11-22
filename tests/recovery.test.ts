@@ -61,7 +61,8 @@ describe('Phase 6: Recovery Reminders & UPI Deep Links', () => {
     });
     expect(hiMsg).toContain('नमस्ते रमेश शर्मा जी');
     expect(hiMsg).toContain('₹500');
-    expect(hiMsg).toContain(upiLink);
+    expect(hiMsg).toContain('sharma@okaxis');
+    expect(hiMsg).not.toContain('upi://pay');
 
     // Punjabi
     const paMsg = generateReminderMessage({
@@ -72,7 +73,7 @@ describe('Phase 6: Recovery Reminders & UPI Deep Links', () => {
       language: 'pa',
     });
     expect(paMsg).toContain('ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ ਗੁਰਪ੍ਰੀਤ ਸਿੰਘ ਜੀ');
-    expect(paMsg).toContain('₹2200');
+    expect(paMsg).toContain('₹2,200');
 
     // English
     const enMsg = generateReminderMessage({

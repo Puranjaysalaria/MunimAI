@@ -1,5 +1,6 @@
 import { Customer, Reminder, ReminderSettings, ReminderTone, Shop } from '../types/schema';
 import { LanguageCode } from '../i18n/types';
+import { formatINR, formatNumber } from './utils';
 
 export interface DraftReminder {
   customer: Customer;
@@ -25,6 +26,15 @@ const SUPPORTED_LANGUAGES: LanguageCode[] = [
   'kn',
   'ml',
 ];
+
+/**
+ * Validates whether a given string matches standard UPI ID format (username@bank)
+ */
+export function isValidUPI(id?: string | null): boolean {
+  if (!id || typeof id !== 'string') return false;
+  const trimmed = id.trim();
+  return /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/.test(trimmed);
+}
 
 /**
  * Resolves message language based on priority hierarchy:
@@ -68,7 +78,57 @@ export const DEFAULT_REMINDER_SETTINGS: ReminderSettings = {
 export const NATIVE_REVIEW_LANGUAGES = ['gu', 'mr', 'bn', 'ta', 'te', 'kn', 'ml'];
 
 /**
- * Generates an Indian NPCI compliant UPI Payment Deep Link
+ * Reads the payment page base URL from environment variables.
+ * Checks VITE_PAYMENT_PAGE_BASE_URL and PAYMENT_PAGE_BASE_URL across both import.meta and process.env.
+ */
+export function getPaymentPageBaseUrl(): string {
+  const envVal =
+    (typeof import.meta !== 'undefined' &&
+      import.meta.env &&
+      (import.meta.env.VITE_PAYMENT_PAGE_BASE_URL || import.meta.env.PAYMENT_PAGE_BASE_URL)) ||
+    (typeof process !== 'undefined' &&
+      process.env &&
+      (process.env.VITE_PAYMENT_PAGE_BASE_URL || process.env.PAYMENT_PAGE_BASE_URL)) ||
+    '';
+  return (envVal || '').trim();
+}
+
+/**
+ * Generates an HTTPS payment page link:
+ * https://<PAYMENT_PAGE_BASE_URL>/pay?pa=<upi id>&pn=<name>&am=<amount>&tn=<note>&lang=<lang>
+ * Returns null if the env variable isn't configured, falling back to plain-text details only.
+ */
+export function generatePaymentPageLink(params: {
+  upiId?: string | null;
+  shopName: string;
+  amount: number;
+  note?: string;
+  language?: string;
+  baseUrl?: string;
+}): string | null {
+  const upiId = params.upiId?.trim();
+  if (!upiId) return null;
+
+  const rawBaseUrl = params.baseUrl !== undefined ? params.baseUrl.trim() : getPaymentPageBaseUrl();
+  if (!rawBaseUrl) {
+    return null;
+  }
+
+  let host = rawBaseUrl.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+  if (!host) return null;
+  host = host.replace(/\/pay$/i, '');
+
+  const pa = encodeURIComponent(upiId);
+  const pn = encodeURIComponent(params.shopName.trim() || 'Kirana Store');
+  const am = encodeURIComponent(String(params.amount));
+  const tn = encodeURIComponent(params.note?.trim() || 'Kirana Udhaar Payment');
+  const lang = encodeURIComponent((params.language || 'hi').trim());
+
+  return `https://${host}/pay?pa=${pa}&pn=${pn}&am=${am}&tn=${tn}&lang=${lang}`;
+}
+
+/**
+ * Generates an Indian NPCI compliant UPI Payment Deep Link (used by the static payment page)
  * Returns null if upiId is blank
  */
 export function generateUPILink(
@@ -81,6 +141,133 @@ export function generateUPILink(
   const cleanName = encodeURIComponent(shopName.trim() || 'Kirana Store');
   const cleanNote = encodeURIComponent('Kirana Udhaar Payment');
   return `upi://pay?pa=${cleanUpi}&pn=${cleanName}&am=${amount}&cu=INR&tn=${cleanNote}`;
+}
+
+/**
+ * Plain-text labels across all 10 Indian languages for UPI details and payment links
+ */
+export function getPaymentLabels(lang: string = 'hi'): {
+  upiDetailsTitle: string;
+  payeeNameLabel: string;
+  upiIdLabel: string;
+  amountLabel: string;
+  onlinePaymentLink: string;
+} {
+  const dict: Record<
+    string,
+    {
+      upiDetailsTitle: string;
+      payeeNameLabel: string;
+      upiIdLabel: string;
+      amountLabel: string;
+      onlinePaymentLink: string;
+    }
+  > = {
+    en: {
+      upiDetailsTitle: 'UPI Payment Details:',
+      payeeNameLabel: 'Name',
+      upiIdLabel: 'UPI ID',
+      amountLabel: 'Amount',
+      onlinePaymentLink: 'Payment Link:',
+    },
+    hi: {
+      upiDetailsTitle: 'UPI भुगतान विवरण:',
+      payeeNameLabel: 'नाम',
+      upiIdLabel: 'UPI ID',
+      amountLabel: 'रकम',
+      onlinePaymentLink: 'भुगतान लिंक:',
+    },
+    pa: {
+      upiDetailsTitle: 'UPI ਭੁਗਤਾਨ ਵੇਰਵੇ:',
+      payeeNameLabel: 'ਨਾਮ',
+      upiIdLabel: 'UPI ID',
+      amountLabel: 'ਰਕਮ',
+      onlinePaymentLink: 'ਔਨਲਾਈਨ ਭੁਗਤਾਨ ਲਿੰਕ:',
+    },
+    gu: {
+      upiDetailsTitle: 'UPI ચુકવણી વિગતો:',
+      payeeNameLabel: 'નામ',
+      upiIdLabel: 'UPI ID',
+      amountLabel: 'રકમ',
+      onlinePaymentLink: 'ઓનલાઇન ચુકવણી લિંક:',
+    },
+    mr: {
+      upiDetailsTitle: 'UPI देयक तपशील:',
+      payeeNameLabel: 'नाव',
+      upiIdLabel: 'UPI ID',
+      amountLabel: 'रक्कम',
+      onlinePaymentLink: 'ऑनलाइन पेमेंट लिंक:',
+    },
+    bn: {
+      upiDetailsTitle: 'UPI পেমেন্ট বিবরণ:',
+      payeeNameLabel: 'নাম',
+      upiIdLabel: 'UPI ID',
+      amountLabel: 'পরিমাণ',
+      onlinePaymentLink: 'অনলাইন পেমেন্ট লিঙ্ক:',
+    },
+    ta: {
+      upiDetailsTitle: 'UPI கட்டண விவரங்கள்:',
+      payeeNameLabel: 'பெயர்',
+      upiIdLabel: 'UPI ID',
+      amountLabel: 'தொகை',
+      onlinePaymentLink: 'ஆன்லைன் கட்டண இணைப்பு:',
+    },
+    te: {
+      upiDetailsTitle: 'UPI చెల్లింపు వివరాలు:',
+      payeeNameLabel: 'పేరు',
+      upiIdLabel: 'UPI ID',
+      amountLabel: 'మొత్తం',
+      onlinePaymentLink: 'ఆన్‌లైన్ చెల్లింపు లింక్:',
+    },
+    kn: {
+      upiDetailsTitle: 'UPI ಪಾವತಿ ವಿವರಗಳು:',
+      payeeNameLabel: 'ಹೆಸರು',
+      upiIdLabel: 'UPI ID',
+      amountLabel: 'ಮೊತ್ತ',
+      onlinePaymentLink: 'ಆನ್‌ಲೈನ್ ಪಾವತಿ ಲಿಂಕ್:',
+    },
+    ml: {
+      upiDetailsTitle: 'UPI പേയ്‌മെന്റ് വിവരങ്ങൾ:',
+      payeeNameLabel: 'പേര്',
+      upiIdLabel: 'UPI ID',
+      amountLabel: 'തുക',
+      onlinePaymentLink: 'ഓൺലൈൻ പേയ്‌മെന്റ് ലിങ്ക്:',
+    },
+  };
+
+  return dict[lang] || dict['hi'];
+}
+
+/**
+ * Formats a plain-text payment information block in the requested language
+ * Always includes UPI ID, Name and Amount (formatted with Indian digit grouping).
+ * If a payment page URL is provided, places it on its own line.
+ */
+export function formatPaymentInfoBlock(params: {
+  upiId: string;
+  shopName: string;
+  amount: number;
+  language?: string;
+  paymentPageUrl?: string | null;
+}): string {
+  const lang = params.language || 'hi';
+  const labels = getPaymentLabels(lang);
+  const formattedAmount = formatINR(params.amount);
+
+  const lines = [
+    labels.upiDetailsTitle,
+    `• ${labels.upiIdLabel}: ${params.upiId.trim()}`,
+    `• ${labels.payeeNameLabel}: ${params.shopName.trim()}`,
+    `• ${labels.amountLabel}: ${formattedAmount}`,
+  ];
+
+  if (params.paymentPageUrl && params.paymentPageUrl.trim()) {
+    lines.push('');
+    lines.push(labels.onlinePaymentLink);
+    lines.push(params.paymentPageUrl.trim());
+  }
+
+  return lines.join('\n');
 }
 
 /**
@@ -99,7 +286,6 @@ export function isQuietHours(
   const endMinutes = endHour * 60 + (endMin || 0);
 
   if (startMinutes > endMinutes) {
-    // Crosses midnight: e.g. 21:00 (1260) to 08:00 (480)
     return currentMinutes >= startMinutes || currentMinutes < endMinutes;
   }
   return currentMinutes >= startMinutes && currentMinutes < endMinutes;
@@ -127,7 +313,7 @@ export function hasSentReminderToday(
  * Checks customer eligibility based on safety rules:
  * 1. do_not_remind flag
  * 2. Daily cap (1 reminder per customer per day)
- * 3. High-trust exemption: only exempt if customer has an actual trust_score >= 90. Customers with no score are never exempt.
+ * 3. High-trust exemption: only exempt if customer has an actual trust_score >= 90.
  * 4. Balance threshold
  */
 export function evaluateCustomerReminderEligibility(
@@ -151,7 +337,6 @@ export function evaluateCustomerReminderEligibility(
     return { eligible: false, reason: 'sent_today' };
   }
 
-  // VIP Exemption: only exempt if score is strictly defined and >= 90
   const hasTrustScore = customer.trust_score !== undefined && customer.trust_score !== null;
   if (settings.auto_filter_high_trust && hasTrustScore && customer.trust_score! >= 90) {
     return { eligible: false, reason: 'high_trust_exempt' };
@@ -176,141 +361,141 @@ interface TemplateSet {
 const TEMPLATES: Record<string, TemplateSet> = {
   hi: {
     polite: {
-      with_upi: 'नमस्ते {customerName} जी, आशा है आप सकुशल हैं। {shopName} से आपका ₹{amount} का उधारी हिसाब शेष है। आप सुविधा के लिए सीधे नीचे दिए गए UPI लिंक द्वारा भुगतान कर सकते हैं:\n{upiLink}\n\nभुगतान के बाद हमें अवश्य सूचित करें। धन्यवाद!',
+      with_upi: 'नमस्ते {customerName} जी, आशा है आप सकुशल हैं। {shopName} से आपका ₹{amount} का उधारी हिसाब शेष है। आप सुविधा के लिए सीधे UPI द्वारा भुगतान कर सकते हैं:\n{upiLink}\n\nभुगतान के बाद हमें अवश्य सूचित करें। धन्यवाद!',
       without_upi: 'नमस्ते {customerName} जी, आशा है आप सकुशल हैं। {shopName} से आपका ₹{amount} का उधारी हिसाब शेष है। कृपया अपनी अगली दुकान यात्रा पर इसे चुकता करने का कष्ट करें। धन्यवाद!',
     },
     standard: {
-      with_upi: 'नमस्ते {customerName} जी, {shopName} पर आपका कुल बकाया ₹{amount} है। कृपया नीचे दिए गए UPI लिंक का उपयोग करके हिसाब चुकता करें:\n{upiLink}\n\nधन्यवाद!',
+      with_upi: 'नमस्ते {customerName} जी, {shopName} पर आपका कुल बकाया ₹{amount} है। कृपया UPI द्वारा हिसाब चुकता करें:\n{upiLink}\n\nधन्यवाद!',
       without_upi: 'नमस्ते {customerName} जी, {shopName} पर आपका कुल बकाया ₹{amount} है। कृपया दुकान पर आकर या संपर्क करके हिसाब चुकता करें। धन्यवाद!',
     },
     firm: {
-      with_upi: 'सादर {customerName} जी, {shopName} के बहीखाते के अनुसार आपका ₹{amount} का बकाया हिसाब पिछले कुछ समय से लंबित है। कृपया हिसाब को अद्यतन रखने हेतु नीचे दिए गए UPI लिंक द्वारा भुगतान करें:\n{upiLink}\n\nसहयोग के लिए धन्यवाद।',
+      with_upi: 'सादर {customerName} जी, {shopName} के बहीखाते के अनुसार आपका ₹{amount} का बकाया हिसाब पिछले कुछ समय से लंबित है। कृपया हिसाब को अद्यतन रखने हेतु UPI द्वारा भुगतान करें:\n{upiLink}\n\nसहयोग के लिए धन्यवाद।',
       without_upi: 'सादर {customerName} जी, {shopName} के बहीखाते के अनुसार आपका ₹{amount} का बकाया हिसाब पिछले कुछ समय से लंबित है। कृपया दुकान पर संपर्क कर हिसाब चुकता करने की कृपा करें। सहयोग के लिए धन्यवाद।',
     },
   },
   pa: {
     polite: {
-      with_upi: 'ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ {customerName} ਜੀ, {shopName} ਵੱਲੋਂ ਤੁਹਾਡਾ ₹{amount} ਦਾ ਪੁਰਾਣਾ ਬਾਕੀ ਹਿਸਾਬ ਹੈ। ਤੁਸੀਂ ਇਸ UPI ਲਿੰਕ ਰਾਹੀਂ ਆਸਾਨੀ ਨਾਲ ਭੁਗਤਾਨ ਕਰ ਸਕਦੇ ਹੋ:\n{upiLink}\n\nਕਿਰਪਾ ਕਰਕੇ ਭੁਗਤਾਨ ਕਰਕੇ ਸਾਨੂੰ ਸੂਚਿਤ ਕਰੋ। ਧੰਨਵਾਦ!',
+      with_upi: 'ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ {customerName} ਜੀ, {shopName} ਵੱਲੋਂ ਤੁਹਾਡਾ ₹{amount} ਦਾ ਪੁਰਾਣਾ ਬਾਕੀ ਹਿਸਾਬ ਹੈ। ਤੁਸੀਂ UPI ਰਾਹੀਂ ਆਸਾਨੀ ਨਾਲ ਭੁਗਤਾਨ ਕਰ ਸਕਦੇ ਹੋ:\n{upiLink}\n\nਕਿਰਪਾ ਕਰਕੇ ਭੁਗਤਾਨ ਕਰਕੇ ਸਾਨੂੰ ਸੂਚਿਤ ਕਰੋ। ਧੰਨਵਾਦ!',
       without_upi: 'ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ {customerName} ਜੀ, {shopName} ਵੱਲੋਂ ਤੁਹਾਡਾ ₹{amount} ਦਾ ਪੁਰਾਣਾ ਬਾਕੀ ਹਿਸਾਬ ਹੈ। ਜਦੋਂ ਵੀ ਸਮਾਂ ਮਿਲੇ ਦੁਕਾਨ ਤੇ ਆ ਕੇ ਹਿਸਾਬ ਸਾਫ਼ ਕਰ ਦੇਣਾ ਜੀ। ਧੰਨਵਾਦ!',
     },
     standard: {
-      with_upi: 'ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ {customerName} ਜੀ, {shopName} ਦਾ ਕੁੱਲ ਬਕਾਇਆ ₹{amount} ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਹੇਠਾਂ ਦਿੱਤੇ UPI ਲਿੰਕ ਰਾਹੀਂ ਭੁਗਤਾਨ ਕਰੋ:\n{upiLink}\n\nਧੰਨਵਾਦ!',
+      with_upi: 'ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ {customerName} ਜੀ, {shopName} ਦਾ ਕੁੱਲ ਬਕਾਇਆ ₹{amount} ਹੈ। ਕਿਰਪਾ ਕਰਕੇ UPI ਰਾਹੀਂ ਭੁਗਤਾਨ ਕਰੋ:\n{upiLink}\n\nਧੰਨਵਾਦ!',
       without_upi: 'ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ {customerName} ਜੀ, {shopName} ਦਾ ਕੁੱਲ ਬਕਾਇਆ ₹{amount} ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਕਾਨ ਤੇ ਆ ਕੇ ਆਪਣਾ ਹਿਸਾਬ ਚੁਕਤਾ ਕਰੋ ਜੀ। ਧੰਨਵਾਦ!',
     },
     firm: {
-      with_upi: 'ਜ਼ਰੂਰੀ ਬੇਨਤੀ {customerName} ਜੀ, {shopName} ਦੇ ਖਾਤੇ ਅਨੁਸਾਰ ਤੁਹਾਡਾ ₹{amount} ਦਾ ਬਕਾਇਆ ਹਿਸਾਬ ਕਾਫ਼ੀ ਸਮੇਂ ਤੋਂ ਲੰਬਿਤ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਇਸ UPI ਲਿੰਕ ਰਾਹੀਂ ਹਿਸਾਬ ਪੂਰਾ ਕਰਨ ਦੀ ਕ੍ਰਿਪਾਲਤਾ ਕਰੋ:\n{upiLink}\n\nਸਹਿਯੋਗ ਲਈ ਧੰਨਵਾਦ।',
+      with_upi: 'ਜ਼ਰੂਰੀ ਬੇਨਤੀ {customerName} ਜੀ, {shopName} ਦੇ ਖਾਤੇ ਅਨੁਸਾਰ ਤੁਹਾਡਾ ₹{amount} ਦਾ ਬਕਾਇਆ ਹਿਸਾਬ ਕਾਫ਼ੀ ਸਮੇਂ ਤੋਂ ਲੰਬਿਤ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ UPI ਰਾਹੀਂ ਹਿਸਾਬ ਪੂਰਾ ਕਰਨ ਦੀ ਕ੍ਰਿਪਾਲਤਾ ਕਰੋ:\n{upiLink}\n\nਸਹਿਯੋਗ ਲਈ ਧੰਨਵਾਦ।',
       without_upi: 'ਜ਼ਰੂਰੀ ਬੇਨਤੀ {customerName} ਜੀ, {shopName} ਦੇ ਖਾਤੇ ਅਨੁਸਾਰ ਤੁਹਾਡਾ ₹{amount} ਦਾ ਬਕਾਇਆ ਹਿਸਾਬ ਕਾਫ਼ੀ ਸਮੇਂ ਤੋਂ ਲੰਬਿਤ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਕਾਨ ਤੇ ਆ ਕੇ ਹਿਸਾਬ ਸਾਫ਼ ਕਰਨ ਦੀ ਕ੍ਰਿਪਾਲਤਾ ਕਰੋ ਜੀ। ਸਹਿਯੋਗ ਲਈ ਧੰਨਵਾਦ।',
     },
   },
   en: {
     polite: {
-      with_upi: 'Hello {customerName}, hope you are doing well. This is a friendly reminder from {shopName} regarding your pending balance of ₹{amount}. You can conveniently pay using the UPI link below:\n{upiLink}\n\nPlease let us know once paid. Thank you!',
+      with_upi: 'Hello {customerName}, hope you are doing well. This is a friendly reminder from {shopName} regarding your pending balance of ₹{amount}. You can conveniently pay using UPI:\n{upiLink}\n\nPlease let us know once paid. Thank you!',
       without_upi: 'Hello {customerName}, hope you are doing well. This is a friendly reminder from {shopName} regarding your pending balance of ₹{amount}. Please clear it at your convenience on your next visit. Thank you!',
     },
     standard: {
-      with_upi: 'Hello {customerName}, a friendly reminder from {shopName} regarding your pending balance of ₹{amount}. Kindly make the payment using this UPI link:\n{upiLink}\n\nThank you!',
+      with_upi: 'Hello {customerName}, a friendly reminder from {shopName} regarding your pending balance of ₹{amount}. Kindly make the payment using UPI:\n{upiLink}\n\nThank you!',
       without_upi: 'Hello {customerName}, a friendly reminder from {shopName} regarding your pending balance of ₹{amount}. Please visit the store to settle your account. Thank you!',
     },
     firm: {
-      with_upi: 'Dear {customerName}, as per the accounts at {shopName}, an outstanding balance of ₹{amount} has been pending for some time. We request you to kindly clear this amount using the UPI link below:\n{upiLink}\n\nThank you for your cooperation.',
+      with_upi: 'Dear {customerName}, as per the accounts at {shopName}, an outstanding balance of ₹{amount} has been pending for some time. We request you to kindly clear this amount using UPI:\n{upiLink}\n\nThank you for your cooperation.',
       without_upi: 'Dear {customerName}, as per the accounts at {shopName}, an outstanding balance of ₹{amount} has been pending for some time. We request you to kindly visit the store to settle your balance. Thank you for your cooperation.',
     },
   },
   gu: {
     polite: {
-      with_upi: 'નમસ્તે {customerName} જી, {shopName} તરફથી આપનો ₹{amount} નો બાકી હિસાબ છે. આપ સરળતાથી નીચે આપેલ UPI લિંક દ્વારા ચુકવણી કરી શકો છો:\n{upiLink}\n\nચુકવણી પછી અમને જણાવશો. આભાર!',
+      with_upi: 'નમસ્તે {customerName} જી, {shopName} તરફથી આપનો ₹{amount} નો બાકી હિસાબ છે. આપ સરળતાથી UPI દ્વારા ચુકવણી કરી શકો છો:\n{upiLink}\n\nચુકવણી પછી અમને જણાવશો. આભાર!',
       without_upi: 'નમસ્તે {customerName} જી, {shopName} તરફથી આપનો ₹{amount} નો બાકી હિસાબ છે. અનુકૂળતા મુજબ દુકાને આવી હિસાબ ચૂકતે કરશો. આભાર!',
     },
     standard: {
-      with_upi: 'નમસ્તે {customerName} જી, {shopName} પર આપનો કુલ બાકી હિસાબ ₹{amount} છે. કૃપા કરીને આ UPI લિંક દ્વારા ચુકવણી કરો:\n{upiLink}\n\nઆભાર!',
+      with_upi: 'નમસ્તે {customerName} જી, {shopName} પર આપનો કુલ બાકી હિસાબ ₹{amount} છે. કૃપા કરીને UPI દ્વારા ચુકવણી કરો:\n{upiLink}\n\nઆભાર!',
       without_upi: 'નમસ્તે {customerName} જી, {shopName} પર આપનો કુલ બાકી હિસાબ ₹{amount} છે. કૃપા કરીને દુકાને આવી હિસાબ ચૂકતે કરશો. આભાર!',
     },
     firm: {
-      with_upi: 'નમ્ર વિનંતી {customerName} જી, {shopName} ના ચોપડે આપનો ₹{amount} નો હિસાબ ઘણા સમયથી બાકી છે. કૃપા કરી નીચેની લિંક પરથી ચૂકવણી કરવા વિનંતી:\n{upiLink}\n\nસહકાર બદલ આભાર.',
+      with_upi: 'નમ્ર વિનંતી {customerName} જી, {shopName} ના ચોપડે આપનો ₹{amount} નો હિસાબ ઘણા સમયથી બાકી છે. કૃપા કરી UPI પરથી ચૂકવણી કરવા વિનંતી:\n{upiLink}\n\nસહકાર બદલ આભાર.',
       without_upi: 'નમ્ર વિનંતી {customerName} જી, {shopName} ના ચોપડે આપનો ₹{amount} નો હિસાબ ઘણા સમયથી બાકી છે. કૃપા કરી દુકાને આવી હિસાબ ચૂકતે કરવા વિનંતી. સહકાર બદલ આભાર.',
     },
   },
   mr: {
     polite: {
-      with_upi: 'नमस्कार {customerName} जी, {shopName} कडून आपली ₹{amount} उधारी बाकी आहे. सोयीसाठी आपण खालील UPI लिंकद्वारे पैसे भरू शकता:\n{upiLink}\n\nपैसे भरल्यावर कृपया कळवावे. धन्यवाद!',
+      with_upi: 'नमस्कार {customerName} जी, {shopName} कडून आपली ₹{amount} उधारी बाकी आहे. सोयीसाठी आपण UPI द्वारे पैसे भरू शकता:\n{upiLink}\n\nपैसे भरल्यावर कृपया कळवावे. धन्यवाद!',
       without_upi: 'नमस्कार {customerName} जी, {shopName} कडून आपली ₹{amount} उधारी बाकी आहे. सोयीनुसार दुकानात येऊन हिशोब पूर्ण करावा. धन्यवाद!',
     },
     standard: {
-      with_upi: 'नमस्कार {customerName} जी, {shopName} वर आपली ₹{amount} बाकी आहे. कृपया खालील UPI लिंकवरून रक्कम भरावी:\n{upiLink}\n\nधन्यवाद!',
+      with_upi: 'नमस्कार {customerName} जी, {shopName} वर आपली ₹{amount} बाकी आहे. कृपया UPI वरून रक्कम भरावी:\n{upiLink}\n\nधन्यवाद!',
       without_upi: 'नमस्कार {customerName} जी, {shopName} वर आपली ₹{amount} बाकी आहे. कृपया दुकानात येऊन हिशोब चुकता करावा. धन्यवाद!',
     },
     firm: {
-      with_upi: 'सस्नेह नमस्कार {customerName} जी, {shopName} च्या नोंदीनुसार आपली ₹{amount} रक्कम बऱ्याच काळापासून प्रलंबित आहे. कृपया खालील UPI लिंकद्वारे हिशोब पूर्ण करावा:\n{upiLink}\n\nसहकार्याबद्दल धन्यवाद.',
+      with_upi: 'सस्नेह नमस्कार {customerName} जी, {shopName} च्या नोंदीनुसार आपली ₹{amount} रक्कम बऱ्याच काळापासून प्रलंबित आहे. कृपया UPI द्वारे हिशोब पूर्ण करावा:\n{upiLink}\n\nसहकार्याबद्दल धन्यवाद.',
       without_upi: 'सस्नेह नमस्कार {customerName} जी, {shopName} च्या नोंदीनुसार आपली ₹{amount} रक्कम बऱ्याच काळापासून प्रलंबित आहे. कृपया दुकानात येऊन हिशोब पूर्ण करावा. सहकार्याबद्दल धन्यवाद.',
     },
   },
   bn: {
     polite: {
-      with_upi: 'নমস্কার {customerName} বাবু, {shopName} থেকে আপনার ₹{amount} বাকি রয়েছে। আপনি সুবিধার জন্য নিচের UPI লিঙ্ক দিয়ে পরিশোধ করতে পারেন:\n{upiLink}\n\nপেমেন্টের পরে অনুগ্রহ করে জানাবেন। ধন্যবাদ!',
+      with_upi: 'নমস্কার {customerName} বাবু, {shopName} থেকে আপনার ₹{amount} বাকি রয়েছে। আপনি সুবিধার জন্য UPI দিয়ে পরিশোধ করতে পারেন:\n{upiLink}\n\nপেমেন্টের পরে অনুগ্রহ করে জানাবেন। ধন্যবাদ!',
       without_upi: 'নমস্কার {customerName} বাবু, {shopName} থেকে আপনার ₹{amount} বাকি রয়েছে। সময়মতো দোকানে এসে হিসেব মিটিয়ে দেওয়ার অনুরোধ রইল। ধন্যবাদ!',
     },
     standard: {
-      with_upi: 'নমস্কার {customerName} বাবু, {shopName}-এ আপনার মোট বাকি ₹{amount}। অনুগ্রহ করে এই UPI লিঙ্কের মাধ্যমে পরিশোধ করুন:\n{upiLink}\n\nধন্যবাদ!',
+      with_upi: 'নমস্কার {customerName} বাবু, {shopName}-এ আপনার মোট বাকি ₹{amount}। অনুগ্রহ করে UPI-এর মাধ্যমে পরিশোধ করুন:\n{upiLink}\n\nধন্যবাদ!',
       without_upi: 'নমস্কার {customerName} বাবু, {shopName}-এ আপনার মোট বাকি ₹{amount}। অনুগ্রহ করে দোকানে এসে বাকি পরিশোধ করুন। ধন্যবাদ!',
     },
     firm: {
-      with_upi: 'শ্রদ্ধেয় {customerName} বাবু, {shopName}-এর খাতা অনুযায়ী আপনার ₹{amount} বাকি বেশ কিছুদিন ধরে অনিষ্পন্ন রয়েছে। অনুগ্রহ করে নিচে দেওয়া UPI লিঙ্কের মাধ্যমে পরিশোধ করুন:\n{upiLink}\n\nসহযোগিতার জন্য ধন্যবাদ।',
+      with_upi: 'শ্রদ্ধেয় {customerName} বাবু, {shopName}-এর খাতা অনুযায়ী আপনার ₹{amount} বাকি বেশ কিছুদিন ধরে অনিষ্পন্ন রয়েছে। অনুগ্রহ করে UPI-এর মাধ্যমে পরিশোধ করুন:\n{upiLink}\n\nসহযোগিতার জন্য ধন্যবাদ।',
       without_upi: 'শ্রদ্ধেয় {customerName} বাবু, {shopName}-এর খাতা অনুযায়ী আপনার ₹{amount} বাকি বেশ কিছুদিন ধরে অনিষ্পন্ন রয়েছে। অনুগ্রহ করে দোকানে যোগাযোগ করে হিসেব মেটানোর অনুরোধ রইল। ধন্যবাদ।',
     },
   },
   ta: {
     polite: {
-      with_upi: 'வணக்கம் {customerName} அவர்களே, {shopName} கடையில் உங்கள் நிலுவைத் தொகை ₹{amount}. எளிதாக செலுத்த கீழே உள்ள UPI இணைப்பைப் பயன்படுத்தவும்:\n{upiLink}\n\nசெலுத்திய பின் தெரிவிக்கவும். நன்றி!',
+      with_upi: 'வணக்கம் {customerName} அவர்களே, {shopName} கடையில் உங்கள் நிலுவைத் தொகை ₹{amount}. எளிதாக செலுத்த கீழே உள்ள UPI விவரங்களைப் பயன்படுத்தவும்:\n{upiLink}\n\nசெலுத்திய பின் தெரிவிக்கவும். நன்றி!',
       without_upi: 'வணக்கம் {customerName} அவர்களே, {shopName} கடையில் உங்கள் நிலுவைத் தொகை ₹{amount}. கடைக்கு வரும்போது கணக்கை முடிக்குமாறு கேட்டுக்கொள்கிறோம். நன்றி!',
     },
     standard: {
-      with_upi: 'வணக்கம் {customerName} அவர்களே, {shopName} கடையில் நிலுவை ₹{amount}. தயவுசெய்து இந்த UPI இணைப்பு மூலம் செலுத்தவும்:\n{upiLink}\n\nநன்றி!',
+      with_upi: 'வணக்கம் {customerName} அவர்களே, {shopName} கடையில் நிலுவை ₹{amount}. தயவுசெய்து UPI மூலம் செலுத்தவும்:\n{upiLink}\n\nநன்றி!',
       without_upi: 'வணக்கம் {customerName} அவர்களே, {shopName} கடையில் நிலுவை ₹{amount}. கடைக்கு வந்து கணக்கை சரிசெய்யுமாறு கேட்டுக்கொள்கிறோம். நன்றி!',
     },
     firm: {
-      with_upi: 'மதிப்பிற்குரிய {customerName} அவர்களே, {shopName} கணக்கின்படி ₹{amount} நிலுவை நீண்ட நாட்களாக உள்ளது. கணக்கை முடிக்க இந்த UPI இணைப்பைப் பயன்படுத்தவும்:\n{upiLink}\n\nஒத்துழைப்புக்கு நன்றி.',
+      with_upi: 'மதிப்பிற்குரிய {customerName} அவர்களே, {shopName} கணக்கின்படி ₹{amount} நிலுவை நீண்ட நாட்களாக உள்ளது. கணக்கை முடிக்க UPI விவரங்களைப் பயன்படுத்தவும்:\n{upiLink}\n\nஒத்துழைப்புக்கு நன்றி.',
       without_upi: 'மதிப்பிற்குரிய {customerName} அவர்களே, {shopName} கணக்கின்படி ₹{amount} நிலுவை நீண்ட நாட்களாக உள்ளது. கடைக்கு வந்து கணக்கை முடிக்குமாறு கேட்டுக்கொள்கிறோம். நன்றி.',
     },
   },
   te: {
     polite: {
-      with_upi: 'నమస్కారం {customerName} గారు, {shopName} లో మీ పాత బాకీ ₹{amount}. సౌలభ్యం కోసం కింద ఉన్న UPI లింక్ ద్వారా చెల్లించవచ్చు:\n{upiLink}\n\nచెల్లించిన తర్వాత తెలియజేయగలరు. ధన్యవాదాలు!',
+      with_upi: 'నమస్కారం {customerName} గారు, {shopName} లో మీ పాత బాకీ ₹{amount}. సౌలభ్యం కోసం UPI ద్వారా చెల్లించవచ్చు:\n{upiLink}\n\nచెల్లించిన తర్వాత తెలియజేయగలరు. ధన్యవాదాలు!',
       without_upi: 'నమస్కారం {customerName} గారు, {shopName} లో మీ పాత బాకీ ₹{amount}. వీలైనప్పుడు షాపుకి వచ్చి బాకీ చెల్లించగలరు. ధన్యవాదాలు!',
     },
     standard: {
-      with_upi: 'నమస్కారం {customerName} గారు, {shopName} లో మీ మొత్తం బాకీ ₹{amount}. దయచేసి ఈ UPI లింక్ ద్వారా చెల్లించండి:\n{upiLink}\n\nధన్యవాదాలు!',
+      with_upi: 'నమస్కారం {customerName} గారు, {shopName} లో మీ మొత్తం బాకీ ₹{amount}. దయచేసి UPI ద్వారా చెల్లించండి:\n{upiLink}\n\nధన్యవాదాలు!',
       without_upi: 'నమస్కారం {customerName} గారు, {shopName} లో మీ మొత్తం బాకీ ₹{amount}. దయచేసి షాపుకు వచ్చి ఖాతా క్లియర్ చేయగలరు. ధన్యవాదాలు!',
     },
     firm: {
-      with_upi: 'గమనిక {customerName} గారు, {shopName} ఖాతా ప్రకారం ₹{amount} బాకీ చాలా కాలంగా పెండింగ్‌లో ఉంది. దయచేసి ఈ UPI లింక్ ద్వారా చెల్లించి ఖాతా సరిచేయగలరు:\n{upiLink}\n\nసహకారానికి ధన్యవాదాలు.',
+      with_upi: 'గమనిక {customerName} గారు, {shopName} ఖాతా ప్రకారం ₹{amount} బాకీ చాలా కాలంగా పెండింగ్‌లో ఉంది. దయచేసి UPI ద్వారా చెల్లించి ఖాతా సరిచేయగలరు:\n{upiLink}\n\nసహకారానికి ధన్యవాదాలు.',
       without_upi: 'గమనిక {customerName} గారు, {shopName} ఖాతా ప్రకారం ₹{amount} బాకీ చాలా కాలంగా పెండింగ్‌లో ఉంది. దయచేసి షాపుకి వచ్చి బాకీ పూర్తి చేయగలరు. సహకారానికి ధన్యవాదాలు.',
     },
   },
   kn: {
     polite: {
-      with_upi: 'ನಮಸ್ಕಾರ {customerName} ಅವರೇ, {shopName} ಯಲ್ಲಿ ನಿಮ್ಮ ₹{amount} ಬಾಕಿ ಹಣವಿದೆ. ಸುಲಭವಾಗಿ ಪಾವತಿಸಲು ಕೆಳಗಿನ UPI ಲಿಂಕ್ ಬಳಸಿ:\n{upiLink}\n\nಪಾವತಿಸಿದ ನಂತರ ತಿಳಿಸಿ. ಧನ್ಯವಾದಗಳು!',
+      with_upi: 'ನಮಸ್ಕಾರ {customerName} ಅವರೇ, {shopName} ಯಲ್ಲಿ ನಿಮ್ಮ ₹{amount} ಬಾಕಿ ಹಣವಿದೆ. ಸುಲಭವಾಗಿ ಪಾವತಿಸಲು UPI ಬಳಸಿ:\n{upiLink}\n\nಪಾವತಿಸಿದ ನಂತರ ತಿಳಿಸಿ. ಧನ್ಯವಾದಗಳು!',
       without_upi: 'ನಮಸ್ಕಾರ {customerName} ಅವರೇ, {shopName} ಯಲ್ಲಿ ನಿಮ್ಮ ₹{amount} ಬಾಕಿ ಹಣವಿದೆ. ಅಂಗಡಿಗೆ ಬಂದಾಗ ಹಣ ಪಾವತಿಸಲು ವಿನಂತಿ. ಧನ್ಯವಾದಗಳು!',
     },
     standard: {
-      with_upi: 'ನಮಸ್ಕಾರ {customerName} ಅವರೇ, {shopName} ಯಲ್ಲಿ ನಿಮ್ಮ ಒಟ್ಟು ಬಾಕಿ ₹{amount}. ದಯವಿಟ್ಟು ಈ UPI ಲಿಂಕ್ ಮೂಲಕ ಪಾವತಿಸಿ:\n{upiLink}\n\nಧನ್ಯವಾದಗಳು!',
+      with_upi: 'ನಮಸ್ಕಾರ {customerName} ಅವರೇ, {shopName} ಯಲ್ಲಿ ನಿಮ್ಮ ಒಟ್ಟು ಬಾಕಿ ₹{amount}. ದಯವಿಟ್ಟು UPI ಮೂಲಕ ಪಾವತಿಸಿ:\n{upiLink}\n\nಧನ್ಯವಾದಗಳು!',
       without_upi: 'ನಮಸ್ಕಾರ {customerName} ಅವರೇ, {shopName} ಯಲ್ಲಿ ನಿಮ್ಮ ಒಟ್ಟು ಬಾಕಿ ₹{amount}. ದಯವಿಟ್ಟು ಅಂಗಡಿಗೆ ಬಂದು ಖಾತೆ ಸರಿಪಡಿಸಿ. ಧನ್ಯವಾದಗಳು!',
     },
     firm: {
-      with_upi: 'ಗೌರವಾನ್ವಿತ {customerName} ಅವರೇ, {shopName} ಖಾತೆಯ ಪ್ರಕಾರ ₹{amount} ಬಾಕಿ ಹಣ ಬಹಳ ದಿನಗಳಿಂದ ಬಾಕಿಯಿದೆ. ದಯವಿಟ್ಟು ಈ UPI ಲಿಂಕ್ ಮೂಲಕ ಪಾವತಿಸಿ ಖಾತೆ ಇತ್ಯರ್ಥಪಡಿಸಿ:\n{upiLink}\n\nಸಹಕಾರಕ್ಕೆ ಧನ್ಯವಾದಗಳು.',
+      with_upi: 'ಗೌರವಾನ್ವಿತ {customerName} ಅವರೇ, {shopName} ಖಾತೆಯ ಪ್ರಕಾರ ₹{amount} ಬಾಕಿ ಹಣ ಬಹಳ ದಿನಗಳಿಂದ ಬಾಕಿಯಿದೆ. ದಯವಿಟ್ಟು UPI ಮೂಲಕ ಪಾವತಿಸಿ ಖಾತೆ ಇತ್ಯರ್ಥಪಡಿಸಿ:\n{upiLink}\n\nಸಹಕಾರಕ್ಕೆ ಧನ್ಯವಾದಗಳು.',
       without_upi: 'ಗೌರವಾನ್ವಿತ {customerName} ಅವರೇ, {shopName} ಖಾತೆಯ ಪ್ರಕಾರ ₹{amount} ಬಾಕಿ ಹಣ ಬಹಳ ದಿನಗಳಿಂದ ಬಾಕಿಯಿದೆ. ದಯವಿಟ್ಟು ಅಂಗಡಿಗೆ ಬಂದು ಖಾತೆ ಇತ್ಯರ್ಥಪಡಿಸಿ. ಧನ್ಯವಾದಗಳು.',
     },
   },
   ml: {
     polite: {
-      with_upi: 'നമസ്കാരം {customerName}, {shopName}-ൽ നിങ്ങളുടെ ₹{amount} കുടിശ്ശികയുണ്ട്. സൗകര്യത്തിനായി താഴെ കാണുന്ന UPI ലിങ്ക് വഴി അടയ്ക്കാവുന്നതാണ്:\n{upiLink}\n\nപണം അടച്ച ശേഷം അറിയിക്കുക. നന്ദി!',
+      with_upi: 'നമസ്കാരം {customerName}, {shopName}-ൽ നിങ്ങളുടെ ₹{amount} കുടിശ്ശികയുണ്ട്. സൗകര്യത്തിനായി UPI വഴി അടയ്ക്കാവുന്നതാണ്:\n{upiLink}\n\nപണം അടച്ച ശേഷം അറിയിക്കുക. നന്ദി!',
       without_upi: 'നമസ്കാരം {customerName}, {shopName}-ൽ നിങ്ങളുടെ ₹{amount} കുടിശ്ശികയുണ്ട്. കടയിൽ വരുമ്പോൾ തുക തീർക്കാൻ അഭ്യർത്ഥിക്കുന്നു. നന്ദി!',
     },
     standard: {
-      with_upi: 'നമസ്കാരം {customerName}, {shopName}-ൽ നിങ്ങളുടെ ബാക്കി തുക ₹{amount}. ദയവായി ഈ UPI ലിങ്ക് ഉപയോഗിച്ച് പണം അടയ്ക്കുക:\n{upiLink}\n\nനന്ദി!',
+      with_upi: 'നമസ്കാരം {customerName}, {shopName}-ൽ നിങ്ങളുടെ ബാക്കി തുക ₹{amount}. ദയവായി UPI ഉപയോഗിച്ച് പണം അടയ്ക്കുക:\n{upiLink}\n\nനന്ദി!',
       without_upi: 'നമസ്കാരം {customerName}, {shopName}-ൽ നിങ്ങളുടെ ബാക്കി തുക ₹{amount}. കടയിൽ നേരിട്ടെത്തി തുക നൽകാൻ അഭ്യർത്ഥിക്കുന്നു. നന്ദി!',
     },
     firm: {
-      with_upi: 'ബഹുമാനപ്പെട്ട {customerName}, {shopName} കണക്കനുസരിച്ച് ₹{amount} കുടിശ്ശിക കുറച്ചുനാളായി തീർപ്പാക്കാതെയുണ്ട്. ദയവായി ഈ UPI ലിങ്ക് വഴി തുക നൽകി അക്കൗണ്ട് ക്രമീകരിക്കുക:\n{upiLink}\n\nസഹകരണത്തിന് നന്ദി.',
+      with_upi: 'ബഹുമാനപ്പെട്ട {customerName}, {shopName} കണക്കനുസരിച്ച് ₹{amount} കുടിശ്ശിക കുറച്ചുനാളായി തീർപ്പാക്കാതെയുണ്ട്. ദയവായി UPI വഴി തുക നൽകി അക്കൗണ്ട് ക്രമീകരിക്കുക:\n{upiLink}\n\nസഹകരണത്തിന് നന്ദി.',
       without_upi: 'ബഹുമാനപ്പെട്ട {customerName}, {shopName} കണക്കനുസരിച്ച് ₹{amount} കുടിശ്ശിക കുറച്ചുനാളായി തീർപ്പാക്കാതെയുണ്ട്. ദയവായി കടയിൽ നേരിട്ടെത്തി തുക അടയ്ക്കുക. സഹകരണത്തിന് നന്ദി.',
     },
   },
@@ -318,24 +503,30 @@ const TEMPLATES: Record<string, TemplateSet> = {
 
 /**
  * Formulate personalized reminder message in selected tone & language
+ * Plain-text first: includes UPI ID, Name, Amount in plain text.
+ * If baseUrl is set, includes https:// payment page link. Never contains raw upi://.
  */
 export function generateReminderMessage(params: {
   customerName: string;
   shopName: string;
   amount: number;
+  upiId?: string | null;
   upiLink?: string | null;
   language?: string;
   tone?: ReminderTone;
   customNote?: string;
+  baseUrl?: string;
 }): string {
   const {
     customerName,
     shopName,
     amount,
+    upiId,
     upiLink,
     language = 'hi',
     tone = 'polite',
     customNote,
+    baseUrl,
   } = params;
 
   if (!TEMPLATES[language]) {
@@ -343,21 +534,62 @@ export function generateReminderMessage(params: {
   }
   const langKey = TEMPLATES[language] ? language : 'hi';
   const toneKey: ReminderTone = ['polite', 'standard', 'firm'].includes(tone) ? tone : 'polite';
-  const hasUpi = Boolean(upiLink && upiLink.trim().length > 0);
+
+  // 1. Resolve UPI ID and Payment Page Link
+  let resolvedUpiId = upiId ? upiId.trim() : '';
+  let resolvedPaymentLink = upiLink ? upiLink.trim() : '';
+
+  // If a legacy upi:// URL was passed, parse UPI ID from it and NEVER put raw upi:// in the message
+  if (resolvedPaymentLink.startsWith('upi://')) {
+    try {
+      const parsed = new URL(resolvedPaymentLink.replace('upi://pay', 'http://localhost/pay'));
+      if (!resolvedUpiId) {
+        resolvedUpiId = parsed.searchParams.get('pa') || '';
+      }
+    } catch {}
+    resolvedPaymentLink = '';
+  }
+
+  // If we have a UPI ID and haven't built the https payment page link yet, generate it
+  if (resolvedUpiId && !resolvedPaymentLink) {
+    resolvedPaymentLink =
+      generatePaymentPageLink({
+        upiId: resolvedUpiId,
+        shopName,
+        amount,
+        language: langKey,
+        baseUrl,
+      }) || '';
+  }
+
+  const hasUpi = Boolean(resolvedUpiId || (resolvedPaymentLink && !resolvedPaymentLink.startsWith('upi://')));
   const variant: TemplateVariant = hasUpi ? 'with_upi' : 'without_upi';
+
+  // Format amount with Indian digit grouping: 20500 -> 20,500; 145000 -> 1,45,000
+  const formattedAmount = formatNumber(amount);
 
   let message = TEMPLATES[langKey][toneKey][variant]
     .replace('{customerName}', customerName)
     .replace('{shopName}', shopName)
-    .replace('{amount}', String(amount));
+    .replace('{amount}', formattedAmount);
 
-  if (hasUpi && upiLink) {
-    message = message.replace('{upiLink}', upiLink.trim());
+  if (hasUpi) {
+    const paymentBlock = formatPaymentInfoBlock({
+      upiId: resolvedUpiId || 'UPI',
+      shopName,
+      amount,
+      language: langKey,
+      paymentPageUrl: resolvedPaymentLink || null,
+    });
+    message = message.replace('{upiLink}', paymentBlock);
   }
 
   if (customNote && customNote.trim().length > 0) {
     message += `\n\n📌 ${customNote.trim()}`;
   }
+
+  // Absolute safety check: Never let raw upi:// appear in any reminder message
+  message = message.replace(/upi:\/\/pay[^\s\n]*/gi, '');
 
   return message;
 }
@@ -396,7 +628,7 @@ export function getEligibleRecoveryCustomers(
 /**
  * Builds list of draft reminders incorporating:
  * 1. Per-customer tone override (falls back to shop-wide tone)
- * 2. UPI link toggle & shop upi_id check
+ * 2. UPI link toggle & shop upi_id check (using https:// payment page link or plain-text fallback)
  * 3. Custom shop notes
  */
 export function buildDraftReminders(
@@ -425,16 +657,23 @@ export function buildDraftReminders(
     // 2. Resolve language: customer preferred -> shop active -> 'hi'
     const resolvedLanguage = resolveMessageLanguage(customer.preferred_language, appLanguage);
 
-    // 3. UPI link: only if include_upi_link is true AND shop has a valid upi_id
-    const upiLink = settings.include_upi_link
-      ? generateUPILink(shop.upi_id, shop.name, customer.balance_owed)
-      : null;
+    // 3. Payment page link: only if include_upi_link is true AND shop has a valid upi_id
+    const paymentPageUrl =
+      settings.include_upi_link && shop.upi_id?.trim()
+        ? generatePaymentPageLink({
+            upiId: shop.upi_id,
+            shopName: shop.name,
+            amount: customer.balance_owed,
+            language: resolvedLanguage,
+          })
+        : null;
 
     const messageText = generateReminderMessage({
       customerName: customer.name,
       shopName: shop.name,
       amount: customer.balance_owed,
-      upiLink,
+      upiId: settings.include_upi_link ? shop.upi_id : null,
+      upiLink: paymentPageUrl,
       language: resolvedLanguage,
       tone: resolvedTone,
       customNote: settings.custom_note,
@@ -444,7 +683,7 @@ export function buildDraftReminders(
       customer,
       amount: customer.balance_owed,
       messageText,
-      upiLink,
+      upiLink: paymentPageUrl,
       language: resolvedLanguage,
       tone: resolvedTone,
       isSentToday: hasSentReminderToday(customer.last_reminded_at, now),

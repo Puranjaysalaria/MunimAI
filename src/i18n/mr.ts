@@ -328,6 +328,11 @@ export const mr: Translations = {
     openingSmsVoice: '{name} साठी SMS तगादा उघडत आहे.',
     queueNextVoice: '{name} साठी WhatsApp उघडले. रांगेत {remaining} बाकी आहेत.',
     queueCompleteVoice: '{name} साठी WhatsApp उघडले. सर्व तगादे पूर्ण झाले.',
+    upiDetailsTitle: 'UPI देयक तपशील:',
+    payeeNameLabel: 'नाव',
+    upiIdLabel: 'UPI ID',
+    amountLabel: 'रक्कम',
+    onlinePaymentLink: 'ऑनलाइन पेमेंट लिंक:',
   },
   settings: {
     title: 'सेटिंग्ज',
@@ -353,6 +358,10 @@ export const mr: Translations = {
     privacySub: 'दुकानाचा डेटा खाजगी आहे. ग्राहकाचा आवाज संमतीने 5 सेकंद रेकॉर्ड होतो.',
     saveSettings: 'सेटिंग्ज जतन करा',
     savedNotice: 'यशस्वीरित्या जतन झाले!',
+    doubleCheckUpiNote: 'तुमचा UPI ID नीट तपासा: हा चुकीचा असल्यास ग्राहक पैसे भरू शकणार नाहीत किंवा रक्कम दुसऱ्या खात्यात जाऊ शकते.',
+    savedUpiLabel: 'सध्या सेव्ह केलेला UPI ID',
+    validUpiFormat: 'योग्य UPI ID स्वरूप',
+    invalidUpiFormat: 'अवैध UPI ID (उदा. mobile@upi, name@bank)',
   },
   summary: {
     dailyNetProfit: 'दैनिक निव्वळ नफा',

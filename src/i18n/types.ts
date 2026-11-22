@@ -340,6 +340,11 @@ export interface Translations {
     openingSmsVoice?: string;
     queueNextVoice?: string;
     queueCompleteVoice?: string;
+    upiDetailsTitle: string;
+    payeeNameLabel: string;
+    upiIdLabel: string;
+    amountLabel: string;
+    onlinePaymentLink: string;
   };
   settings: {
     title: string;
@@ -365,6 +370,10 @@ export interface Translations {
     privacySub: string;
     saveSettings: string;
     savedNotice: string;
+    doubleCheckUpiNote: string;
+    savedUpiLabel: string;
+    validUpiFormat: string;
+    invalidUpiFormat: string;
   };
   summary: {
     dailyNetProfit: string;

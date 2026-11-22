@@ -328,6 +328,11 @@ export const gu: Translations = {
     openingSmsVoice: '{name} માટે SMS તગાદો ખોલવામાં આવી રહ્યો છે.',
     queueNextVoice: '{name} માટે WhatsApp ખુલ્યું. કતારમાં {remaining} બાકી છે.',
     queueCompleteVoice: '{name} માટે WhatsApp ખુલ્યું. બધા તગાદા પૂર્ણ થયા.',
+    upiDetailsTitle: 'UPI ચુકવણી વિગતો:',
+    payeeNameLabel: 'નામ',
+    upiIdLabel: 'UPI ID',
+    amountLabel: 'રકમ',
+    onlinePaymentLink: 'ઓનલાઇન ચુકવણી લિંક:',
   },
   settings: {
     title: 'સેટિંગ્સ',
@@ -353,6 +358,10 @@ export const gu: Translations = {
     privacySub: 'દુકાનનો ડેટા ખાનગી છે. ગ્રાહકનો અવાજ માત્ર સંમતિ સાથે 5 સેકન્ડ રેકોર્ડ થાય છે.',
     saveSettings: 'સેટિંગ્સ સાચવો',
     savedNotice: 'સફળતાપૂર્વક સાચવવામાં આવ્યું!',
+    doubleCheckUpiNote: 'તમારું UPI ID ફરીથી ચકાસો: જો આ ખોટું હશે તો ગ્રાહકો ચુકવણી કરી શકશે નહીં અથવા રકમ બીજા ખાતામાં જઈ શકે છે.',
+    savedUpiLabel: 'હાલમાં સાચવેલ UPI ID',
+    validUpiFormat: 'માન્ય UPI ID ફોર્મેટ',
+    invalidUpiFormat: 'અમાન્ય UPI ID (દા.ત. mobile@upi, name@bank)',
   },
   summary: {
     dailyNetProfit: 'દૈનિક ચોખ્ખો નફો',

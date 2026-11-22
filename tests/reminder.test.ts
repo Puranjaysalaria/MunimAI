@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import fs from 'fs';
+import path from 'path';
 import {
   generateReminderMessage,
   isQuietHours,
@@ -7,6 +9,10 @@ import {
   buildDraftReminders,
   DEFAULT_REMINDER_SETTINGS,
   NATIVE_REVIEW_LANGUAGES,
+  generatePaymentPageLink,
+  isValidUPI,
+  getPaymentLabels,
+  formatPaymentInfoBlock,
 } from '../src/lib/reminderService';
 import { Customer, Shop } from '../src/types/schema';
 
@@ -192,8 +198,8 @@ describe('Reminder Service - Safety Rules & Template Engine', () => {
         { include_upi_link: true }
       );
 
-      expect(drafts[0].upiLink).toContain('upi://pay');
-      expect(drafts[0].messageText).toContain('upi://pay?pa=sharma@okaxis');
+      expect(drafts[0].messageText).toContain('sharma@okaxis');
+      expect(drafts[0].messageText).not.toContain('upi://pay');
     });
 
     it('uses without_upi template when toggle is OFF', () => {
@@ -255,7 +261,7 @@ describe('Reminder Service - Safety Rules & Template Engine', () => {
         language: 'hi',
       });
 
-      expect(hindiMsg).toContain('2500');
+      expect(hindiMsg).toContain('2,500');
       expect(hindiMsg).toContain('बहीखाते');
       expect(hindiMsg).toContain('सहयोग के लिए धन्यवाद');
       expect(hindiMsg).not.toContain('चेतावनी');
@@ -271,7 +277,7 @@ describe('Reminder Service - Safety Rules & Template Engine', () => {
       });
 
       expect(englishMsg).toContain('outstanding balance');
-      expect(englishMsg).toContain('2500');
+      expect(englishMsg).toContain('2,500');
       expect(englishMsg).toContain('Thank you for your cooperation');
       expect(englishMsg).not.toContain('threat');
       expect(englishMsg).not.toContain('legal action');
@@ -282,29 +288,34 @@ describe('Reminder Service - Safety Rules & Template Engine', () => {
   describe('9. Multi-Language Coverage (All 10 Languages)', () => {
     const allLangs = ['hi', 'pa', 'en', 'gu', 'mr', 'bn', 'ta', 'te', 'kn', 'ml'];
 
-    it('generates non-empty messages with and without UPI across all 10 languages and 3 tones', () => {
+    it('generates non-empty messages with plain-text UPI details across all 10 languages and 3 tones, never containing raw upi://', () => {
       for (const lang of allLangs) {
         for (const tone of ['polite', 'standard', 'firm'] as const) {
           const withUpi = generateReminderMessage({
             customerName: 'Customer',
             shopName: 'Store',
-            amount: 500,
-            upiLink: 'upi://pay?pa=test@upi',
+            amount: 20500,
+            upiId: 'sharma@okaxis',
             language: lang,
             tone,
+            baseUrl: 'munim-ai.pages.dev',
           });
-          expect(withUpi).toContain('500');
-          expect(withUpi).toContain('upi://pay');
+          expect(withUpi).toContain('20,500');
+          expect(withUpi).toContain('sharma@okaxis');
+          expect(withUpi).toContain('https://munim-ai.pages.dev/pay?');
+          expect(withUpi).not.toContain('upi://pay');
 
           const withoutUpi = generateReminderMessage({
             customerName: 'Customer',
             shopName: 'Store',
-            amount: 500,
+            amount: 20500,
             language: lang,
             tone,
           });
-          expect(withoutUpi).toContain('500');
-          expect(withoutUpi).not.toContain('upi://pay');
+          expect(withoutUpi).toContain('20,500');
+          expect(withoutUpi).not.toContain('sharma@okaxis');
+          expect(withoutUpi).not.toContain('https://');
+          expect(withoutUpi).not.toContain('upi://');
         }
       }
     });
@@ -462,6 +473,232 @@ describe('Reminder Service - Safety Rules & Template Engine', () => {
 
       const enRes = synth.resolveBestVoice('en');
       expect(enRes.mode).toBe('native');
+    });
+  });
+
+  describe('12. Plain-Text UPI, URL Encoding & Payment Page Validation', () => {
+    it('shows UPI ID, payee name, and amount as plain text in the selected language', () => {
+      // English
+      const enMsg = generateReminderMessage({
+        customerName: 'Ramesh',
+        shopName: 'Sharma General Store',
+        amount: 20500,
+        upiId: 'sharma@okaxis',
+        language: 'en',
+      });
+      expect(enMsg).toContain('UPI Payment Details:');
+      expect(enMsg).toContain('• UPI ID: sharma@okaxis');
+      expect(enMsg).toContain('• Name: Sharma General Store');
+      expect(enMsg).toContain('• Amount: ₹20,500');
+
+      // Hindi
+      const hiMsg = generateReminderMessage({
+        customerName: 'रमेश',
+        shopName: 'शर्मा किराना स्टोर',
+        amount: 20500,
+        upiId: 'sharma@okaxis',
+        language: 'hi',
+      });
+      expect(hiMsg).toContain('UPI भुगतान विवरण:');
+      expect(hiMsg).toContain('• UPI ID: sharma@okaxis');
+      expect(hiMsg).toContain('• नाम: शर्मा किराना स्टोर');
+      expect(hiMsg).toContain('• रकम: ₹20,500');
+
+      // Punjabi
+      const paMsg = generateReminderMessage({
+        customerName: 'ਰਮੇਸ਼',
+        shopName: 'ਸ਼ਰਮਾ ਕਿਰਾਨਾ ਸਟੋਰ',
+        amount: 20500,
+        upiId: 'sharma@okaxis',
+        language: 'pa',
+      });
+      expect(paMsg).toContain('UPI ਭੁਗਤਾਨ ਵੇਰਵੇ:');
+      expect(paMsg).toContain('• UPI ID: sharma@okaxis');
+      expect(paMsg).toContain('• ਨਾਮ: ਸ਼ਰਮਾ ਕਿਰਾਨਾ ਸਟੋਰ');
+      expect(paMsg).toContain('• ਰਕਮ: ₹20,500');
+
+      // Tamil
+      const taMsg = generateReminderMessage({
+        customerName: 'ரமேஷ்',
+        shopName: 'சர்மா கிரானா',
+        amount: 20500,
+        upiId: 'sharma@okaxis',
+        language: 'ta',
+      });
+      expect(taMsg).toContain('UPI கட்டண விவரங்கள்:');
+      expect(taMsg).toContain('• UPI ID: sharma@okaxis');
+      expect(taMsg).toContain('• பெயர்: சர்மா கிரானா');
+      expect(taMsg).toContain('• தொகை: ₹20,500');
+    });
+
+    it('formats amounts with Indian digit grouping (₹20,500; ₹1,45,000) in every language', () => {
+      const msg1 = generateReminderMessage({
+        customerName: 'Ramesh',
+        shopName: 'Sharma Kirana',
+        amount: 20500,
+        upiId: 'sharma@okaxis',
+        language: 'hi',
+      });
+      expect(msg1).toContain('₹20,500');
+
+      const msg2 = generateReminderMessage({
+        customerName: 'Ramesh',
+        shopName: 'Sharma Kirana',
+        amount: 145000,
+        upiId: 'sharma@okaxis',
+        language: 'en',
+      });
+      expect(msg2).toContain('₹1,45,000');
+    });
+
+    it('correctly encodes https payment page link for Hindi, Punjabi, Tamil, and other Indic scripts', () => {
+      // Hindi script
+      const hiLink = generatePaymentPageLink({
+        upiId: 'sharma@okaxis',
+        shopName: 'शर्मा किराना स्टोर',
+        amount: 145000,
+        language: 'hi',
+        baseUrl: 'munim-ai.pages.dev',
+      });
+      expect(hiLink).toBeDefined();
+      expect(hiLink).toContain('https://munim-ai.pages.dev/pay?');
+      expect(hiLink).toContain('pa=sharma%40okaxis');
+      expect(hiLink).toContain('pn=' + encodeURIComponent('शर्मा किराना स्टोर'));
+      expect(hiLink).toContain('am=145000');
+      expect(hiLink).toContain('lang=hi');
+
+      // Punjabi script (Gurmukhi)
+      const paLink = generatePaymentPageLink({
+        upiId: 'sharma@okaxis',
+        shopName: 'ਸ਼ਰਮਾ ਕਿਰਾਨਾ ਸਟੋਰ',
+        amount: 20500,
+        language: 'pa',
+        baseUrl: 'munim-ai.pages.dev',
+      });
+      expect(paLink).toContain('pn=' + encodeURIComponent('ਸ਼ਰਮਾ ਕਿਰਾਨਾ ਸਟੋਰ'));
+      expect(paLink).toContain('lang=pa');
+
+      // Tamil script
+      const taLink = generatePaymentPageLink({
+        upiId: 'sharma@okaxis',
+        shopName: 'சர்மா கிரானா ஸ்டோர்',
+        amount: 5000,
+        language: 'ta',
+        baseUrl: 'munim-ai.pages.dev',
+      });
+      expect(taLink).toContain('pn=' + encodeURIComponent('சர்மா கிரானா ஸ்டோர்'));
+      expect(taLink).toContain('lang=ta');
+    });
+
+    it('never includes raw upi:// in any generated reminder message', () => {
+      // Pass raw upi:// string explicitly; it must be converted or stripped, never leaked
+      const msg = generateReminderMessage({
+        customerName: 'Ramesh',
+        shopName: 'Sharma Kirana',
+        amount: 1500,
+        upiLink: 'upi://pay?pa=sharma@okaxis&pn=Sharma&am=1500',
+        language: 'hi',
+      });
+      expect(msg).not.toContain('upi://pay');
+      expect(msg).not.toContain('upi://');
+      expect(msg).toContain('sharma@okaxis');
+    });
+
+    it('falls back to plain-text only when base URL is not configured', () => {
+      const msg = generateReminderMessage({
+        customerName: 'Ramesh',
+        shopName: 'Sharma Kirana',
+        amount: 1500,
+        upiId: 'sharma@okaxis',
+        language: 'hi',
+        baseUrl: '', // explicitly unset
+      });
+      expect(msg).toContain('sharma@okaxis');
+      expect(msg).toContain('• रकम: ₹1,500');
+      expect(msg).not.toContain('https://');
+      expect(msg).not.toContain('upi://');
+    });
+
+    it('preserves clean no-UPI variant without payment block when UPI is omitted', () => {
+      const msg = generateReminderMessage({
+        customerName: 'Ramesh',
+        shopName: 'Sharma Kirana',
+        amount: 1500,
+        language: 'hi',
+        // upiId and upiLink both omitted
+      });
+      expect(msg).toContain('₹1,500');
+      expect(msg).not.toContain('UPI ID');
+      expect(msg).not.toContain('UPI भुगतान विवरण');
+      expect(msg).not.toContain('https://');
+      expect(msg).not.toContain('upi://');
+    });
+
+    it('validates UPI ID format with isValidUPI', () => {
+      expect(isValidUPI('sharma@okaxis')).toBe(true);
+      expect(isValidUPI('9876543210@paytm')).toBe(true);
+      expect(isValidUPI('kirana.store@hdfcbank')).toBe(true);
+      expect(isValidUPI('user_123@icici')).toBe(true);
+
+      expect(isValidUPI('')).toBe(false);
+      expect(isValidUPI('sharma')).toBe(false);
+      expect(isValidUPI('sharma@')).toBe(false);
+      expect(isValidUPI('@okaxis')).toBe(false);
+      expect(isValidUPI('sharma@b')).toBe(false);
+      expect(isValidUPI('user space@bank')).toBe(false);
+    });
+
+    it('generates localized plain-text labels and payment info blocks for all 10 languages', () => {
+      const allLangs = ['en', 'hi', 'pa', 'gu', 'mr', 'bn', 'ta', 'te', 'kn', 'ml'];
+      for (const lang of allLangs) {
+        const labels = getPaymentLabels(lang);
+        expect(labels.upiDetailsTitle).toBeTruthy();
+        expect(labels.payeeNameLabel).toBeTruthy();
+        expect(labels.upiIdLabel).toBeTruthy();
+        expect(labels.amountLabel).toBeTruthy();
+        expect(labels.onlinePaymentLink).toBeTruthy();
+
+        const block = formatPaymentInfoBlock({
+          upiId: 'sharma@okaxis',
+          shopName: 'Sharma General Store',
+          amount: 2500,
+          language: lang,
+        });
+        expect(block).toContain('sharma@okaxis');
+        expect(block).toContain('₹2,500');
+        expect(block).toContain(labels.upiDetailsTitle);
+        expect(block).toContain(labels.payeeNameLabel);
+      }
+    });
+
+    it('verifies static payment page (public/pay/index.html) validates parameters and escapes output', () => {
+      const payHtmlPath = path.resolve(__dirname, '../public/pay/index.html');
+      expect(fs.existsSync(payHtmlPath)).toBe(true);
+
+      const htmlContent = fs.readFileSync(payHtmlPath, 'utf8');
+
+      // Parameter validation
+      expect(htmlContent).toContain('upiRegex');
+      expect(htmlContent).toContain('isAmountValid');
+      expect(htmlContent).toContain('isNameValid');
+      expect(htmlContent).toContain('isNoteValid');
+
+      // Output escaping
+      expect(htmlContent).toContain('escapeHTML');
+      expect(htmlContent).toContain('&amp;');
+      expect(htmlContent).toContain('&lt;');
+      expect(htmlContent).toContain('&gt;');
+
+      // All 10 language dictionaries present
+      const allLangs = ['en', 'hi', 'pa', 'gu', 'mr', 'bn', 'ta', 'te', 'kn', 'ml'];
+      for (const lang of allLangs) {
+        expect(htmlContent).toContain(lang + ': {');
+      }
+
+      // Large pay button & copy button
+      expect(htmlContent).toContain('btn-pay');
+      expect(htmlContent).toContain('btn-copy');
+      expect(htmlContent).toContain('upi://pay');
     });
   });
 });

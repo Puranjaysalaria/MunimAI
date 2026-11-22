@@ -328,6 +328,11 @@ export const bn: Translations = {
     openingSmsVoice: '{name} এর জন্য SMS তাগাদা খোলা হচ্ছে।',
     queueNextVoice: '{name} এর জন্য WhatsApp খোলা হয়েছে। সারিতে {remaining} জন বাকি।',
     queueCompleteVoice: '{name} এর জন্য WhatsApp খোলা হয়েছে। সব তাগাদা সম্পূর্ণ।',
+    upiDetailsTitle: 'UPI পেমেন্ট বিবরণ:',
+    payeeNameLabel: 'নাম',
+    upiIdLabel: 'UPI ID',
+    amountLabel: 'পরিমাণ',
+    onlinePaymentLink: 'অনলাইন পেমেন্ট লিঙ্ক:',
   },
   settings: {
     title: 'সেটিংস',
@@ -353,6 +358,10 @@ export const bn: Translations = {
     privacySub: 'দোকানের ডেটা সম্পূর্ণ ব্যক্তিগত। সম্মতি ছাড়া কোনো অডিও রেকর্ড হয় না।',
     saveSettings: 'সেটিংস সংরক্ষণ করুন',
     savedNotice: 'সফলভাবে সংরক্ষিত হয়েছে!',
+    doubleCheckUpiNote: 'আপনার UPI ID পুনরায় যাচাই করুন: এটি ভুল হলে গ্রাহকরা পেমেন্ট করতে পারবেন না বা টাকা অন্য অ্যাকাউন্টে চলে যেতে পারে।',
+    savedUpiLabel: 'বর্তমানে সংরক্ষিত UPI ID',
+    validUpiFormat: 'সঠিক UPI ID ফর্ম্যাট',
+    invalidUpiFormat: 'অবৈধ UPI ID (যেমন mobile@upi, name@bank)',
   },
   summary: {
     dailyNetProfit: 'দৈনিক নিট লাভ',

@@ -7,7 +7,7 @@ import {
   ReminderChannel,
   DEFAULT_REMINDER_SETTINGS,
 } from '../../types/schema';
-import { generateReminderMessage, generateUPILink } from '../../lib/reminderService';
+import { generateReminderMessage, generatePaymentPageLink } from '../../lib/reminderService';
 import { LanguageCode, useI18n } from '../../i18n';
 import {
   X,
@@ -57,16 +57,22 @@ export const ReminderSettingsModal: React.FC<ReminderSettingsModalProps> = ({
   const thresholdPresets = [500, 1000, 2000, 5000];
 
   // Dynamic preview message
-  const previewUpiLink =
+  const previewPaymentUrl =
     includeUpiLink && shop.upi_id?.trim()
-      ? generateUPILink(shop.upi_id, shop.name || 'Sharma Kirana', 1450)
+      ? generatePaymentPageLink({
+          upiId: shop.upi_id,
+          shopName: shop.name || 'Sharma Kirana',
+          amount: 1450,
+          language: (language as LanguageCode) || 'hi',
+        })
       : null;
 
   const previewMessage = generateReminderMessage({
     customerName: language === 'en' ? 'Ramesh Kumar' : language === 'pa' ? 'ਰਮੇਸ਼ ਕੁਮਾਰ' : 'रमेश कुमार',
     amount: 1450,
     shopName: shop.name || (language === 'en' ? 'Sharma Kirana' : language === 'pa' ? 'ਸ਼ਰਮਾ ਕਿਰਾਨਾ ਸਟੋਰ' : 'शर्मा किराना स्टोर'),
-    upiLink: previewUpiLink,
+    upiId: includeUpiLink ? shop.upi_id : null,
+    upiLink: previewPaymentUrl,
     language: (language as LanguageCode) || 'hi',
     tone,
   });
@@ -258,7 +264,7 @@ export const ReminderSettingsModal: React.FC<ReminderSettingsModalProps> = ({
                     : (t.reminders.toneStandardLabel || 'Standard')}
                 </span>
               </div>
-              <p className="text-xs text-app-text whitespace-pre-wrap leading-relaxed font-sans bg-white p-2.5 rounded-xl border border-gray-100">
+              <p className="text-xs text-app-text whitespace-pre-wrap break-words [word-break:break-word] leading-relaxed font-sans bg-white p-3 rounded-xl border border-gray-100">
                 {previewMessage}
               </p>
               <p className="text-[10px] text-app-muted mt-1.5 italic">

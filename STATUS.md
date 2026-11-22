@@ -126,3 +126,24 @@
     - 486/486 unit tests passing in `vitest` (including 16 new dedicated tests in `tests/userQueriesTest.test.ts`).
     - Zero TypeScript errors in `tsc --noEmit`.
     - 100% i18n coverage across all 10 locales (404 keys).
+- [x] **Step 14: Plain-Text First UPI Reminders, HTTPS Payment Page Link, and Settings Validation**
+  - **Plain-Text First Payment Details**:
+    - Every WhatsApp and SMS reminder that includes payment info now displays UPI ID, amount, and payee name formatted as clear plain text in the selected language.
+    - Preserves clean no-UPI variant when UPI is toggled off or omitted.
+    - Plain-text labels (`upiDetailsTitle`, `payeeNameLabel`, `upiIdLabel`, `amountLabel`, `onlinePaymentLink`) fully localized across all 10 Indic languages.
+    - All monetary amounts formatted with Indian digit grouping (e.g., `₹20,500; ₹1,45,000`).
+  - **HTTPS Payment Page (`public/pay/index.html`)**:
+    - Replaced raw `upi://pay` links in messages with an HTTPS payment page link: `https://<PAYMENT_PAGE_BASE_URL>/pay?pa=<upi id>&pn=<name>&am=<amount>&tn=<note>&lang=<lang>`, with all parameters strictly URL-encoded (including Indic scripts).
+    - Base URL read from environment variable `VITE_PAYMENT_PAGE_BASE_URL`. If unset, falls back cleanly to plain text only, ensuring no raw `upi://` ever appears in any reminder.
+    - Built static, zero-backend, zero-analytics, lightweight (<15KB) mobile payment page in `public/pay/index.html`.
+    - Features large high-contrast "Pay with UPI app" button ($\ge 58$px) opening `upi://pay` (with auto-trigger attempt on load), "Copy UPI ID" button with visual toast, parameter validation (UPI format regex, positive amount $\le$ 10 Lakh, length bounds), HTML output escaping to prevent XSS, and clear fallback messages when no UPI app is installed.
+  - **Settings UI Enhancements (`src/components/SettingsModal.tsx`)**:
+    - Prominently displays the saved UPI ID with live format validation feedback (valid check vs format warning).
+    - Added amber callout warning with alert icon: "Double-check your UPI ID".
+  - **Live Preview Line Wrapping**:
+    - Applied word breaking and line wrapping (`break-words [word-break:break-word] whitespace-pre-line`) in `RecoveryModal.tsx` and `ReminderSettingsModal.tsx` so payment page links sit on their own line and long messages never clip horizontally.
+  - **Verification**:
+    - 519/519 unit tests passing in `vitest` (14 test files).
+    - Zero TypeScript errors in `tsc --noEmit`.
+    - 100% i18n coverage across all 10 locales (415 keys).
+    - Production build passing cleanly via `npm run build` with PWA service worker precaching.

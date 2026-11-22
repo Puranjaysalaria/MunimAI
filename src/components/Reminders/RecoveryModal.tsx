@@ -5,7 +5,7 @@ import {
   buildDraftReminders,
   isQuietHours,
   generateReminderMessage,
-  generateUPILink,
+  generatePaymentPageLink,
   resolveMessageLanguage,
 } from '../../lib/reminderService';
 import { buildWhatsAppLink, buildSMSLink } from '../../lib/slipService';
@@ -89,15 +89,22 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
     );
     const resolvedTone: ReminderTone = draft.customer.reminder_tone_override || reminderSettings.message_tone;
 
-    const upiLink = reminderSettings.include_upi_link
-      ? generateUPILink(shop.upi_id, shop.name, draft.customer.balance_owed)
-      : null;
+    const paymentPageUrl =
+      reminderSettings.include_upi_link && shop.upi_id?.trim()
+        ? generatePaymentPageLink({
+            upiId: shop.upi_id,
+            shopName: shop.name,
+            amount: draft.customer.balance_owed,
+            language: resolvedLang,
+          })
+        : null;
 
     const messageText = generateReminderMessage({
       customerName: draft.customer.name,
       shopName: shop.name,
       amount: draft.customer.balance_owed,
-      upiLink,
+      upiId: reminderSettings.include_upi_link ? shop.upi_id : null,
+      upiLink: paymentPageUrl,
       language: resolvedLang,
       tone: resolvedTone,
       customNote: reminderSettings.custom_note,
@@ -488,7 +495,7 @@ export const RecoveryModal: React.FC<RecoveryModalProps> = ({
                         <span className="font-semibold">{t.reminders.previewTitle || 'Message Preview'}:</span>
                         <span className="font-mono uppercase font-bold text-primary">[{resolvedDraftLang}]</span>
                       </div>
-                      <div className="font-mono whitespace-pre-line text-gray-700">
+                      <div className="font-mono whitespace-pre-line break-words [word-break:break-word] text-gray-700 bg-white p-3 rounded-xl border border-gray-100 leading-relaxed">
                         {messageText}
                       </div>
                     </div>

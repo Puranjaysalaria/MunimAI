@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#059669">
+  <title>UPI Payment | सुरक्षित यूपीआई भुगतान</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", sans-serif;
+      background-color: #f1f5f9;
+      color: #0f172a;
+      line-height: 1.5;
+      padding: 16px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      width: 100%;
+      max-width: 440px;
+      background: #ffffff;
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+      border: 1px solid #e2e8f0;
+    }
+    .header {
+      text-align: center;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .shop-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #ecfdf5;
+      color: #047857;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 999px;
+      margin-bottom: 8px;
+    }
+    .shop-name {
+      font-size: 20px;
+      font-weight: 800;
+      color: #0f172a;
+      word-break: break-word;
+    }
+    .hero-card {
+      background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+      border: 1.5px solid #e2e8f0;
+      border-radius: 20px;
+      padding: 20px;
+      text-align: center;
+      margin: 20px 0;
+    }
+    .amount-label {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      margin-bottom: 6px;
+    }
+    .amount-value {
+      font-size: 38px;
+      font-weight: 900;
+      color: #047857;
+      letter-spacing: -0.02em;
+    }
+    .upi-info-card {
+      background: #f8fafc;
+      border-radius: 16px;
+      padding: 14px 16px;
+      margin-bottom: 20px;
+      border: 1px solid #e2e8f0;
+    }
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      font-size: 13px;
+    }
+    .info-label {
+      color: #64748b;
+      font-weight: 600;
+    }
+    .info-value {
+      color: #0f172a;
+      font-weight: 700;
+      text-align: right;
+      word-break: break-all;
+      max-width: 65%;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .btn-pay {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 58px;
+      background: #059669;
+      color: #ffffff;
+      text-decoration: none;
+      font-size: 18px;
+      font-weight: 800;
+      border-radius: 16px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn-pay:active {
+      background: #047857;
+      transform: scale(0.98);
+    }
+    .btn-copy {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      min-height: 48px;
+      background: #ffffff;
+      color: #0f172a;
+      font-size: 14px;
+      font-weight: 700;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 14px;
+      margin-top: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-copy:active {
+      background: #f1f5f9;
+      transform: scale(0.98);
+    }
+    .btn-copy.copied {
+      background: #ecfdf5;
+      color: #047857;
+      border-color: #059669;
+    }
+    .help-notice {
+      background: #fffbeb;
+      border: 1px solid #fef3c7;
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-top: 20px;
+      font-size: 12px;
+      color: #92400e;
+      line-height: 1.45;
+    }
+    .secure-footer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+    }
+    .error-card {
+      text-align: center;
+      padding: 24px 12px;
+    }
+    .error-icon {
+      font-size: 44px;
+      margin-bottom: 12px;
+    }
+    .error-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #b91c1c;
+      margin-bottom: 8px;
+    }
+    .error-desc {
+      font-size: 13px;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="app">
+    <div id="contentLoading">Loading payment details...</div>
+  </div>
+
+  <script>
+    (function () {
+      // 10 Language Dictionaries
+      var I18N = {
+        en: {
+          verifiedShop: "Verified Merchant",
+          amountToPay: "Amount to Pay",
+          payeeName: "Payee Name",
+          upiId: "UPI ID",
+          note: "Note",
+          defaultNote: "Kirana Udhaar Payment",
+          payWithApp: "Pay with UPI app",
+          copyUpiId: "Copy UPI ID",
+          copiedSuccess: "Copied UPI ID!",
+          helpNote: "If no UPI app opens automatically, tap 'Copy UPI ID' above and pay using Google Pay, PhonePe, Paytm or BHIM.",
+          secureNote: "100% Direct & Secure Bank Transfer via UPI",
+          invalidTitle: "Invalid Payment Link",
+          invalidDesc: "This payment link is invalid or incomplete. Please check with the shopkeeper."
+        },
+        hi: {
+          verifiedShop: "सत्यापित दुकानदार",
+          amountToPay: "भुगतान राशि",
+          payeeName: "दुकानदार का नाम",
+          upiId: "UPI ID",
+          note: "विवरण",
+          defaultNote: "किराना उधारी भुगतान",
+          payWithApp: "UPI ऐप से भुगतान करें",
+          copyUpiId: "UPI ID कॉपी करें",
+          copiedSuccess: "UPI ID कॉपी हो गया!",
+          helpNote: "यदि कोई UPI ऐप स्वतः नहीं खुलता है, तो ऊपर 'UPI ID कॉपी करें' दबाएं और PhonePe, Google Pay या Paytm से भुगतान करें।",
+          secureNote: "UPI द्वारा 100% सीधा और सुरक्षित बैंक ट्रांसफर",
+          invalidTitle: "अमान्य भुगतान लिंक",
+          invalidDesc: "यह भुगतान लिंक अधूरा या अमान्य है। कृपया दुकानदार से संपर्क करें।"
+        },
+        pa: {
+          verifiedShop: "ਤਸਦੀਕਸ਼ੁਦਾ ਦੁਕਾਨਦਾਰ",
+          amountToPay: "ਭੁਗਤਾਨ ਰਕਮ",
+          payeeName: "ਦੁਕਾਨਦਾਰ ਦਾ ਨਾਮ",
+          upiId: "UPI ID",
+          note: "ਵੇਰਵਾ",
+          defaultNote: "ਕਿਰਾਨਾ ਉਧਾਰ ਭੁਗਤਾਨ",
+          payWithApp: "UPI ਐਪ ਰਾਹੀਂ ਭੁਗਤਾਨ ਕਰੋ",
+          copyUpiId: "UPI ID ਕਾਪੀ ਕਰੋ",
+          copiedSuccess: "UPI ID ਕਾਪੀ ਹੋ ਗਿਆ!",
+          helpNote: "ਜੇ ਕੋਈ UPI ਐਪ ਨਾ ਖੁੱਲ੍ਹੇ, ਤਾਂ ਉੱਪਰ 'UPI ID ਕਾਪੀ ਕਰੋ' ਦਬਾਓ ਅਤੇ PhonePe, Google Pay ਜਾਂ Paytm ਵਿੱਚ ਜਾ ਕੇ ਭੁਗਤਾਨ ਕਰੋ।",
+          secureNote: "UPI ਰਾਹੀਂ 100% ਸਿੱਧਾ ਅਤੇ ਸੁਰੱਖਿਅਤ ਬੈਂਕ ਟਰਾਂਸਫਰ",
+          invalidTitle: "ਗਲਤ ਭੁਗਤਾਨ ਲਿੰਕ",
+          invalidDesc: "ਇਹ ਭੁਗਤਾਨ ਲਿੰਕ ਅਧੂਰਾ ਜਾਂ ਗਲਤ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਕਾਨਦਾਰ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।"
+        },
+        gu: {
+          verifiedShop: "ચકાસાયેલ વેપારી",
+          amountToPay: "ચુકવણી રકમ",
+          payeeName: "દુકાનદારનું નામ",
+          upiId: "UPI ID",
+          note: "વિગત",
+          defaultNote: "કિરાણા ઉધાર ચુકવણી",
+          payWithApp: "UPI એપ દ્વારા ચુકવણી કરો",
+          copyUpiId: "UPI ID કૉપિ કરો",
+          copiedSuccess: "UPI ID કૉપિ થઈ ગયું!",
+          helpNote: "જો કોઈ UPI એપ આપમેળે ન ખુલે, તો ઉપર 'UPI ID કૉપિ કરો' દબાવો અને PhonePe, Google Pay કે Paytm થી ચુકવણી કરો.",
+          secureNote: "UPI દ્વારા 100% સીધું અને સુરક્ષિત બેંક ટ્રાન્સફર",
+          invalidTitle: "અમાન્ય ચુકવણી લિંક",
+          invalidDesc: "આ ચુકવણી લિંક અમાન્ય છે. કૃપા કરીને દુકાનદારનો સંપર્ક કરો."
+        },
+        mr: {
+          verifiedShop: "सत्यापित दुकानदार",
+          amountToPay: "देय रक्कम",
+          payeeName: "दुकानदाराचे नाव",
+          upiId: "UPI ID",
+          note: "तपशील",
+          defaultNote: "किराणा उधारी देयक",
+          payWithApp: "UPI अॅपद्वारे पैसे भरा",
+          copyUpiId: "UPI ID कॉपी करा",
+          copiedSuccess: "UPI ID कॉपी झाले!",
+          helpNote: "UPI अॅप न उघडल्यास, वरील 'UPI ID कॉपी करा' दाबा आणि PhonePe, Google Pay किंवा Paytm द्वारे रक्कम भरा.",
+          secureNote: "UPI द्वारे 100% थेट आणि सुरक्षित बँक हस्तांतरण",
+          invalidTitle: "अवैध पेमेंट लिंक",
+          invalidDesc: "ही पेमेंट लिंक अपूर्ण किंवा अवैध आहे. कृपया दुकानदाराशी संपर्क साधा."
+        },
+        bn: {
+          verifiedShop: "যাচাইকৃত ব্যবসায়ী",
+          amountToPay: "প্রদেয় পরিমাণ",
+          payeeName: "দোকানের নাম",
+          upiId: "UPI ID",
+          note: "বিবরণ",
+          defaultNote: "মুদি বাকি পরিশোধ",
+          payWithApp: "UPI অ্যাপ দিয়ে পরিশোধ করুন",
+          copyUpiId: "UPI ID কপি করুন",
+          copiedSuccess: "UPI ID কপি হয়েছে!",
+          helpNote: "যদি কোনো UPI অ্যাপ নিজে থেকে না খোলে, তবে উপরে 'UPI ID কপি করুন' টিপুন এবং PhonePe, Google Pay বা Paytm দিয়ে পরিশোধ করুন।",
+          secureNote: "UPI-এর মাধ্যমে ১০০% সরাসরি ও সুরক্ষিত ব্যাঙ্ক স্থানান্তর",
+          invalidTitle: "অবৈধ পেমেন্ট লিঙ্ক",
+          invalidDesc: "এই পেমেন্ট লিঙ্কটি অসম্পূর্ণ বা অবৈধ। অনুগ্রহ করে দোকানদারের সাথে যোগাযোগ করুন।"
+        },
+        ta: {
+          verifiedShop: "சரிபார்க்கப்பட்ட வணிகர்",
+          amountToPay: "செலுத்த வேண்டிய தொகை",
+          payeeName: "கடைக்காரர் பெயர்",
+          upiId: "UPI ID",
+          note: "குறிப்பு",
+          defaultNote: "கடன் தொகை செலுத்துதல்",
+          payWithApp: "UPI செயலி மூலம் செலுத்தவும்",
+          copyUpiId: "UPI ID நகலெடு",
+          copiedSuccess: "UPI ID நகலெடுக்கப்பட்டது!",
+          helpNote: "UPI செயலி தானாகத் திறக்கவில்லை என்றால், மேலே உள்ள 'UPI ID நகலெடு' என்பதைத் தட்டி PhonePe, Google Pay அல்லது Paytm மூலம் செலுத்தவும்.",
+          secureNote: "UPI மூலம் 100% நேரடி மற்றும் பாதுகாப்பான வங்கிப் பரிமாற்றம்",
+          invalidTitle: "தவறான கட்டண இணைப்பு",
+          invalidDesc: "இந்த கட்டண இணைப்பு தவறானது. தயவுசெய்து கடைக்காரரைத் தொடர்பு கொள்ளவும்."
+        },
+        te: {
+          verifiedShop: "ధృవీకరించబడిన వ్యాపారి",
+          amountToPay: "చెల్లించాల్సిన మొత్తం",
+          payeeName: "షాపు పేరు",
+          upiId: "UPI ID",
+          note: "వివరణ",
+          defaultNote: "కిరాణా అప్పు చెల్లింపు",
+          payWithApp: "UPI యాప్‌తో చెల్లించండి",
+          copyUpiId: "UPI ID కాపీ చేయండి",
+          copiedSuccess: "UPI ID కాపీ చేయబడింది!",
+          helpNote: "UPI యాప్ తెరవకపోతే, పైన ఉన్న 'UPI ID కాపీ చేయండి' నొక్కి PhonePe, Google Pay లేదా Paytm ద్వారా చెల్లించండి.",
+          secureNote: "UPI ద్వారా 100% ప్రత్యక్ష మరియు సురక్షితమైన బ్యాంక్ బదిలీ",
+          invalidTitle: "చెల్లని చెల్లింపు లింక్",
+          invalidDesc: "ఈ చెల్లింపు లింక్ చెల్లదు. దయచేసి దుకాణదారుడిని సంప్రదించండి."
+        },
+        kn: {
+          verifiedShop: "ಪರಿಶೀಲಿಸಿದ ವ್ಯಾಪಾರಿ",
+          amountToPay: "ಪಾವತಿಸಬೇಕಾದ ಮೊತ್ತ",
+          payeeName: "ಅಂಗಡಿಯ ಹೆಸರು",
+          upiId: "UPI ID",
+          note: "ವಿವರಣೆ",
+          defaultNote: "ಕಿರಣಾ ಸಾಲ ಪಾವತಿ",
+          payWithApp: "UPI ಆ್ಯಪ್ ಮೂಲಕ ಪಾವತಿಸಿ",
+          copyUpiId: "UPI ID ನಕಲಿಸಿ",
+          copiedSuccess: "UPI ID ನಕಲಿಸಲಾಗಿದೆ!",
+          helpNote: "UPI ಆ್ಯಪ್ ತೆರೆಯದಿದ್ದರೆ, ಮೇಲಿನ 'UPI ID ನಕಲಿಸಿ' ಒತ್ತಿ PhonePe, Google Pay ಅಥವಾ Paytm ಮೂಲಕ ಪಾವತಿಸಿ.",
+          secureNote: "UPI ಮೂಲಕ 100% ನೇರ ಮತ್ತು ಸುರಕ್ಷಿತ ಬ್ಯಾಂಕ್ ವರ್ಗಾವಣೆ",
+          invalidTitle: "ಅಮಾನ್ಯ ಪಾವತಿ ಲಿಂಕ್",
+          invalidDesc: "ಈ ಪಾವತಿ ಲಿಂಕ್ ಅಮಾನ್ಯವಾಗಿದೆ. ದಯವಿಟ್ಟು ಅಂಗಡಿಯವರನ್ನು ಸಂಪರ್ಕಿಸಿ."
+        },
+        ml: {
+          verifiedShop: "പരിശോധിച്ചുറപ്പിച്ച വ്യാപാരി",
+          amountToPay: "അടയ്ക്കാനുള്ള തുക",
+          payeeName: "വ്യാപാരിയുടെ പേര്",
+          upiId: "UPI ID",
+          note: "വിവരണം",
+          defaultNote: "കടം തുക അടയ്ക്കൽ",
+          payWithApp: "UPI ആപ്പ് വഴി പണമടയ്ക്കുക",
+          copyUpiId: "UPI ID കോപ്പി ചെയ്യുക",
+          copiedSuccess: "UPI ID കോപ്പി ചെയ്തു!",
+          helpNote: "UPI ആപ്പ് തുറന്നില്ലെങ്കിൽ, മുകളിലുള്ള 'UPI ID കോപ്പി ചെയ്യുക' അമർത്തി PhonePe, Google Pay അല്ലെങ്കിൽ Paytm വഴി പണമടയ്ക്കുക.",
+          secureNote: "UPI വഴി 100% നേരിട്ടുള്ളതും സുരക്ഷിതവുമായ ബാങ്ക് കൈമാറ്റം",
+          invalidTitle: "അസാധുവായ പേയ്‌മെന്റ് ലിങ്ക്",
+          invalidDesc: "ഈ പേയ്‌മെന്റ് ലിങ്ക് അപൂർണ്ണമോ അസാധുവോ ആണ്. വ്യാപാരിയുമായി ബന്ധപ്പെടുക."
+        }
+      };
+
+      // Helper to escape HTML characters safely
+      function escapeHTML(str) {
+        if (!str) return "";
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      // Format Indian numbers with grouping (e.g. 20500 -> 20,500; 145000 -> 1,45,000)
+      function formatIndianCurrency(amount) {
+        var num = Number(amount);
+        if (isNaN(num)) return amount;
+        return new Intl.NumberFormat('en-IN', {
+          maximumFractionDigits: 2
+        }).format(num);
+      }
+
+      var params = new URLSearchParams(window.location.search);
+      var pa = (params.get('pa') || '').trim();
+      var pn = (params.get('pn') || '').trim();
+      var amStr = (params.get('am') || '').trim();
+      var tn = (params.get('tn') || '').trim();
+      var lang = (params.get('lang') || 'hi').trim().toLowerCase();
+
+      var t = I18N[lang] || I18N.hi;
+
+      // Validate UPI ID format: username@bank
+      var upiRegex = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
+      var isUpiValid = upiRegex.test(pa) && pa.length <= 256;
+
+      // Validate Numeric Amount: > 0, <= 1000000
+      var amountNum = parseFloat(amStr);
+      var isAmountValid = !isNaN(amountNum) && amountNum > 0 && amountNum <= 1000000 && /^\d+(\.\d{1,2})?$/.test(amStr);
+
+      // Validate Payee Name length
+      var isNameValid = pn.length <= 100;
+      var isNoteValid = tn.length <= 120;
+
+      var appEl = document.getElementById('app');
+
+      if (!isUpiValid || !isAmountValid || !isNameValid || !isNoteValid) {
+        appEl.innerHTML =
+          '<div class="error-card">' +
+            '<div class="error-icon">⚠️</div>' +
+            '<h2 class="error-title">' + escapeHTML(t.invalidTitle) + '</h2>' +
+            '<p class="error-desc">' + escapeHTML(t.invalidDesc) + '</p>' +
+          '</div>';
+        return;
+      }
+
+      var safeShopName = pn || "Kirana Store";
+      var safeNote = tn || t.defaultNote;
+      var formattedAmount = "₹" + formatIndianCurrency(amountNum);
+
+      var upiDeepLink = "upi://pay?pa=" + encodeURIComponent(pa) +
+        "&pn=" + encodeURIComponent(safeShopName) +
+        "&am=" + encodeURIComponent(amStr) +
+        "&cu=INR&tn=" + encodeURIComponent(safeNote);
+
+      appEl.innerHTML =
+        '<div class="header">' +
+          '<div class="shop-badge">✓ ' + escapeHTML(t.verifiedShop) + '</div>' +
+          '<h1 class="shop-name">' + escapeHTML(safeShopName) + '</h1>' +
+        '</div>' +
+        '<div class="hero-card">' +
+          '<div class="amount-label">' + escapeHTML(t.amountToPay) + '</div>' +
+          '<div class="amount-value">' + escapeHTML(formattedAmount) + '</div>' +
+        '</div>' +
+        '<div class="upi-info-card">' +
+          '<div class="info-row">' +
+            '<span class="info-label">' + escapeHTML(t.payeeName) + '</span>' +
+            '<span class="info-value">' + escapeHTML(safeShopName) + '</span>' +
+          '</div>' +
+          '<div class="info-row">' +
+            '<span class="info-label">' + escapeHTML(t.upiId) + '</span>' +
+            '<span class="info-value" id="displayUpiId">' + escapeHTML(pa) + '</span>' +
+          '</div>' +
+          (tn ? '<div class="info-row">' +
+            '<span class="info-label">' + escapeHTML(t.note) + '</span>' +
+            '<span class="info-value">' + escapeHTML(safeNote) + '</span>' +
+          '</div>' : '') +
+        '</div>' +
+        '<a href="' + escapeHTML(upiDeepLink) + '" class="btn-pay" id="payBtn">' +
+          '<span>💳</span> ' + escapeHTML(t.payWithApp) +
+        '</a>' +
+        '<button type="button" class="btn-copy" id="copyBtn">' +
+          '<span>📋</span> <span id="copyBtnText">' + escapeHTML(t.copyUpiId) + '</span>' +
+        '</button>' +
+        '<div class="help-notice">' +
+          '💡 ' + escapeHTML(t.helpNote) +
+        '</div>' +
+        '<div class="secure-footer">' +
+          '🔒 ' + escapeHTML(t.secureNote) +
+        '</div>';
+
+      // Copy UPI ID button interaction
+      var copyBtn = document.getElementById('copyBtn');
+      var copyBtnText = document.getElementById('copyBtnText');
+      if (copyBtn && copyBtnText) {
+        copyBtn.addEventListener('click', function () {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(pa).then(showCopied).catch(fallbackCopy);
+          } else {
+            fallbackCopy();
+          }
+        });
+      }
+
+      function fallbackCopy() {
+        try {
+          var input = document.createElement('input');
+          input.value = pa;
+          document.body.appendChild(input);
+          input.select();
+          document.execCommand('copy');
+          document.body.removeChild(input);
+          showCopied();
+        } catch (e) {}
+      }
+
+      function showCopied() {
+        copyBtn.classList.add('copied');
+        copyBtnText.textContent = t.copiedSuccess;
+        setTimeout(function () {
+          copyBtn.classList.remove('copied');
+          copyBtnText.textContent = t.copyUpiId;
+        }, 2500);
+      }
+
+      // Try opening the UPI app automatically once after page load
+      setTimeout(function () {
+        try {
+          window.location.href = upiDeepLink;
+        } catch (err) {}
+      }, 400);
+    })();
+  </script>
+</body>
+</html>

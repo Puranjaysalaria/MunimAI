@@ -328,6 +328,11 @@ export const te: Translations = {
     openingSmsVoice: '{name} కోసం SMS రిమైండర్ తెరవబడుతోంది.',
     queueNextVoice: '{name} కోసం WhatsApp తెరవబడింది. క్యూలో {remaining} మంది మిగిలి ఉన్నారు.',
     queueCompleteVoice: '{name} కోసం WhatsApp తెరవబడింది. అన్ని రిమైండర్‌లు పూర్తయ్యాయి.',
+    upiDetailsTitle: 'UPI చెల్లింపు వివరాలు:',
+    payeeNameLabel: 'పేరు',
+    upiIdLabel: 'UPI ID',
+    amountLabel: 'మొత్తం',
+    onlinePaymentLink: 'ఆన్‌లైన్ చెల్లింపు లింక్:',
   },
   settings: {
     title: 'సెట్టింగ్‌లు (Settings)',
@@ -353,6 +358,10 @@ export const te: Translations = {
     privacySub: 'షాప్ డేటా ప్రైవేట్. సమ్మతితో మాత్రమే 5 సెకన్ల వాయిస్ రికార్డ్ చేయబడుతుంది.',
     saveSettings: 'సెట్టింగ్‌లను సేవ్ చేయండి',
     savedNotice: 'విజయవంతంగా సేవ్ చేయబడింది!',
+    doubleCheckUpiNote: 'మీ UPI IDని ఒకటికి రెండుసార్లు తనిఖీ చేయండి: ఇది తప్పుగా ఉంటే, కస్టమర్లు చెల్లించలేరు లేదా వేరే ఖాతాకు డబ్బు వెళ్లవచ్చు.',
+    savedUpiLabel: 'ప్రస్తుతం సేవ్ చేసిన UPI ID',
+    validUpiFormat: 'సరైన UPI ID ఫార్మాట్',
+    invalidUpiFormat: 'చెల్లని UPI ID (ఉదా. mobile@upi, name@bank)',
   },
   summary: {
     dailyNetProfit: 'నేటి నికర లాభం',

@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useShop } from '../context/ShopContext';
 import { useI18n } from '../i18n';
 import { LanguageCode } from '../i18n/types';
-import { X, Globe, Lock, Shield, LogOut, Check, Store, UserCheck, Bell, ChevronRight, Mic } from 'lucide-react';
+import { X, Globe, Lock, Shield, LogOut, Check, Store, UserCheck, Bell, ChevronRight, Mic, AlertTriangle } from 'lucide-react';
+import { isValidUPI } from '../lib/reminderService';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -100,21 +101,49 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
             />
           </div>
 
-          {/* UPI ID */}
+          {/* UPI ID with validation, saved display, and double-check note */}
           <div>
-            <label className="block text-sm font-bold text-app-text mb-1">
-              {t.settings.upiIdLabel}
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-bold text-app-text">
+                {t.settings.upiIdLabel}
+              </label>
+              {shop.upi_id && (
+                <span className="text-[11px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                  {t.settings.savedUpiLabel}: {shop.upi_id}
+                </span>
+              )}
+            </div>
             <input
               type="text"
               value={upiId}
               onChange={(e) => setUpiId(e.target.value)}
               placeholder="sharma@okaxis"
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+              className={`w-full px-4 py-3 rounded-xl border font-mono focus:outline-none focus:ring-2 transition-all ${
+                upiId.trim().length > 0
+                  ? isValidUPI(upiId)
+                    ? 'border-emerald-500 focus:ring-emerald-500 bg-emerald-50/20'
+                    : 'border-rose-400 focus:ring-rose-400 bg-rose-50/20'
+                  : 'border-gray-300 focus:ring-primary'
+              }`}
             />
+            {/* Format validation feedback */}
+            {upiId.trim().length > 0 && (
+              <p
+                className={`text-xs mt-1 font-semibold flex items-center ${
+                  isValidUPI(upiId) ? 'text-emerald-700' : 'text-rose-600'
+                }`}
+              >
+                {isValidUPI(upiId) ? `✓ ${t.settings.validUpiFormat}` : `⚠️ ${t.settings.invalidUpiFormat}`}
+              </p>
+            )}
             <p className="text-xs text-app-muted mt-1">
               {t.settings.upiHelpText}
             </p>
+            {/* Double-Check Warning Callout */}
+            <div className="mt-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 leading-relaxed flex items-start space-x-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <span>{t.settings.doubleCheckUpiNote}</span>
+            </div>
           </div>
 
           {/* 4-Digit Quick PIN */}

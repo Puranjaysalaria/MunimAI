@@ -328,6 +328,11 @@ export const ml: Translations = {
     openingSmsVoice: '{name} നായുള്ള SMS ഓർമ്മപ്പെടുത്തൽ തുറക്കുന്നു.',
     queueNextVoice: '{name} നായി WhatsApp തുറന്നു. ഇനി {remaining} പേർ ബാക്കിയുണ്ട്.',
     queueCompleteVoice: '{name} നായി WhatsApp തുറന്നു. എല്ലാം പൂർത്തിയായി.',
+    upiDetailsTitle: 'UPI പേയ്‌മെന്റ് വിവരങ്ങൾ:',
+    payeeNameLabel: 'പേര്',
+    upiIdLabel: 'UPI ID',
+    amountLabel: 'തുക',
+    onlinePaymentLink: 'ഓൺലൈൻ പേയ്‌മെന്റ് ലിങ്ക്:',
   },
   settings: {
     title: 'സെറ്റിംഗ്സ് (Settings)',
@@ -353,6 +358,10 @@ export const ml: Translations = {
     privacySub: 'ഡാറ്റ സ്വകാര്യമാണ്. ഉപഭോക്താവിന്റെ വോയ്സ് സമ്മതത്തോടെ 5 സെക്കൻഡ് മാത്രമേ റെക്കോർഡ് ചെയ്യൂ.',
     saveSettings: 'സെറ്റിംഗ്സ് സേവ് ചെയ്യുക',
     savedNotice: 'വിജയകരമായി സേവ് ചെയ്തു!',
+    doubleCheckUpiNote: 'നിങ്ങളുടെ UPI ID ഒന്നുകൂടി പരിശോധിക്കുക: ഇത് തെറ്റാണെങ്കിൽ ഉപഭോക്താക്കൾക്ക് പണം നൽകാൻ കഴിയില്ല അല്ലെങ്കിൽ തെറ്റായ അക്കൗണ്ടിലേക്ക് പോകാം.',
+    savedUpiLabel: 'നിലവിൽ സൂക്ഷിച്ചിരിക്കുന്ന UPI ID',
+    validUpiFormat: 'ശരിയായ UPI ID ഫോർമാറ്റ്',
+    invalidUpiFormat: 'അസാധുവായ UPI ID (ഉദാ. mobile@upi, name@bank)',
   },
   summary: {
     dailyNetProfit: 'ഇന്നത്തെ ലാഭം',
