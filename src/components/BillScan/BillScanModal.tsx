@@ -30,6 +30,39 @@ interface BillScanModalProps {
   onPricesExtracted?: (items: ExtractedBillItem[]) => void;
 }
 
+function getFriendlyOcrErrorMessage(errorStr?: string, lang: string = 'hi'): string {
+  if (!errorStr) {
+    if (lang === 'pa') return 'ਕਿਰਪਾ ਕਰਕੇ ਚੰਗੀ ਰੋਸ਼ਨੀ ਵਿੱਚ ਬਿੱਲ ਦੀ ਸਾਫ਼ ਫ਼ੋਟੋ ਲਓ, ਤਾਂ ਜੋ ਸਮਾਨ ਅਤੇ ਰੇਟ ਸਾਫ਼ ਦਿਖਣ।';
+    if (lang === 'en') return 'Please take a clear photo with good lighting, ensuring items and prices are clearly visible.';
+    return 'कृपया अच्छी रोशनी में बिल की साफ़ फोटो लें, ताकि सामान और रेट साफ़ दिखाई दें।';
+  }
+
+  const lower = errorStr.toLowerCase();
+
+  // If high demand, busy, 503, or server temporary capacity
+  if (lower.includes('503') || lower.includes('busy') || lower.includes('demand') || lower.includes('unavailable')) {
+    if (lang === 'pa') return 'AI ਸਰਵਰ ’ਤੇ ਇਸ ਵੇਲੇ ਵੱਧ ਲੋਡ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਕੁਝ ਸਕਿੰਟਾਂ ਬਾਅਦ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।';
+    if (lang === 'en') return 'The AI bill scanner is temporarily busy with high demand. Please try again in a few moments.';
+    return 'AI सर्वर पर अभी लोड अधिक है। कृपया कुछ सेकंड बाद फिर से फोटो खींचें।';
+  }
+
+  // If daily quota exceeded
+  if (lower.includes('quota') || lower.includes('429') || lower.includes('exceeded')) {
+    if (lang === 'pa') return 'ਅੱਜ ਦੀ ਬਿੱਲ ਸਕੈਨ ਸੀਮਾ ਪੂਰੀ ਹੋ ਗਈ ਹੈ (20 ਬਿੱਲ ਪ੍ਰਤੀ ਦਿਨ)। ਇਹ ਰਾਤ 12 ਵਜੇ ਰੀਸੈੱਟ ਹੋਵੇਗੀ।';
+    if (lang === 'en') return 'Daily bill scan limit reached (20 scans per day). Quota resets at midnight.';
+    return 'आज के बिल स्कैन की सीमा पूरी हो चुकी है (20 बिल प्रतिदिन)। यह रात 12 बजे रीसेट होगी।';
+  }
+
+  // If raw JSON or technical stack trace was returned
+  if (errorStr.includes('{') || errorStr.includes('error') || errorStr.includes('returned')) {
+    if (lang === 'pa') return 'ਬਿੱਲ ਸਕੈਨ ਕਰਨ ਵਿੱਚ ਦਿੱਕਤ ਆਈ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਸਾਫ਼ ਫ਼ੋਟੋ ਖਿੱਚੋ।';
+    if (lang === 'en') return 'Receipt could not be read. Please retake a clear photo with good lighting.';
+    return 'बिल स्कैन करने में समस्या आई। कृपया दोबारा साफ़ फोटो खींचें।';
+  }
+
+  return errorStr;
+}
+
 export const BillScanModal: React.FC<BillScanModalProps> = ({
   isOpen,
   onClose,
@@ -678,11 +711,20 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
                 </div>
                 <div className="space-y-1">
                   <h4 className="text-base font-black text-slate-900">
-                    {ocrResult?.error ? 'Scan Could Not Be Completed' : 'No items could be read'}
+                    {ocrResult?.error
+                      ? language === 'pa'
+                        ? 'ਸਕੈਨ ਪੂਰਾ ਨਹੀਂ ਹੋ ਸਕਿਆ'
+                        : language === 'en'
+                        ? 'Scan Could Not Be Completed'
+                        : 'स्कैन पूरा नहीं हो सका'
+                      : language === 'pa'
+                      ? 'ਕੋਈ ਸਮਾਨ ਨਹੀਂ ਪੜ੍ਹਿਆ ਜਾ ਸਕਿਆ'
+                      : language === 'en'
+                      ? 'No items could be read'
+                      : 'कोई सामान नहीं पढ़ा जा सका'}
                   </h4>
-                  <p className="text-xs text-slate-500 font-medium max-w-xs mx-auto">
-                    {ocrResult?.error ||
-                      'Please take another clear photo with good lighting, or choose a clearer receipt image.'}
+                  <p className="text-xs text-slate-600 font-medium max-w-xs mx-auto leading-relaxed">
+                    {getFriendlyOcrErrorMessage(ocrResult?.error, language)}
                   </p>
                 </div>
                 <motion.button

@@ -183,11 +183,16 @@ Respond STRICTLY with valid JSON in this exact structure, with no markdown fence
         const errText = await resAttempt.text();
         lastError = `Model ${model} returned ${resAttempt.status}: ${errText.slice(0, 300)}`;
 
-        // If model not found or deprecated (404), continue trying next candidate
-        if (resAttempt.status === 404) {
+        // If model not found (404), temporarily overloaded (503), rate-limited (429), or server error (500+), try next candidate
+        if (
+          resAttempt.status === 404 ||
+          resAttempt.status === 503 ||
+          resAttempt.status === 429 ||
+          resAttempt.status >= 500
+        ) {
           continue;
         } else {
-          // If auth or key issue or rate limit, stop and report immediately
+          // If client-side error (e.g. 400 bad payload), stop and report
           response = resAttempt;
           break;
         }
@@ -197,9 +202,22 @@ Respond STRICTLY with valid JSON in this exact structure, with no markdown fence
     }
 
     if (!response || !response.ok) {
-      res.status(response?.status || 500).json({
+      if (lastError) {
+        console.warn('[BillScan Server]', lastError);
+      }
+
+      const status = response?.status || 503;
+      let friendlyError =
+        'AI bill scanner is temporarily busy due to high demand. Please try again in a few moments.';
+      if (status === 401 || status === 403) {
+        friendlyError = 'Gemini API key is invalid or unauthorized. Please verify server environment variables.';
+      } else if (status === 400) {
+        friendlyError = 'Receipt photo could not be read. Please upload a clear photo of the bill.';
+      }
+
+      res.status(status).json({
         success: false,
-        error: lastError || 'Gemini API call failed across candidate models.',
+        error: friendlyError,
       });
       return;
     }
