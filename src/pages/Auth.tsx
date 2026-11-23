@@ -138,6 +138,8 @@ export const Auth: React.FC = () => {
                 onClick={() => {
                   setMode('signin');
                   setError(null);
+                  if (!email) setEmail('shopkeeper@munimai.com');
+                  if (!password) setPassword('MunimStore123!');
                 }}
                 className={`flex-1 py-2.5 rounded-xl transition-all ${
                   mode === 'signin'
@@ -152,6 +154,8 @@ export const Auth: React.FC = () => {
                 onClick={() => {
                   setMode('signup');
                   setError(null);
+                  if (email === 'shopkeeper@munimai.com') setEmail('');
+                  if (password === 'MunimStore123!') setPassword('');
                 }}
                 className={`flex-1 py-2.5 rounded-xl transition-all ${
                   mode === 'signup'
