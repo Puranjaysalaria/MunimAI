@@ -119,8 +119,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const candidateModels = [
       process.env.GEMINI_MODEL,
-      'gemini-3.8-flash',
+      'gemini-2.0-flash',
       'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
       'gemini-1.5-flash',
     ].filter(Boolean) as string[];
 
