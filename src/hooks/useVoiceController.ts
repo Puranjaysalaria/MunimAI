@@ -94,8 +94,15 @@ export function useVoiceController({
   const pendingConfirmationRef = useRef<PendingConfirmation | null>(null);
   const disambiguationCustomersRef = useRef<Customer[]>([]);
   const disambiguationEntriesRef = useRef<Transaction[]>([]);
+  const cardAppearedAtRef = useRef<number>(0);
+  const replySpeechStartedAtRef = useRef<number>(0);
 
   useEffect(() => {
+    if (pendingConfirmation && !pendingConfirmationRef.current) {
+      cardAppearedAtRef.current = Date.now();
+    } else if (!pendingConfirmation) {
+      cardAppearedAtRef.current = 0;
+    }
     pendingConfirmationRef.current = pendingConfirmation;
   }, [pendingConfirmation]);
 
@@ -356,6 +363,17 @@ export function useVoiceController({
               };
             });
             setVoiceState('idle');
+            return;
+          }
+
+          if (correction.type === 'no_match') {
+            triggerHaptic('warning');
+            setVoiceState('idle');
+            speechSynthesizer.speak(t.voice.noiseError, language).then(() => {
+              if (pendingConfirmationRef.current && !pendingConfirmationRef.current.isPaused) {
+                startListeningForReply();
+              }
+            });
             return;
           }
         }
@@ -1334,6 +1352,7 @@ export function useVoiceController({
 
     const provider = createSTTProvider();
     sttProviderRef.current = provider;
+    replySpeechStartedAtRef.current = 0;
 
     provider.startListening(
       {
@@ -1343,6 +1362,9 @@ export function useVoiceController({
       },
       {
         onResult: (res) => {
+          if (replySpeechStartedAtRef.current === 0) {
+            replySpeechStartedAtRef.current = Date.now();
+          }
           setLiveTranscript(res.transcript);
           const raw = res.transcript.trim().toLowerCase();
 
@@ -1356,24 +1378,29 @@ export function useVoiceController({
           const isYes = latinYes.test(raw) || indicYes.test(raw);
           const isNo = latinNo.test(raw) || indicNo.test(raw);
 
+          // Fix 4: Never confirm on interim results; require final result + speech started after card appeared
           if (res.isFinal) {
             if (sttProviderRef.current) {
               try { sttProviderRef.current.stopListening(); } catch {}
             }
             setIsListening(false);
-            if (isYes && !isNo) {
-              handleConfirmSave();
+            if (
+              isYes &&
+              !isNo &&
+              canCompleteByVoiceConfirm({
+                isPillActive: true,
+                isCardShowing: Boolean(pendingConfirmationRef.current),
+                isFinalResult: true,
+                speechStartedAtMs: replySpeechStartedAtRef.current,
+                cardAppearedAtMs: cardAppearedAtRef.current,
+                safetyTier: pendingConfirmationRef.current?.safetyTier,
+              })
+            ) {
+              handleConfirmSave('voice');
             } else {
               // Route "nahi", "ruko", "nahi, 600", "200 aur jodo", etc. through processInput
               processInput(res.transcript);
             }
-          } else if (isYes && !isNo && raw.split(/\s+/).length <= 2) {
-            if (sttProviderRef.current) {
-              try { sttProviderRef.current.stopListening(); } catch {}
-            }
-            setIsListening(false);
-            handleConfirmSave();
-            return;
           }
         },
         onError: () => {

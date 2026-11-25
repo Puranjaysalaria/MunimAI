@@ -130,8 +130,33 @@ describe('Parts 4, 5, 6: Side-Effect Warnings & Safety Tiers', () => {
       canCompleteByVoiceConfirm({
         isPillActive: true,
         isCardShowing: true,
+        isFinalResult: true,
+        speechStartedAtMs: 2000,
+        cardAppearedAtMs: 1000,
         safetyTier: { requiresTapOnly: false, reason: 'standard', thresholdRupees: 2000, thresholdDays: 7 },
       })
     ).toBe(true);
+
+    // Fix 4: Interim "haan" must be rejected
+    expect(
+      canCompleteByVoiceConfirm({
+        isPillActive: true,
+        isCardShowing: true,
+        isFinalResult: false,
+        speechStartedAtMs: 2000,
+        cardAppearedAtMs: 1000,
+      })
+    ).toBe(false);
+
+    // Fix 4: Speech started before card appeared must be rejected
+    expect(
+      canCompleteByVoiceConfirm({
+        isPillActive: true,
+        isCardShowing: true,
+        isFinalResult: true,
+        speechStartedAtMs: 900,
+        cardAppearedAtMs: 1000,
+      })
+    ).toBe(false);
   });
 });

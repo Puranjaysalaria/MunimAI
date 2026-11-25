@@ -83,15 +83,28 @@ export function evaluateEditSafetyTier(
  * Enforces that voice "Haan" only completes an action when:
  * 1. The mic/reply listener pill is active
  * 2. A confirmation card is currently showing
- * 3. The action is not tap-only (not a delete, not over-threshold/old/proof/reminder)
+ * 3. The final STT result has arrived (never on interim results)
+ * 4. Speech started after the confirmation card appeared
+ * 5. The action is not tap-only (not a delete, not over-threshold/old/proof/reminder)
  */
 export function canCompleteByVoiceConfirm(params: {
   isPillActive: boolean;
   isCardShowing: boolean;
+  isFinalResult?: boolean;
+  speechStartedAtMs?: number;
+  cardAppearedAtMs?: number;
   isDeleteAction?: boolean;
   safetyTier?: SafetyTierEvaluation | null;
 }): boolean {
   if (!params.isPillActive || !params.isCardShowing) return false;
+  if (params.isFinalResult === false) return false;
+  if (
+    params.speechStartedAtMs !== undefined &&
+    params.cardAppearedAtMs !== undefined &&
+    params.speechStartedAtMs < params.cardAppearedAtMs
+  ) {
+    return false;
+  }
   if (params.isDeleteAction) return false;
   if (params.safetyTier?.requiresTapOnly) return false;
   return true;
