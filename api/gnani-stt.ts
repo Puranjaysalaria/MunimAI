@@ -7,41 +7,16 @@ import {
   isAllowedLanguageInput,
   isValidWav16kMonoHeader,
   mapGnaniLanguage,
+  reconcileVoiceQuota,
+  reserveVoiceQuota,
+  resetAtomicFallbackQuotaForTest,
   verifySupabaseUserAndShop,
 } from './_voiceShared';
 
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const DEFAULT_RATE_LIMIT_MAX = 30;
-const DEFAULT_DAILY_BUDGET_INR = 100;
 const GNANI_STT_INR_PER_SEC = 0.015;
 
-const requestBuckets = new Map<string, { count: number; windowStart: number }>();
-const dailySpendByShop = new Map<string, number>();
-
 export function resetGnaniSttLimitsForTest(): void {
-  requestBuckets.clear();
-  dailySpendByShop.clear();
-}
-
-function checkRateLimit(shopId: string, nowMs: number = Date.now()): boolean {
-  const maxReqs = Math.max(1, Number(process.env.GNANI_STT_RPM) || DEFAULT_RATE_LIMIT_MAX);
-  const bucket = requestBuckets.get(shopId);
-  if (!bucket || nowMs - bucket.windowStart >= RATE_LIMIT_WINDOW_MS) {
-    requestBuckets.set(shopId, { count: 1, windowStart: nowMs });
-    return true;
-  }
-  if (bucket.count >= maxReqs) return false;
-  bucket.count += 1;
-  return true;
-}
-
-function checkAndRecordBudget(shopId: string, estimatedInr: number): { allowed: boolean } {
-  const cap = Math.max(0, Number(process.env.GNANI_DAILY_BUDGET_INR) || DEFAULT_DAILY_BUDGET_INR);
-  const key = `${shopId}:${new Date().toISOString().slice(0, 10)}`;
-  const used = dailySpendByShop.get(key) || 0;
-  if (used + estimatedInr > cap) return { allowed: false };
-  dailySpendByShop.set(key, used + estimatedInr);
-  return { allowed: true };
+  resetAtomicFallbackQuotaForTest();
 }
 
 /** Treats transcript strictly as plain data (strips control characters). */
@@ -70,12 +45,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const auth = await verifySupabaseUserAndShop(req);
   if (!auth.ok || !auth.shopId) {
     res.status(auth.status).json({ success: false, error: 'Unauthorized' });
-    return;
-  }
-
-  const shopId = auth.shopId;
-  if (!checkRateLimit(shopId)) {
-    res.status(429).json({ success: false, error: 'Rate limit exceeded' });
     return;
   }
 
@@ -133,11 +102,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
   const durationSec = Math.max(0.1, (audioBuffer.length - 44) / 32000);
   const estimatedInr = Number((durationSec * GNANI_STT_INR_PER_SEC).toFixed(6));
-  const budget = checkAndRecordBudget(shopId, estimatedInr);
-  if (!budget.allowed) {
-    res.status(402).json({ success: false, error: 'Voice quota exceeded' });
-    return;
-  }
 
   const gnaniUrl = process.env.GNANI_STT_URL || '';
   const gnaniApiKey = process.env.GNANI_API_KEY || process.env.GNANI_ACCESS_KEY || '';
@@ -145,6 +109,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
   if (!gnaniUrl || !gnaniApiKey) {
     res.status(503).json({ success: false, error: 'Speech service unavailable' });
+    return;
+  }
+
+  // Reserve estimated cost atomically before calling Gnani (fail closed if quota check errors)
+  const quota = await reserveVoiceQuota(auth, estimatedInr);
+  if (!quota.allowed) {
+    res.status(quota.status).json({
+      success: false,
+      error: quota.status === 429 ? 'Rate limit exceeded' : 'Voice quota exceeded',
+    });
     return;
   }
 
@@ -186,6 +160,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const latency = Date.now() - t0;
 
     if (!upstream.ok) {
+      await reconcileVoiceQuota(auth, estimatedInr, 0, false);
       res.status(upstream.status === 429 ? 429 : 502).json({
         success: false,
         error: upstream.status === 429 ? 'Rate limit exceeded' : 'Speech recognition unavailable',
@@ -205,6 +180,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
         ? data.confidence
         : undefined;
 
+    await reconcileVoiceQuota(auth, estimatedInr, estimatedInr, true);
     res.status(200).json({
       success: true,
       provider: 'gnani',
@@ -218,6 +194,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     });
   } catch (err: any) {
     clearTimeout(timer);
+    await reconcileVoiceQuota(auth, estimatedInr, 0, false);
     const isTimeout = err?.name === 'AbortError';
     res.status(isTimeout ? 504 : 502).json({
       success: false,

@@ -107,6 +107,186 @@ export function setVoiceAuthVerifierForTest(verifier: VoiceAuthVerifier | null):
   customVoiceAuthVerifier = verifier;
 }
 
+export interface QuotaCheckResult {
+  allowed: boolean;
+  status: number;
+  reason?: string;
+}
+
+export interface VoiceQuotaAdapter {
+  reserve(params: {
+    auth: VerifiedVoiceAuth;
+    estimatedInr: number;
+    shopDailyCap: number;
+    shopMonthlyCap: number;
+    globalMonthlyCap: number;
+    globalRpm: number;
+  }): Promise<QuotaCheckResult>;
+  reconcile(params: {
+    auth: VerifiedVoiceAuth;
+    reservedInr: number;
+    actualInr: number;
+    succeeded: boolean;
+  }): Promise<void>;
+}
+
+let customVoiceQuotaAdapter: VoiceQuotaAdapter | null = null;
+
+export function setVoiceQuotaAdapterForTest(adapter: VoiceQuotaAdapter | null): void {
+  customVoiceQuotaAdapter = adapter;
+}
+
+const atomicFallbackState = {
+  shopDaily: new Map<string, number>(),
+  shopMonthly: new Map<string, number>(),
+  globalMonthly: new Map<string, number>(),
+  globalRpm: { minute: '', count: 0 },
+};
+
+export function resetAtomicFallbackQuotaForTest(): void {
+  atomicFallbackState.shopDaily.clear();
+  atomicFallbackState.shopMonthly.clear();
+  atomicFallbackState.globalMonthly.clear();
+  atomicFallbackState.globalRpm = { minute: '', count: 0 };
+}
+
+export async function reserveVoiceQuota(
+  auth: VerifiedVoiceAuth,
+  estimatedInr: number
+): Promise<QuotaCheckResult> {
+  const shopDailyCap = Math.max(0, Number(process.env.GNANI_DAILY_BUDGET_INR) || 100);
+  const shopMonthlyCap = Math.max(0, Number(process.env.GNANI_MONTHLY_BUDGET_INR) || 1500);
+  const globalMonthlyCap = Math.max(0, Number(process.env.GNANI_GLOBAL_MONTHLY_BUDGET_INR) || 25000);
+  const globalRpm = Math.max(1, Number(process.env.GNANI_GLOBAL_RPM) || 120);
+
+  if (customVoiceQuotaAdapter) {
+    return customVoiceQuotaAdapter.reserve({
+      auth,
+      estimatedInr,
+      shopDailyCap,
+      shopMonthlyCap,
+      globalMonthlyCap,
+      globalRpm,
+    });
+  }
+
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+  const anonKey =
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    '';
+
+  if (supabaseUrl && anonKey && !supabaseUrl.includes('placeholder') && auth.token) {
+    try {
+      const supabase = createClient(supabaseUrl, anonKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+        global: { headers: { Authorization: `Bearer ${auth.token}` } },
+      });
+      const { data, error } = await supabase.rpc('reserve_voice_quota', {
+        p_estimated_inr: estimatedInr,
+        p_shop_daily_cap: shopDailyCap,
+        p_shop_monthly_cap: shopMonthlyCap,
+        p_global_monthly_cap: globalMonthlyCap,
+        p_global_rpm: globalRpm,
+      });
+      if (error || !data || !Array.isArray(data) || data.length === 0) {
+        // Fail closed: quota check error -> do not call Gnani
+        return { allowed: false, status: 503, reason: 'quota_error' };
+      }
+      const row = data[0] as { allowed: boolean; reason?: string };
+      if (!row.allowed) {
+        const status = row.reason === 'global_rate_limit' ? 429 : 402;
+        return { allowed: false, status, reason: row.reason };
+      }
+      return { allowed: true, status: 200, reason: 'ok' };
+    } catch {
+      return { allowed: false, status: 503, reason: 'quota_error' };
+    }
+  }
+
+  // Fallback atomic check for non-Supabase unit test mocks
+  const shopId = auth.shopId || 'default-shop';
+  const now = new Date();
+  const day = now.toISOString().slice(0, 10);
+  const month = now.toISOString().slice(0, 7);
+  const minute = now.toISOString().slice(0, 16);
+
+  if (atomicFallbackState.globalRpm.minute !== minute) {
+    atomicFallbackState.globalRpm = { minute, count: 0 };
+  }
+  if (atomicFallbackState.globalRpm.count + 1 > globalRpm) {
+    return { allowed: false, status: 429, reason: 'global_rate_limit' };
+  }
+  const gUsed = atomicFallbackState.globalMonthly.get(month) || 0;
+  if (gUsed + estimatedInr > globalMonthlyCap) {
+    return { allowed: false, status: 402, reason: 'global_monthly_budget' };
+  }
+  const sDayKey = `${shopId}:${day}`;
+  const sMonKey = `${shopId}:${month}`;
+  const sDayUsed = atomicFallbackState.shopDaily.get(sDayKey) || 0;
+  const sMonUsed = atomicFallbackState.shopMonthly.get(sMonKey) || 0;
+  if (sDayUsed + estimatedInr > shopDailyCap) {
+    return { allowed: false, status: 402, reason: 'shop_daily_budget' };
+  }
+  if (sMonUsed + estimatedInr > shopMonthlyCap) {
+    return { allowed: false, status: 402, reason: 'shop_monthly_budget' };
+  }
+
+  atomicFallbackState.globalRpm.count += 1;
+  atomicFallbackState.globalMonthly.set(month, gUsed + estimatedInr);
+  atomicFallbackState.shopDaily.set(sDayKey, sDayUsed + estimatedInr);
+  atomicFallbackState.shopMonthly.set(sMonKey, sMonUsed + estimatedInr);
+  return { allowed: true, status: 200, reason: 'ok' };
+}
+
+export async function reconcileVoiceQuota(
+  auth: VerifiedVoiceAuth,
+  reservedInr: number,
+  actualInr: number,
+  succeeded: boolean
+): Promise<void> {
+  if (customVoiceQuotaAdapter) {
+    await customVoiceQuotaAdapter.reconcile({ auth, reservedInr, actualInr, succeeded });
+    return;
+  }
+
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+  const anonKey =
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    '';
+
+  if (supabaseUrl && anonKey && !supabaseUrl.includes('placeholder') && auth.token) {
+    try {
+      const supabase = createClient(supabaseUrl, anonKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+        global: { headers: { Authorization: `Bearer ${auth.token}` } },
+      });
+      await supabase.rpc('reconcile_voice_quota', {
+        p_reserved_inr: reservedInr,
+        p_actual_inr: actualInr,
+        p_succeeded: succeeded,
+      });
+    } catch {
+      // ignore reconciliation network errors
+    }
+    return;
+  }
+
+  const shopId = auth.shopId || 'default-shop';
+  const now = new Date();
+  const day = now.toISOString().slice(0, 10);
+  const month = now.toISOString().slice(0, 7);
+  const delta = succeeded ? actualInr - reservedInr : -reservedInr;
+  const sDayKey = `${shopId}:${day}`;
+  const sMonKey = `${shopId}:${month}`;
+  atomicFallbackState.shopDaily.set(sDayKey, Math.max(0, (atomicFallbackState.shopDaily.get(sDayKey) || 0) + delta));
+  atomicFallbackState.shopMonthly.set(sMonKey, Math.max(0, (atomicFallbackState.shopMonthly.get(sMonKey) || 0) + delta));
+  atomicFallbackState.globalMonthly.set(month, Math.max(0, (atomicFallbackState.globalMonthly.get(month) || 0) + delta));
+}
+
 /**
  * Verifies the Supabase access token server-side via supabase.auth.getUser(token)
  * and derives shop_id from the verified user in the database (never from request body).
