@@ -8,6 +8,7 @@ interface GlobalVoicePillProps {
   isListening: boolean;
   voiceState: 'idle' | 'listening' | 'thinking' | 'success' | 'error';
   liveTranscript: string;
+  audioLevel?: number;
   errorMessage: string | null;
   onStartListening: () => void;
   onStopListening: () => void;
@@ -19,6 +20,7 @@ export const GlobalVoicePill: React.FC<GlobalVoicePillProps> = ({
   isListening,
   voiceState,
   liveTranscript,
+  audioLevel = 0,
   errorMessage,
   onStartListening,
   onStopListening,
@@ -223,22 +225,25 @@ export const GlobalVoicePill: React.FC<GlobalVoicePillProps> = ({
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className="mr-3 max-w-[70vw] sm:max-w-xs md:max-w-md bg-slate-950/95 text-white p-3 rounded-2xl shadow-2xl border border-slate-700/80 backdrop-blur-md pointer-events-auto flex items-center space-x-3"
           >
-            {/* Live audio soundbars when listening */}
+            {/* Live audio waveform when listening */}
             {voiceState === 'listening' && (
               <div className="flex items-center space-x-1 h-5 flex-shrink-0 px-1 border-r border-slate-800 pr-2.5">
-                {[10, 20, 14, 24, 16, 12].map((maxH, i) => (
-                  <span
-                    key={i}
-                    style={{
-                      height: `${maxH}px`,
-                      animation: prefersReducedMotion
-                        ? 'none'
-                        : `live-soundbar 0.65s ease-in-out infinite alternate`,
-                      animationDelay: `${(i * 0.1).toFixed(2)}s`,
-                    }}
-                    className="w-1 rounded-full bg-emerald-400 shadow-xs inline-block"
-                  />
-                ))}
+                {[10, 20, 14, 24, 16, 12].map((baseH, i) => {
+                  const boostedH = Math.max(6, Math.min(26, Math.round(baseH * (0.55 + audioLevel * 1.1))));
+                  return (
+                    <span
+                      key={i}
+                      style={{
+                        height: `${boostedH}px`,
+                        animation: prefersReducedMotion
+                          ? 'none'
+                          : `live-soundbar 0.65s ease-in-out infinite alternate`,
+                        animationDelay: `${(i * 0.1).toFixed(2)}s`,
+                      }}
+                      className="w-1 rounded-full bg-emerald-400 shadow-xs inline-block transition-[height] duration-75"
+                    />
+                  );
+                })}
               </div>
             )}
 

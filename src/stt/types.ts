@@ -38,6 +38,7 @@ export interface STTProvider {
       onError: (error: STTError) => void;
       onStateChange: (state: STTState) => void;
       onSpeechStart?: (startedAtMs: number) => void;
+      onAudioLevel?: (level: number) => void;
     }
   ): Promise<void>;
 

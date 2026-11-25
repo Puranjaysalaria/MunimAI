@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
+  AdaptiveVadTracker,
   DEFAULT_MAX_CLIP_DURATION_MS,
   GNANI_TARGET_SAMPLE_RATE,
   capSamplesDuration,
@@ -185,5 +186,27 @@ describe('Gnani Command Clip Audio Processor & Safety Guard Integration', () => 
       process.env.GNANI_STT_URL = prevUrl;
       process.env.GNANI_API_KEY = prevKey;
     }
+  });
+
+  it('AdaptiveVadTracker adapts to noise floor, enforces minimum speech length, and auto-stops after trailing silence', () => {
+    const vad = new AdaptiveVadTracker({ minSpeechMs: 300, trailingSilenceMs: 1200 });
+
+    // Ambient background noise at 0.02 adapts floor upward without triggering speech
+    for (let t = 0; t < 300; t += 60) {
+      const r = vad.pushRms(0.01, t);
+      expect(r.shouldAutoStop).toBe(false);
+    }
+
+    // Brief 100ms click above threshold must NOT trigger auto-stop (below 300ms minSpeechMs)
+    vad.pushRms(0.25, 1000);
+    vad.pushRms(0.25, 1100);
+    expect(vad.pushRms(0.005, 2500).shouldAutoStop).toBe(false);
+
+    // Real speech >= 300ms followed by 1200ms trailing silence DOES trigger auto-stop
+    const vad2 = new AdaptiveVadTracker({ minSpeechMs: 300, trailingSilenceMs: 1200 });
+    expect(vad2.pushRms(0.2, 1000).speechJustStarted).toBe(true);
+    vad2.pushRms(0.2, 1400); // 400ms speech
+    expect(vad2.pushRms(0.005, 2500).shouldAutoStop).toBe(false); // 1100ms silence
+    expect(vad2.pushRms(0.005, 2700).shouldAutoStop).toBe(true);  // 1300ms silence -> auto-stop
   });
 });

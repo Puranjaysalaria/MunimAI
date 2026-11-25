@@ -315,3 +315,70 @@ export async function processCommandAudioBlob(
     await audioCtx.close().catch(() => {});
   }
 }
+
+/**
+ * Adaptive Voice Activity Detection (VAD) tracker for automatic trailing-silence stop:
+ * - Adapts noise floor dynamically to background shop noise
+ * - Enforces minimum speech duration before allowing auto-stop
+ * - Triggers auto-stop after sustained trailing silence
+ */
+export class AdaptiveVadTracker {
+  private noiseFloorRms: number;
+  private speechStartedAtMs: number | null = null;
+  private lastSpeechAtMs: number | null = null;
+
+  constructor(
+    private readonly config: {
+      initialNoiseFloor?: number;
+      minSpeechThreshold?: number;
+      noiseMultiplier?: number;
+      minSpeechMs?: number;
+      trailingSilenceMs?: number;
+    } = {}
+  ) {
+    this.noiseFloorRms = config.initialNoiseFloor ?? 0.008;
+  }
+
+  get currentThreshold(): number {
+    const minThresh = this.config.minSpeechThreshold ?? DEFAULT_SILENCE_THRESHOLD;
+    const mult = this.config.noiseMultiplier ?? 2.4;
+    return Math.max(minThresh, this.noiseFloorRms * mult);
+  }
+
+  getSpeechStartedAtMs(): number | null {
+    return this.speechStartedAtMs;
+  }
+
+  /**
+   * Feeds a live RMS amplitude frame (0..1) and returns whether recording should auto-stop.
+   */
+  pushRms(rms: number, nowMs: number): { isSpeech: boolean; shouldAutoStop: boolean; speechJustStarted: boolean } {
+    const threshold = this.currentThreshold;
+    const isSpeech = rms >= threshold;
+    let speechJustStarted = false;
+
+    if (isSpeech) {
+      if (this.speechStartedAtMs === null) {
+        this.speechStartedAtMs = nowMs;
+        speechJustStarted = true;
+      }
+      this.lastSpeechAtMs = nowMs;
+      return { isSpeech: true, shouldAutoStop: false, speechJustStarted };
+    }
+
+    // Update adaptive noise floor only during non-speech frames
+    this.noiseFloorRms = this.noiseFloorRms * 0.9 + rms * 0.1;
+
+    if (this.speechStartedAtMs === null || this.lastSpeechAtMs === null) {
+      return { isSpeech: false, shouldAutoStop: false, speechJustStarted: false };
+    }
+
+    const speechDurationMs = this.lastSpeechAtMs - this.speechStartedAtMs;
+    const silenceDurationMs = nowMs - this.lastSpeechAtMs;
+    const minSpeechMs = this.config.minSpeechMs ?? 300;
+    const trailingSilenceMs = this.config.trailingSilenceMs ?? 1200;
+
+    const shouldAutoStop = speechDurationMs >= minSpeechMs && silenceDurationMs >= trailingSilenceMs;
+    return { isSpeech: false, shouldAutoStop, speechJustStarted: false };
+  }
+}

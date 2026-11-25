@@ -726,6 +726,7 @@ export const AppContent: React.FC = () => {
         isListening={voice.isListening}
         voiceState={voice.voiceState}
         liveTranscript={voice.liveTranscript}
+        audioLevel={voice.audioLevel}
         errorMessage={voice.errorMessage}
         onStartListening={voice.startListening}
         onStopListening={voice.stopListening}

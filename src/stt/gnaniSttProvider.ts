@@ -1,6 +1,7 @@
 import { STTError, STTOptions, STTProvider, STTResult, STTState } from './types';
 import { BrowserSpeechProvider } from './browserSpeechProvider';
 import {
+  AdaptiveVadTracker,
   DEFAULT_MAX_CLIP_DURATION_MS,
   GNANI_TARGET_SAMPLE_RATE,
   processCommandAudioBlob,
@@ -42,6 +43,8 @@ export class GnaniSttProvider implements STTProvider {
   private audioChunks: Blob[] = [];
   private fallbackProvider: STTProvider;
   private maxDurationTimer: ReturnType<typeof setTimeout> | null = null;
+  private vadTimer: ReturnType<typeof setInterval> | null = null;
+  private vadAudioCtx: AudioContext | null = null;
   private recordingStartedAtMs: number | undefined;
   private wasAborted = false;
   private usingFallback = false;
@@ -70,6 +73,14 @@ export class GnaniSttProvider implements STTProvider {
     if (this.maxDurationTimer !== null) {
       clearTimeout(this.maxDurationTimer);
       this.maxDurationTimer = null;
+    }
+    if (this.vadTimer !== null) {
+      clearInterval(this.vadTimer);
+      this.vadTimer = null;
+    }
+    if (this.vadAudioCtx) {
+      this.vadAudioCtx.close().catch(() => {});
+      this.vadAudioCtx = null;
     }
   }
 
@@ -100,6 +111,7 @@ export class GnaniSttProvider implements STTProvider {
       onError: (error: STTError) => void;
       onStateChange: (state: STTState) => void;
       onSpeechStart?: (startedAtMs: number) => void;
+      onAudioLevel?: (level: number) => void;
     }
   ): Promise<void> {
     // Only record a short command clip while the voice pill is active
@@ -148,6 +160,40 @@ export class GnaniSttProvider implements STTProvider {
         this.maxDurationTimer = setTimeout(() => {
           this.stopListening();
         }, maxDurationMs);
+
+        // Live waveform + adaptive silence auto-stop
+        const AudioCtx =
+          typeof window !== 'undefined'
+            ? window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+            : undefined;
+        if (AudioCtx) {
+          try {
+            const ctx = new AudioCtx();
+            this.vadAudioCtx = ctx;
+            const src = ctx.createMediaStreamSource(stream);
+            const analyser = ctx.createAnalyser();
+            analyser.fftSize = 512;
+            src.connect(analyser);
+            const buf = new Float32Array(analyser.fftSize);
+            const vad = new AdaptiveVadTracker({ minSpeechMs: 300, trailingSilenceMs: 1200 });
+            this.vadTimer = setInterval(() => {
+              analyser.getFloatTimeDomainData(buf);
+              let sumSq = 0;
+              for (let i = 0; i < buf.length; i++) sumSq += buf[i] * buf[i];
+              const rms = Math.sqrt(sumSq / buf.length);
+              callbacks.onAudioLevel?.(Math.min(1, rms * 6));
+              const res = vad.pushRms(rms, Date.now());
+              if (res.speechJustStarted) {
+                callbacks.onSpeechStart?.(vad.getSpeechStartedAtMs() || Date.now());
+              }
+              if (res.shouldAutoStop) {
+                this.stopListening();
+              }
+            }, 60);
+          } catch {
+            // AudioContext optional; 15s cap and tap-to-stop remain active
+          }
+        }
       };
 
       this.mediaRecorder.onstop = async () => {

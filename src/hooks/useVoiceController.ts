@@ -83,6 +83,7 @@ export function useVoiceController({
   const [isListening, setIsListening] = useState(false);
   const [voiceState, setVoiceState] = useState<'idle' | 'listening' | 'thinking' | 'success' | 'error'>('idle');
   const [liveTranscript, setLiveTranscript] = useState('');
+  const [audioLevel, setAudioLevel] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [consecutiveFailures, setConsecutiveFailures] = useState(0);
 
@@ -1083,10 +1084,18 @@ export function useVoiceController({
             }, 4500);
           }
         },
+        onAudioLevel: (level) => {
+          setAudioLevel(level);
+        },
         onStateChange: (state) => {
           if (state === 'idle') {
             setIsListening(false);
-            setVoiceState((cur) => (cur === 'listening' ? 'idle' : cur));
+            setAudioLevel(0);
+            setVoiceState((cur) => (cur === 'listening' || cur === 'thinking' ? 'idle' : cur));
+          } else if (state === 'processing') {
+            setIsListening(false);
+            setAudioLevel(0);
+            setVoiceState('thinking');
           } else if (state === 'listening') {
             setIsListening(true);
             setVoiceState('listening');
@@ -1437,8 +1446,18 @@ export function useVoiceController({
           setIsListening(false);
           setVoiceState('idle');
         },
+        onAudioLevel: (level) => {
+          setAudioLevel(level);
+        },
         onStateChange: (state) => {
-          if (state === 'idle') setIsListening(false);
+          if (state === 'idle') {
+            setIsListening(false);
+            setAudioLevel(0);
+          } else if (state === 'processing') {
+            setIsListening(false);
+            setAudioLevel(0);
+            setVoiceState('thinking');
+          }
         },
       }
     );
@@ -1448,6 +1467,7 @@ export function useVoiceController({
     isListening,
     voiceState,
     liveTranscript,
+    audioLevel,
     errorMessage,
     consecutiveFailures,
     pendingConfirmation,
