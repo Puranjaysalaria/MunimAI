@@ -80,7 +80,15 @@ export function scanBuiltFilesForSecrets(
   return findings;
 }
 
+export function assertRequiredSecretsEnv(env: NodeJS.ProcessEnv = process.env): void {
+  const key = env.GNANI_API_KEY;
+  if (!key || key.trim().length === 0) {
+    throw new Error('GNANI_API_KEY is not set in the environment; cannot verify it is absent from the bundle.');
+  }
+}
+
 function main() {
+  assertRequiredSecretsEnv(process.env);
   const root = process.cwd();
   const skipBuild = process.argv.includes('--skip-build');
   if (!skipBuild) {

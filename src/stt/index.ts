@@ -14,6 +14,10 @@ export function createSTTProvider(
   type?: STTProviderType | 'gnani',
   options?: { language?: string; cloudSpeechEnabled?: boolean }
 ): STTProvider {
+  if (type !== undefined && type !== 'browser' && type !== 'server' && type !== 'gnani') {
+    throw new Error(`Unknown STT provider: ${String(type)}`);
+  }
+
   if (options?.cloudSpeechEnabled === false || isCloudSpeechKillSwitchActive()) {
     return new BrowserSpeechProvider();
   }

@@ -20,8 +20,8 @@ import { speechSynthesizer } from '../src/tts/speechSynthesizer';
 import { formatAmountForSpeech, numberToIndianWords } from '../src/tts/numberToWords';
 import gnaniSttHandler, { resetGnaniSttLimitsForTest } from '../api/gnani-stt';
 import gnaniTtsHandler, { resetGnaniTtsLimitsForTest } from '../api/gnani-tts';
-import { setVoiceAuthVerifierForTest } from '../api/_voiceShared';
-import { scanBuiltFilesForSecrets } from '../scripts/check-no-secrets-in-bundle';
+import { setVoiceAuthVerifierForTest, setVoiceQuotaAdapterForTest } from '../api/_voiceShared';
+import { assertRequiredSecretsEnv, scanBuiltFilesForSecrets } from '../scripts/check-no-secrets-in-bundle';
 import { LanguageCode } from '../src/i18n/types';
 
 function makeMockRes() {
@@ -313,6 +313,152 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
       expect(findings.length).toBeGreaterThanOrEqual(2);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects unknown STT provider names in createSTTProvider', () => {
+    expect(() => createSTTProvider('whisper-unknown' as any)).toThrow(/Unknown STT provider/);
+  });
+
+  it('enforces JWT required, wrong-shop rejection (403), disallowed origin (403), oversized body (413), and timeout (504)', async () => {
+    const wavBase64 = Buffer.from(encodeWav16BitMono(new Float32Array(1600).fill(0.1), 16000)).toString('base64');
+    const prevAllowed = process.env.ALLOWED_ORIGINS;
+    const prevUrl = process.env.GNANI_STT_URL;
+    const prevKey = process.env.GNANI_API_KEY;
+    process.env.ALLOWED_ORIGINS = 'https://app.munimai.in';
+    process.env.GNANI_STT_URL = 'https://gnani.example/stt';
+    process.env.GNANI_API_KEY = 'secret-gnani-key';
+
+    try {
+      // Disallowed origin -> 403
+      const badOriginRes = makeMockRes();
+      await gnaniSttHandler(
+        { method: 'POST', headers: { origin: 'https://evil.example', authorization: 'Bearer ok' }, body: {} } as any,
+        badOriginRes
+      );
+      expect(badOriginRes.statusCode).toBe(403);
+
+      // Missing JWT -> 401
+      const noJwtRes = makeMockRes();
+      await gnaniSttHandler(
+        { method: 'POST', headers: { origin: 'https://app.munimai.in' }, body: {} } as any,
+        noJwtRes
+      );
+      expect(noJwtRes.statusCode).toBe(401);
+
+      // Wrong-shop / no shop mapping -> 403
+      setVoiceAuthVerifierForTest(async () => ({ ok: false, status: 403 }));
+      const wrongShopRes = makeMockRes();
+      await gnaniSttHandler(
+        {
+          method: 'POST',
+          headers: { origin: 'https://app.munimai.in', authorization: 'Bearer wrong-shop' },
+          body: { audioBase64: wavBase64 },
+        } as any,
+        wrongShopRes
+      );
+      expect(wrongShopRes.statusCode).toBe(403);
+
+      // Oversized STT body (>1MB) -> 413
+      setVoiceAuthVerifierForTest(async () => ({ ok: true, status: 200, userId: 'u1', shopId: 'shop-1' }));
+      const hugeBuf = Buffer.alloc(1024 * 1024 + 64);
+      const hugeRes = makeMockRes();
+      await gnaniSttHandler(
+        {
+          method: 'POST',
+          headers: { origin: 'https://app.munimai.in', authorization: 'Bearer ok' },
+          body: { audioBase64: hugeBuf.toString('base64') },
+        } as any,
+        hugeRes
+      );
+      expect(hugeRes.statusCode).toBe(413);
+
+      // Oversized TTS body (>500 chars) -> 413
+      const hugeTtsRes = makeMockRes();
+      await gnaniTtsHandler(
+        {
+          method: 'POST',
+          headers: { origin: 'https://app.munimai.in', authorization: 'Bearer ok' },
+          body: { text: 'a'.repeat(501), language: 'hi' },
+        } as any,
+        hugeTtsRes
+      );
+      expect(hugeTtsRes.statusCode).toBe(413);
+
+      // Upstream timeout -> 504 and reconciles (refunds) reservation
+      const reconcileSpy = vi.fn().mockResolvedValue(undefined);
+      setVoiceQuotaAdapterForTest({
+        reserve: vi.fn().mockResolvedValue({ allowed: true, status: 200, reason: 'ok' }),
+        reconcile: reconcileSpy,
+      });
+      const abortErr = new Error('Timed out');
+      abortErr.name = 'AbortError';
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abortErr));
+
+      const timeoutRes = makeMockRes();
+      await gnaniSttHandler(
+        {
+          method: 'POST',
+          headers: { origin: 'https://app.munimai.in', authorization: 'Bearer ok' },
+          body: { audioBase64: wavBase64, language: 'hi' },
+        } as any,
+        timeoutRes
+      );
+      expect(timeoutRes.statusCode).toBe(504);
+      expect(reconcileSpy).toHaveBeenCalledWith(expect.objectContaining({ succeeded: false }));
+    } finally {
+      setVoiceAuthVerifierForTest(null);
+      setVoiceQuotaAdapterForTest(null);
+      process.env.ALLOWED_ORIGINS = prevAllowed;
+      process.env.GNANI_STT_URL = prevUrl;
+      process.env.GNANI_API_KEY = prevKey;
+    }
+  });
+
+  it('enforces monthly cap atomically under parallel concurrent requests and fails check:secrets when GNANI_API_KEY is unset', async () => {
+    const wavBase64 = Buffer.from(encodeWav16BitMono(new Float32Array(16000).fill(0.1), 16000)).toString('base64'); // 1s = ₹0.015
+    const prevMonthly = process.env.GNANI_MONTHLY_BUDGET_INR;
+    const prevUrl = process.env.GNANI_STT_URL;
+    const prevKey = process.env.GNANI_API_KEY;
+    process.env.GNANI_MONTHLY_BUDGET_INR = '0.045'; // Allows at most 3 concurrent calls
+    process.env.GNANI_STT_URL = 'https://gnani.example/stt';
+    process.env.GNANI_API_KEY = 'secret-gnani-key';
+    setVoiceAuthVerifierForTest(async () => ({ ok: true, status: 200, userId: 'u1', shopId: 'shop-conc' }));
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ transcript: 'ok', confidence: 0.9 }),
+      })
+    );
+
+    try {
+      const results = await Promise.all(
+        Array.from({ length: 10 }, async () => {
+          const r = makeMockRes();
+          await gnaniSttHandler(
+            {
+              method: 'POST',
+              headers: { authorization: 'Bearer ok' },
+              body: { audioBase64: wavBase64, language: 'hi' },
+            } as any,
+            r
+          );
+          return r.statusCode;
+        })
+      );
+      const okCount = results.filter((s) => s === 200).length;
+      const quotaRejected = results.filter((s) => s === 402).length;
+      expect(okCount).toBe(3);
+      expect(quotaRejected).toBe(7);
+
+      expect(() => assertRequiredSecretsEnv({} as NodeJS.ProcessEnv)).toThrow(/GNANI_API_KEY/);
+    } finally {
+      setVoiceAuthVerifierForTest(null);
+      process.env.GNANI_MONTHLY_BUDGET_INR = prevMonthly;
+      process.env.GNANI_STT_URL = prevUrl;
+      process.env.GNANI_API_KEY = prevKey;
     }
   });
 });
