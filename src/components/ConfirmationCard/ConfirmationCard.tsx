@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Customer, Item, ParsedIntent } from '../../types/schema';
+import { Customer, Item, ParsedIntent, Transaction } from '../../types/schema';
+import { SideEffectAnalysis } from '../../voice/sideEffectAnalyzer';
+import { SafetyTierEvaluation } from '../../voice/safetyTiers';
 import { useI18n } from '../../i18n';
 import { formatINR } from '../../lib/utils';
 import { amountToWords } from '../../tts/numberToWords';
@@ -40,12 +42,27 @@ export interface PendingConfirmation {
   isPaused?: boolean;
   lastCorrectionReadback?: string | null;
   changedFields?: string[];
+  // Diff Confirmation, Side-Effect Warnings & Safety Tiers (Parts 4, 5, 6)
+  editTargetTx?: Transaction | null;
+  editBefore?: {
+    amount: number;
+    customerName?: string | null;
+    itemName?: string | null;
+    quantity?: number | null;
+    unit?: string | null;
+    date?: string | null;
+    note?: string | null;
+  } | null;
+  sideEffects?: SideEffectAnalysis | null;
+  safetyTier?: SafetyTierEvaluation | null;
+  editSource?: 'voice' | 'tap';
 }
 
 interface ConfirmationCardProps {
   pending: PendingConfirmation | null;
-  onConfirm: () => void;
+  onConfirm: (source?: 'voice' | 'tap') => void;
   onCancel: () => void;
+  onRerecordProof?: (tx: Transaction, customer?: Customer | null) => void;
   isListeningForReply?: boolean;
   onStartListeningForReply?: () => void;
   onStopListeningForReply?: () => void;
@@ -55,12 +72,15 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
   pending,
   onConfirm,
   onCancel,
+  onRerecordProof,
   isListeningForReply = false,
   onStartListeningForReply,
   onStopListeningForReply,
 }) => {
   const { language, t } = useI18n();
 
+  const isEditDiff = Boolean(pending?.editTargetTx);
+  const isTapOnly = Boolean(pending?.safetyTier?.requiresTapOnly);
   const isCredit = pending?.intent === 'credit';
   const isPayment = pending?.intent === 'payment';
   const isSale = pending?.intent === 'sale';
@@ -97,8 +117,18 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
     : '';
 
   // Spoken sentence formulated for natural speech across all 10 languages
+  const diffSpokenPrompt =
+    pending && isEditDiff && pending.editBefore
+      ? t.editing.diffSpeakPrompt
+          .replace('{before}', `₹${pending.editBefore.amount}`)
+          .replace('{after}', `₹${pending.amount}`) +
+        (isTapOnly ? ` ${t.editing.tapConfirmVoiceNotice}` : '')
+      : '';
+
   const spokenPrompt = pending
-    ? isPriceAction
+    ? isEditDiff && diffSpokenPrompt
+      ? diffSpokenPrompt
+      : isPriceAction
       ? (pending.spokenReply
           ? pending.spokenReply
               .replace('{item}', localizedItemName)
@@ -316,7 +346,9 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                     {t.confirmCard.title}
                   </span>
                   <h2 className="text-base font-black text-slate-900 leading-tight">
-                    {isPriceAction
+                    {isEditDiff
+                      ? t.editing.diffTitle
+                      : isPriceAction
                       ? priceActionTitle
                       : isCredit
                       ? t.confirmCard.creditConfirm
@@ -351,7 +383,49 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
               </motion.button>
             </div>
 
-            {/* Central Hero Amount Display (>=32px per design guidelines) */}
+              {/* Central Hero Amount Display (>=32px per design guidelines) */}
+              {isEditDiff && pending.editBefore ? (
+                <div className="p-4 rounded-3xl my-4 border-2 border-amber-200 bg-gradient-to-b from-amber-50/70 to-white space-y-3">
+                  <div className="grid grid-cols-2 gap-3 text-center">
+                    <div className="p-3 rounded-2xl bg-white border border-gray-200">
+                      <span className="text-[11px] font-black uppercase text-slate-400 block">
+                        {t.editing.beforeLabel}
+                      </span>
+                      <span className="text-xl font-black text-slate-500 line-through block mt-1">
+                        {formatINR(pending.editBefore.amount)}
+                      </span>
+                      {pending.editBefore.itemName && (
+                        <span className="text-xs text-slate-500 block mt-0.5">
+                          {pending.editBefore.quantity || ''} {pending.editBefore.itemName}
+                        </span>
+                      )}
+                      {pending.editBefore.customerName && (
+                        <span className="text-xs text-slate-500 block">
+                          {pending.editBefore.customerName}
+                        </span>
+                      )}
+                    </div>
+                    <div className="p-3 rounded-2xl bg-emerald-50 border-2 border-emerald-300">
+                      <span className="text-[11px] font-black uppercase text-emerald-700 block">
+                        {t.editing.afterLabel}
+                      </span>
+                      <span className="text-2xl font-black text-emerald-800 block mt-1">
+                        {formatINR(pending.amount)}
+                      </span>
+                      {pending.itemName && (
+                        <span className="text-xs font-bold text-emerald-800 block mt-0.5">
+                          {pending.quantity || ''} {formatItemName(pending.itemName, language)}
+                        </span>
+                      )}
+                      {custDisplayName && (
+                        <span className="text-xs font-bold text-emerald-800 block">
+                          {custDisplayName}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
             <div
               className={`py-5 px-4 text-center rounded-3xl my-4 border relative overflow-hidden ${
                 isPriceAction
@@ -388,6 +462,7 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                 </p>
               )}
             </div>
+              )}
 
             {/* Key Fields Breakdown */}
             <div className="space-y-2.5 text-sm mb-5">
@@ -496,6 +571,64 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                     </span>
                   </div>
                 )}
+
+              {/* Part 5: Side-Effect Warnings (Proof Clip, Sent Reminder, Stock & Profit Delta) */}
+              {pending.sideEffects?.hasProofClip && pending.editTargetTx && (
+                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-300 text-xs text-amber-950 space-y-2">
+                  <div className="flex items-start space-x-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <span className="font-bold leading-snug">
+                      {t.editing.proofWarning.replace(
+                        '{amount}',
+                        String(pending.sideEffects.proofOriginalAmount ?? pending.editTargetTx.amount)
+                      )}
+                    </span>
+                  </div>
+                  {onRerecordProof && (
+                    <button
+                      type="button"
+                      onClick={() => onRerecordProof(pending.editTargetTx!, pending.customer)}
+                      className="w-full py-2 px-3 rounded-xl bg-amber-200/80 hover:bg-amber-300 text-amber-950 font-black text-xs transition-colors"
+                    >
+                      {t.editing.rerecordProofBtn}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {pending.sideEffects?.hasSentReminder && (
+                <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-900 flex items-start space-x-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+                  <span className="font-bold leading-snug">{t.editing.reminderWarning}</span>
+                </div>
+              )}
+
+              {pending.sideEffects && (pending.sideEffects.stockEffects.length > 0 || pending.sideEffects.profitDelta !== 0) && (
+                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-1">
+                  {pending.sideEffects.stockEffects.map((se) => (
+                    <div key={se.itemName} className="flex justify-between font-semibold">
+                      <span>{t.editing.stockImpactLabel} ({formatItemName(se.itemName, language)}):</span>
+                      <span>{se.oldQty} ➔ {se.newQty}</span>
+                    </div>
+                  ))}
+                  {pending.sideEffects.profitDelta !== 0 && (
+                    <div className="flex justify-between font-semibold">
+                      <span>{t.editing.profitImpactLabel}:</span>
+                      <span className={pending.sideEffects.profitDelta > 0 ? 'text-emerald-700' : 'text-rose-700'}>
+                        {pending.sideEffects.profitDelta > 0 ? '+' : ''}{formatINR(pending.sideEffects.profitDelta)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Part 6: Safety Tier Tap-Only Enforcement Banner */}
+              {isTapOnly && (
+                <div className="p-3 rounded-2xl bg-slate-900 text-amber-300 text-xs font-black flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{t.editing.tapConfirmRequired}</span>
+                </div>
+              )}
             </div>
 
             {/* Interactive Voice Response Pill with live mic feedback */}
@@ -575,7 +708,7 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                   triggerHaptic('success');
                   playAudioCue('success');
                   speechSynthesizer.stop();
-                  onConfirm();
+                  onConfirm('tap');
                 }}
                 className="touch-target-64 bg-gradient-to-r from-primary to-emerald-700 hover:from-emerald-800 hover:to-emerald-900 text-white font-black text-lg rounded-2xl shadow-md transition-all flex items-center justify-center space-x-2 border-2 border-emerald-900"
               >

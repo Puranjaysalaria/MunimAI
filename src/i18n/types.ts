@@ -470,4 +470,33 @@ export interface Translations {
     previousAction: string;
     closed: string;
   };
+  editing: {
+    diffTitle: string;
+    beforeLabel: string;
+    afterLabel: string;
+    diffSpeakPrompt: string;
+    editedBadge: string;
+    historyTitle: string;
+    noHistory: string;
+    originalEntry: string;
+    correctionEntry: string;
+    reversalEntry: string;
+    sourceVoice: string;
+    sourceTap: string;
+    proofWarning: string;
+    rerecordProofBtn: string;
+    reminderWarning: string;
+    stockImpactLabel: string;
+    profitImpactLabel: string;
+    tapConfirmRequired: string;
+    tapConfirmVoiceNotice: string;
+    deleteTapOnlyVoice: string;
+    editEntryBtn: string;
+    saveEditBtn: string;
+    editStockTitle: string;
+    stockCountLabel: string;
+    priceHistoryTitle: string;
+    editCustomerTitle: string;
+    customerPhoneLabel: string;
+  };
 }

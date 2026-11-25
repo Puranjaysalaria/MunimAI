@@ -43,6 +43,8 @@ export interface Shop {
     sound_enabled?: boolean;
     wake_word_enabled?: boolean;
     reminder_settings?: ReminderSettings;
+    edit_rupee_threshold?: number;
+    edit_age_days_threshold?: number;
   };
   created_at?: string;
 }

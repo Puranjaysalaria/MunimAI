@@ -1,9 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Customer, Item, Transaction, Supplier } from '../types/schema';
+import { Customer, Item, Transaction, Supplier, Shop, AuditLogEntry } from '../types/schema';
 import { createSTTProvider, STTProvider } from '../stt';
 import { parseSpeech } from '../parser';
 import { resolveCrossScriptCustomer } from '../voice/crossScriptMatcher';
 import { parsePendingCorrection } from '../voice/pendingCorrectionParser';
+import { resolveTargetEntry, extractNewEditValue } from '../voice/entryResolver';
+import { analyzeEditSideEffects } from '../voice/sideEffectAnalyzer';
+import { evaluateEditSafetyTier, canCompleteByVoiceConfirm } from '../voice/safetyTiers';
+import { TransactionCorrectionPatch } from '../lib/correctionService';
 import { PendingConfirmation } from '../components/ConfirmationCard/ConfirmationCard';
 import { speechSynthesizer } from '../tts/speechSynthesizer';
 import { playAudioCue, triggerHaptic } from '../lib/sound';
@@ -37,6 +41,14 @@ interface UseVoiceControllerProps {
   onCloseModals?: () => void;
   onPlayProofClip?: (clipPath?: string) => void;
   activeStockItem?: Item | null;
+  shopSettings?: Shop['settings'];
+  selectedTransactionId?: string | null;
+  onApplyTransactionCorrection?: (
+    targetTxId: string,
+    patch: TransactionCorrectionPatch,
+    source?: 'voice' | 'tap',
+    reason?: string
+  ) => { success: boolean; correctionTx?: Transaction; auditLog?: AuditLogEntry; error?: string };
 }
 
 export function useVoiceController({
@@ -59,6 +71,9 @@ export function useVoiceController({
   onCloseModals,
   onPlayProofClip,
   activeStockItem,
+  shopSettings,
+  selectedTransactionId,
+  onApplyTransactionCorrection,
 }: UseVoiceControllerProps) {
   const { language, t } = useI18n();
   const lastSpokenTextRef = useRef<string>('');
@@ -71,10 +86,14 @@ export function useVoiceController({
 
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null);
   const [disambiguationCustomers, setDisambiguationCustomers] = useState<Customer[]>([]);
+  const [disambiguationEntries, setDisambiguationEntries] = useState<Transaction[]>([]);
+  const [disambiguationEntryQuestion, setDisambiguationEntryQuestion] = useState<string>('');
+  const pendingEditRawTextRef = useRef<{ rawText: string; intent: string } | null>(null);
 
   const sttProviderRef = useRef<STTProvider | null>(null);
   const pendingConfirmationRef = useRef<PendingConfirmation | null>(null);
   const disambiguationCustomersRef = useRef<Customer[]>([]);
+  const disambiguationEntriesRef = useRef<Transaction[]>([]);
 
   useEffect(() => {
     pendingConfirmationRef.current = pendingConfirmation;
@@ -83,6 +102,100 @@ export function useVoiceController({
   useEffect(() => {
     disambiguationCustomersRef.current = disambiguationCustomers;
   }, [disambiguationCustomers]);
+
+  useEffect(() => {
+    disambiguationEntriesRef.current = disambiguationEntries;
+  }, [disambiguationEntries]);
+
+  // Open Diff Confirmation Card for any saved-entry edit (voice or tap parity)
+  const openDiffConfirmationForEdit = useCallback(
+    (
+      targetTx: Transaction,
+      patch: TransactionCorrectionPatch,
+      source: 'voice' | 'tap' = 'voice',
+      rawText: string = ''
+    ) => {
+      const oldCust = targetTx.customer_id
+        ? customers.find((c) => c.id === targetTx.customer_id) || null
+        : null;
+      const newCustId =
+        patch.customer_id !== undefined ? patch.customer_id : targetTx.customer_id;
+      const newCust = newCustId
+        ? customers.find((c) => c.id === newCustId) || null
+        : null;
+
+      const newItems = patch.items !== undefined ? patch.items : targetTx.items || [];
+      const firstNewItem = newItems[0] || null;
+      const firstOldItem = targetTx.items?.[0] || null;
+
+      const sideEffects = analyzeEditSideEffects(targetTx, patch, customers, items);
+      const safetyTier = evaluateEditSafetyTier(targetTx, patch, sideEffects, shopSettings);
+
+      const newAmount = patch.amount !== undefined ? patch.amount : targetTx.amount;
+
+      setPendingConfirmation({
+        intent: targetTx.type as any,
+        customer: newCust,
+        customerName: newCust?.name || null,
+        amount: newAmount,
+        item: firstNewItem
+          ? items.find((i) => i.name.toLowerCase() === firstNewItem.name.toLowerCase()) || null
+          : null,
+        itemName: firstNewItem?.name || null,
+        quantity: firstNewItem?.quantity ?? null,
+        unit: firstNewItem?.unit ?? null,
+        date: patch.created_at ?? targetTx.created_at,
+        note: patch.note !== undefined ? patch.note : targetTx.note ?? null,
+        rawText: rawText || `Edit ${targetTx.id}`,
+        editTargetTx: targetTx,
+        editBefore: {
+          amount: targetTx.amount,
+          customerName: oldCust?.name || null,
+          itemName: firstOldItem?.name || null,
+          quantity: firstOldItem?.quantity ?? null,
+          unit: firstOldItem?.unit ?? null,
+          date: targetTx.created_at,
+          note: targetTx.note ?? null,
+        },
+        sideEffects,
+        safetyTier,
+        editSource: source,
+      });
+    },
+    [customers, items, shopSettings]
+  );
+
+  const handleSelectDisambiguatedEntry = useCallback(
+    (tx: Transaction) => {
+      const pendingRaw = pendingEditRawTextRef.current;
+      const extracted = pendingRaw ? extractNewEditValue(pendingRaw.rawText, pendingRaw.intent) : {};
+      const patch: TransactionCorrectionPatch = {};
+      if (extracted.newAmount !== undefined) patch.amount = extracted.newAmount;
+      if (extracted.newDate !== undefined) patch.created_at = extracted.newDate;
+      if (extracted.newNote !== undefined) patch.note = extracted.newNote;
+      if (extracted.newItem !== undefined || extracted.newQuantity !== undefined) {
+        const baseItems =
+          tx.items && tx.items.length > 0
+            ? tx.items.map((it) => ({ ...it }))
+            : [
+                {
+                  name: extracted.newItem || 'item',
+                  quantity: extracted.newQuantity || 1,
+                  unit: 'kilo',
+                  price: tx.amount,
+                },
+              ];
+        if (extracted.newItem) baseItems[0].name = extracted.newItem;
+        if (extracted.newQuantity !== undefined) baseItems[0].quantity = extracted.newQuantity;
+        patch.items = baseItems;
+      }
+      setDisambiguationEntries([]);
+      disambiguationEntriesRef.current = [];
+      pendingEditRawTextRef.current = null;
+      openDiffConfirmationForEdit(tx, patch, 'voice', pendingRaw?.rawText || '');
+    },
+    [openDiffConfirmationForEdit]
+  );
 
   // Stop listening
   const stopListening = useCallback(() => {
@@ -154,6 +267,30 @@ export function useVoiceController({
           }
         }
 
+        // 00. Entry Disambiguation reply ("pehla", "doosra", "500 wala")
+        const currentEntryDisambig = disambiguationEntriesRef.current;
+        if (currentEntryDisambig.length > 0) {
+          const isFirst = /\b(first(\s*one)?|number\s*(one|1)|pehla(\s*wala)?|ek|1|one|ਪਹਿਲਾ|पहला)\b/i.test(text);
+          const isSecond = /\b(second(\s*one)?|number\s*(two|2)|doosra(\s*wala)?|do|2|two|ਦੂਜਾ|दूसरा)\b/i.test(text);
+          const isThird = /\b(third(\s*one)?|number\s*(three|3)|teesra(\s*wala)?|teen|3|three|ਤੀਜਾ|तीसरा)\b/i.test(text);
+
+          let chosenEntry: Transaction | undefined;
+          if (isFirst) chosenEntry = currentEntryDisambig[0];
+          else if (isSecond) chosenEntry = currentEntryDisambig[1];
+          else if (isThird) chosenEntry = currentEntryDisambig[2];
+          else {
+            const numMatch = text.match(/\b(\d+)\b/);
+            if (numMatch) {
+              chosenEntry = currentEntryDisambig.find((tx) => Number(tx.amount) === Number(numMatch[1]));
+            }
+          }
+
+          if (chosenEntry) {
+            handleSelectDisambiguatedEntry(chosenEntry);
+            return;
+          }
+        }
+
         // 0. Pending Confirmation In-Place Correction (without restarting)
         const activePending = pendingConfirmationRef.current;
         if (activePending && currentDisambig.length === 0) {
@@ -221,6 +358,17 @@ export function useVoiceController({
             setVoiceState('idle');
             return;
           }
+        }
+
+        // Safety Tier: Delete entry / clip / bill is ALWAYS tap-only
+        if (
+          /\b(delete|remove|erase|mita\s*do|hata\s*do|udaa\s*do)\b/i.test(text) &&
+          /\b(entry|transaction|clip|proof|recording|bill|invoice|record|hisab)\b/i.test(text)
+        ) {
+          triggerHaptic('warning');
+          speechSynthesizer.speak(t.editing.deleteTapOnlyVoice, language);
+          setVoiceState('idle');
+          return;
         }
 
         const result = await parseSpeech(text, {
@@ -650,6 +798,68 @@ export function useVoiceController({
           return;
         }
 
+        // Saved-Entry Edit Intents (Part 2 + Part 4 Diff Confirmation)
+        if (
+          result.intent === 'edit_entry' ||
+          result.intent === 'change_amount' ||
+          result.intent === 'change_item' ||
+          result.intent === 'change_customer' ||
+          result.intent === 'change_quantity' ||
+          result.intent === 'change_date' ||
+          result.intent === 'edit_note'
+        ) {
+          const res = resolveTargetEntry(
+            {
+              rawText: text,
+              customerName: result.customer,
+              matchedCustomer: result.matchedCustomer,
+              itemName: result.item,
+              timeframe: result.timeframe,
+              selectedTransactionId,
+            },
+            transactions,
+            customers,
+            language
+          );
+
+          if (res.status === 'not_found') {
+            triggerHaptic('warning');
+            speechSynthesizer.speak(res.message, language);
+            setVoiceState('idle');
+            return;
+          }
+
+          if (res.status === 'ambiguous') {
+            triggerHaptic('warning');
+            pendingEditRawTextRef.current = { rawText: text, intent: result.intent };
+            setDisambiguationEntries(res.candidates);
+            disambiguationEntriesRef.current = res.candidates;
+            setDisambiguationEntryQuestion(res.question);
+            speechSynthesizer.speak(res.question, language);
+            setVoiceState('idle');
+            return;
+          }
+
+          // Resolved to single entry -> compute patch & open Diff Confirmation Card
+          const extracted = extractNewEditValue(text, result.intent);
+          const patch: TransactionCorrectionPatch = {};
+          if (extracted.newAmount !== undefined) patch.amount = extracted.newAmount;
+          if (extracted.newDate !== undefined) patch.created_at = extracted.newDate;
+          if (extracted.newNote !== undefined) patch.note = extracted.newNote;
+          if (extracted.newItem !== undefined || extracted.newQuantity !== undefined) {
+            const baseItems = res.entry.items && res.entry.items.length > 0
+              ? res.entry.items.map((it) => ({ ...it }))
+              : [{ name: extracted.newItem || 'item', quantity: extracted.newQuantity || 1, unit: result.unit || 'kilo', price: res.entry.amount }];
+            if (extracted.newItem) baseItems[0].name = extracted.newItem;
+            if (extracted.newQuantity !== undefined) baseItems[0].quantity = extracted.newQuantity;
+            patch.items = baseItems;
+          }
+
+          openDiffConfirmationForEdit(res.entry, patch, 'voice', text);
+          setVoiceState('idle');
+          return;
+        }
+
         // Price Action Intents (set_selling_price / set_cost_price)
         if (result.intent === 'set_selling_price' || result.intent === 'set_cost_price') {
           const priceType: 'selling' | 'cost' = result.intent === 'set_cost_price' ? 'cost' : 'selling';
@@ -851,10 +1061,24 @@ export function useVoiceController({
     );
   }, [language, isListening, voiceState, stopListening, processInput, t]);
 
-  // Confirm and save the pending transaction
-  const handleConfirmSave = useCallback(() => {
+  // Confirm and save the pending transaction (or apply append-only correction)
+  const handleConfirmSave = useCallback((confirmSource: 'voice' | 'tap' = 'voice') => {
     const pending = pendingConfirmationRef.current;
     if (!pending) return;
+
+    // Part 6 Safety Tier Enforcement: high-risk / proof / reminder / over-threshold edits CANNOT complete by voice
+    if (
+      confirmSource === 'voice' &&
+      !canCompleteByVoiceConfirm({
+        isPillActive: true,
+        isCardShowing: Boolean(pending),
+        safetyTier: pending.safetyTier,
+      })
+    ) {
+      triggerHaptic('warning');
+      speechSynthesizer.speak(t.editing.tapConfirmVoiceNotice, language);
+      return;
+    }
 
     if (sttProviderRef.current) {
       try {
@@ -865,6 +1089,48 @@ export function useVoiceController({
 
     triggerHaptic('success');
     playAudioCue('success');
+
+    // Handle Saved-Entry Diff Correction (Parts 3 & 4)
+    if (pending.editTargetTx && onApplyTransactionCorrection) {
+      const patch: TransactionCorrectionPatch = {
+        amount: pending.amount,
+        customer_id: pending.customer?.id ?? pending.editTargetTx.customer_id ?? null,
+        items: pending.itemName
+          ? [
+              {
+                name: pending.itemName,
+                quantity: pending.quantity || 1,
+                unit: pending.unit || 'kilo',
+                price: pending.amount,
+              },
+            ]
+          : pending.editTargetTx.items,
+        created_at: pending.date ?? pending.editTargetTx.created_at,
+        note: pending.note !== undefined ? pending.note : pending.editTargetTx.note,
+      };
+      onApplyTransactionCorrection(
+        pending.editTargetTx.id,
+        patch,
+        pending.editSource || confirmSource,
+        pending.rawText
+      );
+      const editDoneVoice =
+        language === 'en'
+          ? `Entry updated to ₹${pending.amount}.`
+          : language === 'pa'
+          ? `ਐਂਟਰੀ ₹${pending.amount} ਵਿੱਚ ਬਦਲ ਦਿੱਤੀ ਗਈ।`
+          : `एंट्री ₹${pending.amount} में बदल दी गई।`;
+      speechSynthesizer.speak(editDoneVoice, language);
+      setPendingConfirmation(null);
+      setDisambiguationCustomers([]);
+      setDisambiguationEntries([]);
+      setVoiceState('success');
+      setTimeout(() => {
+        setVoiceState('idle');
+        setLiveTranscript('');
+      }, 1200);
+      return;
+    }
 
     // Handle price update confirmation (set_selling_price / set_cost_price)
     if (pending.intent === 'set_selling_price' || pending.intent === 'set_cost_price') {
@@ -975,7 +1241,7 @@ export function useVoiceController({
       setVoiceState('idle');
       setLiveTranscript('');
     }, 1200);
-  }, [onSaveTransaction, language, t, onUpdateItemPrice, onPriceActionConfirmed]);
+  }, [onSaveTransaction, onApplyTransactionCorrection, language, t, onUpdateItemPrice, onPriceActionConfirmed]);
 
   // Cancel pending confirmation
   const handleCancelConfirmation = useCallback(() => {
@@ -1129,6 +1395,8 @@ export function useVoiceController({
     consecutiveFailures,
     pendingConfirmation,
     disambiguationCustomers,
+    disambiguationEntries,
+    disambiguationEntryQuestion,
     startListening,
     startListeningForReply,
     stopListening,
@@ -1136,5 +1404,12 @@ export function useVoiceController({
     handleConfirmSave,
     handleCancelConfirmation,
     handleSelectDisambiguatedCustomer,
+    openDiffConfirmationForEdit,
+    handleSelectDisambiguatedEntry,
+    cancelEntryDisambiguation: () => {
+      setDisambiguationEntries([]);
+      disambiguationEntriesRef.current = [];
+      pendingEditRawTextRef.current = null;
+    },
   };
 }
