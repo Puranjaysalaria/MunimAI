@@ -4,12 +4,12 @@ export const enIntents: LanguagePhraseTable = {
   language: 'en',
   yesKeywords: ['yes', 'yeah', 'yep', 'correct', 'confirm', 'save', 'right'],
   noKeywords: ['no', 'nope', 'cancel', 'wrong', 'dont', "don't"],
-  undoKeywords: ['undo', 'revert', 'take back', 'cancel last'],
+  undoKeywords: ['undo', 'undo it', 'undo that', 'undo last', 'revert', 'take back', 'cancel last', 'remove it', 'remove last', 'delete last'],
   intents: [
     {
       intent: 'build_order_list',
       patterns: [
-        /\b(?:order|reorder|buy|get|build|create|list|generate)\s*(?:the\s*)?(?:low\s*r[ui]n+ing|r[ui]n+ing\s*low|r[ui]n+ing\s*out|low\s*stock|out\s*of\s*stock|critical\s*stock)\s*(?:items|stock|goods|products|list)?\b/i,
+        /\b(?:order|reorder|restock|buy|purchase|get|build|create|list|generate)\s*(?:the\s*)?(?:items?|products?|goods|stock)?\s*(?:that\s*(?:is|are)\s*)?(?:low\s*r[ui]n+ing|r[ui]n+ing\s*low|r[ui]n+ing\s*out|low\s*stock|low\s*items?|out\s*of\s*stock|critical\s*stock|finishing)\s*(?:items|stock|goods|products|list)?\b/i,
         /build\s*(order|supplier)\s*list/i,
         /create\s*order\s*list/i,
         /generate\s*order\s*list/i,
@@ -23,7 +23,7 @@ export const enIntents: LanguagePhraseTable = {
         /show\s*(low|out of|critical)?\s*stock/i,
         /(?:^|\s)(low|critical)\s*stock/i,
         /stock\s*check/i,
-        /what('s|\s+is)\s*(running low|out of stock)/i,
+        /\b(?:what|which|tell\s*me\s*(?:what|which))\s*(?:items?|products?|goods|stock)?\s*(?:is|are|'s)?\s*(?:running\s*low|running\s*out|out\s*of\s*stock|finishing|short)\b/i,
         /(?:^|\s)(?:low\s*r[ui]n+ing|r[ui]n+ing\s*low|r[ui]n+ing\s*out)\s*(?:items|stock|goods|products)?/i,
         /items?\s*(?:running\s*low|running\s*out|low\s*running|r[ui]n+ing)/i,
       ],

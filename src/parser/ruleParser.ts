@@ -63,10 +63,15 @@ export function parseWithRules(
   const mentionedItems = findMentionedItems(text, context.items);
   const firstItem = mentionedItems.length > 0 ? mentionedItems[0].canonical : null;
 
-  // 3. Undo: "Wapas karo" / "Undo"
+  // 3. Undo: "Wapas karo" / "Undo" / "Remove it" / "Cancel last"
   // Note: "<amount> wapis kite" or "ne wapis diye" is PAYMENT, not undo!
   const isPaymentReturn = /\b(wapis\s*kite|wapas\s*diye|wapis\s*diye|lauta\s*diye)\b/i.test(lower);
-  if (!isPaymentReturn && /\b(wapas\s*karo|wapis\s*karo|undo|mod\s*do|galat\s*ho\s*gaya|cancel\s*last)\b/i.test(lower)) {
+  if (
+    !isPaymentReturn &&
+    /\b(wapas\s*karo|wapis\s*karo|wapas\s*lo|wapas\s*le\s*lo|undo(?:\s*(?:it|that|this|last))?|mod\s*do|galat\s*ho\s*gaya|cancel\s*(?:last|it|that)|remove\s*(?:it|that|last)|delete\s*(?:it|that|last)|pichhla\s*hatao|isko\s*hatao|ise\s*hatao|revert)\b/i.test(
+      lower
+    )
+  ) {
     return {
       intent: 'undo',
       confidence: 0.98,
@@ -263,12 +268,12 @@ export function parseWithRules(
     };
   }
 
-  // Supplier Orders / Low Running Items: "Order low running items", "Order low stock", "Low running items", "Kam stock order karo", "Which item is running low"
-  const isOrderAction = /\b(order|reorder|buy|build|create|list|supplier|sheet|bhejo|mangwao|mangwana|mangwa do|mangwa)\b/i.test(lower);
+  // Supplier Orders / Low Running Items: "Order low running items", "Order the item running low", "What item is running low"
+  const isOrderAction = /\b(order|reorder|restock|buy|purchase|build|create|list|supplier|sheet|bhejo|mangwao|mangwana|mangwa do|mangwa)\b/i.test(lower);
   const isLowStockInquiry =
-    /\b(?:order|reorder|buy|get|list|create|build|generate)?\s*(?:the\s*)?(?:low\s*r[ui]n+ing|r[ui]n+ing\s*low|r[ui]n+ing\s*out|low\s*stock|out\s*of\s*stock|critical\s*stock|kam\s*stock|ghatt\s*stock|khatam\s*stock)\s*(?:items?|stock|maal|goods|products?|list)?\b/i.test(lower) ||
+    /\b(?:order|reorder|restock|buy|purchase|get|list|create|build|generate)?\s*(?:the\s*)?(?:items?|products?|goods|stock)?\s*(?:that\s*(?:is|are)\s*)?(?:low\s*r[ui]n+ing|r[ui]n+ing\s*low|r[ui]n+ing\s*out|low\s*stock|low\s*items?|out\s*of\s*stock|critical\s*stock|kam\s*stock|ghatt\s*stock|khatam\s*stock)\s*(?:items?|stock|maal|goods|products?|list)?\b/i.test(lower) ||
     /\b(?:low\s*r[ui]n+ing|r[ui]n+ing\s*low|r[ui]n+ing\s*out)\s*(?:items?|stock|goods|products?)?\b/i.test(lower) ||
-    /\b(?:which|what|kaunsa|konsa|kihda|keda)\s+(?:items?|products?|goods|stock|saman|saaman|maal)\s+(?:is|are|chal\s*raha)?\s*(?:running\s*)?(?:low|short|out|kam|ghatt|khatam)\b/i.test(lower) ||
+    /\b(?:which|what|tell\s*me\s*(?:which|what)|kaunsa|konsa|kihda|keda)\s+(?:items?|products?|goods|stock|saman|saaman|maal)?\s*(?:is|are|chal\s*raha)?\s*(?:running\s*)?(?:low|short|out|finishing|kam|ghatt|khatam)\b/i.test(lower) ||
     /\b(?:items?|products?|saman|saaman|maal)\s+(?:running\s*)?(?:low|kam|ghatt|khatam)\b/i.test(lower);
 
   if (!firstItem && isLowStockInquiry) {

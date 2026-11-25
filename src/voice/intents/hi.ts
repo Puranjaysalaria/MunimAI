@@ -4,7 +4,7 @@ export const hiIntents: LanguagePhraseTable = {
   language: 'hi',
   yesKeywords: ['haan', 'ha', 'sahi', 'theek', 'theek hai', 'yes', 'हाँ', 'सही', 'ठीक है', 'हां'],
   noKeywords: ['nahi', 'na', 'galat', 'mat', 'no', 'नहीं', 'गलत', 'ना'],
-  undoKeywords: ['wapas karo', 'hatao', 'undo', 'cancel', 'वापस करो', 'हटाओ'],
+  undoKeywords: ['wapas karo', 'wapas lo', 'wapas le lo', 'pichhla hatao', 'hata do', 'ise hatao', 'hatao', 'undo', 'cancel', 'वापस करो', 'वापस लो', 'हटाओ'],
   intents: [
     {
       intent: 'build_order_list',

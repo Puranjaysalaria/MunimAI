@@ -243,6 +243,14 @@ export const AppContent: React.FC = () => {
         audio.play().catch(() => {});
       }
     },
+    onOpenProofRecorder: () => {
+      const target = proofTargetTx || transactions.find((tx) => tx.type === 'credit') || null;
+      if (target) {
+        setProofTargetTx(target);
+        setProofTargetCustomer(customers.find((c) => c.id === target.customer_id) || null);
+        setShowProofPrompt(false);
+      }
+    },
   });
 
   // Hands-free "Munim" wake word detection when enabled in shop settings
@@ -711,9 +719,7 @@ export const AppContent: React.FC = () => {
           !isRecoveryOpen &&
           !isSettingsOpen &&
           !isReminderSettingsOpen &&
-          !isPrivacyOpen &&
-          !showProofPrompt &&
-          !proofTargetTx
+          !isPrivacyOpen
         }
         wakeWordActive={Boolean(shop.settings?.wake_word_enabled)}
         isListening={voice.isListening}

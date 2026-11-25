@@ -39,7 +39,7 @@ const PAUSE_REGEX =
   /^(?:ruko|wait|thairo|thehro|ek\s*minute|one\s*minute|hold\s*on|pause|रुको|ठहरो|एक\s*मिनट|ਰੁਕੋ|ਠਹਿਰੋ|રોકાઓ|थांबा|দাঁড়াও|நில்|ఆగు|ತಡಿ|നിൽക്കൂ)[\s.!।]*$/iu;
 
 const PURE_CANCEL_REGEX =
-  /^(?:nahi|nahin|na|no|nope|cancel|stop|discard|mat\s*likho|mat\s*karo|chhad\s*do|radd\s*karo|रद्द(?:\s*करो)?|कैंसिल|मत\s*लिखो|मत\s*करो|नहीं|ना|ਨਹੀਂ|ਨਾ|ਰੱਦ(?:\s*ਕਰੋ)?|না|বাতিল|நஹி|இல்லை|வேண்டாம்|వద్దు|కాదు|ಬೇಡ|വേണ്ട|नाही|नको|ના)[\s.!।]*$/iu;
+  /^(?:nahi|nahin|na|no|nope|cancel(?:\s*(?:it|this|that|karo|kar\s*do))?|remove(?:\s*(?:it|this|that))?|delete(?:\s*(?:it|this|that))?|discard(?:\s*(?:it|this|that))?|stop(?:\s*(?:it|this|that))?|band\s*karo|hatao|hata\s*do|ise\s*hatao|isko\s*hatao|mat\s*likho|mat\s*karo|chhad\s*do|radd\s*karo|रद्द(?:\s*करो)?|कैंसिल(?:\s*करो)?|हटाओ|हटा\s*दो|बंद\s*करो|मत\s*लिखो|मत\s*करो|नहीं|ना|ਨਹੀਂ|ਨਾ|ਰੱਦ(?:\s*ਕਰੋ)?|ਹਟਾਓ|না|বাতিল|நஹி|இல்லை|வேண்டாம்|వద్దు|కాదు|ಬೇಡ|വേണ്ട|नाही|नको|ના)[\s.!।]*$/iu;
 
 const PURE_YES_REGEX =
   /^(?:haan|ha|haa|haanji|ji\s*haan|aaho|yes|yeah|yup|yep|ok|okay|confirm|save|done|correct|right|likh\s*do|likh\s*deo|theek\s*hai|theek|sahi\s*hai|हाँ|हां|हाँजी|जी\s*हाँ|लिख\s*दो|कर\s*दो|ठीक\s*है|सही\s*है|ਹਾਂ|ਹਾਂਜੀ|ਆਹੋ|ਲਿਖ\s*ਦਿਓ|ਠੀਕ\s*ਹੈ|હા|होय|हो|হ্যাঁ|ஆம்|சரி|అవును|సరే|ಹೌದು|ಅതെ)[\s.!।]*$/iu;

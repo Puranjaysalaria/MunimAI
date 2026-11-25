@@ -40,6 +40,7 @@ interface UseVoiceControllerProps {
   onSelectCustomer?: (customerId: string) => void;
   onCloseModals?: () => void;
   onPlayProofClip?: (clipPath?: string) => void;
+  onOpenProofRecorder?: () => void;
   activeStockItem?: Item | null;
   shopSettings?: Shop['settings'];
   selectedTransactionId?: string | null;
@@ -70,6 +71,7 @@ export function useVoiceController({
   onSelectCustomer,
   onCloseModals,
   onPlayProofClip,
+  onOpenProofRecorder,
   activeStockItem,
   shopSettings,
   selectedTransactionId,
@@ -813,6 +815,13 @@ export function useVoiceController({
           speechSynthesizer.speak(reply, language);
           if (onPlayProofClip) onPlayProofClip();
           setTimeout(() => setVoiceState('idle'), 1500);
+          return;
+        }
+
+        if (result.intent === 'proof') {
+          setVoiceState('success');
+          if (onOpenProofRecorder) onOpenProofRecorder();
+          setTimeout(() => setVoiceState('idle'), 1200);
           return;
         }
 

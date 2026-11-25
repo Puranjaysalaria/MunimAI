@@ -34,9 +34,39 @@ export class MockIntentClassifier implements IntentClassifierProvider {
     const { quantity, unit } = parseMultilingualQuantityAndUnit(lower);
     const amount = parseMultilingualNumber(lower);
 
+    // Undo / Revert / Remove last transaction paraphrases
+    if (
+      /\b(undo|revert|take\s*back|wapas|wapis|remove\s*(?:it|that|last)|cancel\s*(?:it|that|last)|delete\s*last|pichhla\s*hatao)\b/i.test(
+        lower
+      )
+    ) {
+      return { intent: 'undo', confidence: 0.92, reasoning: 'Semantic undo / revert match' };
+    }
+
+    // Order low-running / finishing items paraphrases
+    if (
+      /\b(order|reorder|restock|buy|purchase|mangaao|mangwao)\b/i.test(lower) &&
+      /\b(low|running|short|finishing|khatam|kam|ghatt|out)\b/i.test(lower)
+    ) {
+      return { intent: 'build_order_list', confidence: 0.93, reasoning: 'Semantic order low stock match' };
+    }
+
+    // Low stock / finishing items inquiry paraphrases
+    if (
+      /\b(low|running\s*low|running\s*out|finishing|short|khatam|kam|ghatt)\b/i.test(lower) &&
+      /\b(item|items|stock|product|products|goods|maal|saman|what|which)\b/i.test(lower)
+    ) {
+      return { intent: 'show_low_stock', confidence: 0.92, reasoning: 'Semantic low stock inquiry match' };
+    }
+
+    // Daily summary / earnings paraphrases
+    if (/\b(earn|earned|profit|kamai|kamayi|business|sales\s*today|how\s*much\s*today|summary)\b/i.test(lower)) {
+      return { intent: 'summary', confidence: 0.9, reasoning: 'Semantic summary match' };
+    }
+
     // Stock check
     if (lower.includes('stock') || lower.includes('inventory') || lower.includes('maal') || lower.includes('goods')) {
-      if (lower.includes('low') || lower.includes('kam') || lower.includes('out') || lower.includes('ghatt')) {
+      if (lower.includes('low') || lower.includes('kam') || lower.includes('out') || lower.includes('ghatt') || lower.includes('running')) {
         return { intent: 'show_low_stock', confidence: 0.92, reasoning: 'Matched low stock keywords' };
       }
       return { intent: 'open_stock', confidence: 0.88, reasoning: 'Matched stock view' };
