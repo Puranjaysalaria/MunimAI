@@ -1,6 +1,6 @@
 # i18n Translation Status & Review Queue
 
-Generated: 2026-11-25T23:19:49.981Z
+Generated: 2026-11-25T23:22:45.565Z
 Baseline: English (`en`) with **444** total translation keys across 10 Indic locales.
 
 ## 1. Missing Translation Keys

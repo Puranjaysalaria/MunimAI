@@ -63,12 +63,17 @@ export function scanBuiltFilesForSecrets(
     }
   }
 
+  const SERVICE_ROLE_JWT_PAYLOAD_PATTERN = /eyJ[A-Za-z0-9_-]*InJvbGUiOiJzZXJ2aWNlX3JvbGUi[A-Za-z0-9_.-]*|sb_secret_[A-Za-z0-9_-]+/;
+
   for (const file of files) {
     const content = fs.readFileSync(file, 'utf8');
     for (const keyName of FORBIDDEN_KEY_NAMES) {
       if (content.includes(keyName)) {
         findings.push({ file, reason: `Contains secret key name "${keyName}"` });
       }
+    }
+    if (SERVICE_ROLE_JWT_PAYLOAD_PATTERN.test(content)) {
+      findings.push({ file, reason: 'Contains Supabase service-role token pattern' });
     }
     for (const item of forbiddenValues) {
       if (content.includes(item.value)) {
@@ -81,9 +86,15 @@ export function scanBuiltFilesForSecrets(
 }
 
 export function assertRequiredSecretsEnv(env: NodeJS.ProcessEnv = process.env): void {
-  const key = env.GNANI_API_KEY;
-  if (!key || key.trim().length === 0) {
+  const gnaniKey = env.GNANI_API_KEY;
+  if (!gnaniKey || gnaniKey.trim().length === 0) {
     throw new Error('GNANI_API_KEY is not set in the environment; cannot verify it is absent from the bundle.');
+  }
+  const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceRoleKey || serviceRoleKey.trim().length === 0) {
+    throw new Error(
+      'SUPABASE_SERVICE_ROLE_KEY is not set in the environment; cannot verify it is absent from the bundle.'
+    );
   }
 }
 

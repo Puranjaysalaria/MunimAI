@@ -454,6 +454,12 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
       expect(quotaRejected).toBe(7);
 
       expect(() => assertRequiredSecretsEnv({} as NodeJS.ProcessEnv)).toThrow(/GNANI_API_KEY/);
+      expect(() => assertRequiredSecretsEnv({ GNANI_API_KEY: 'k1' } as NodeJS.ProcessEnv)).toThrow(
+        /SUPABASE_SERVICE_ROLE_KEY/
+      );
+      expect(() =>
+        assertRequiredSecretsEnv({ GNANI_API_KEY: 'k1', SUPABASE_SERVICE_ROLE_KEY: 'k2' } as NodeJS.ProcessEnv)
+      ).not.toThrow();
     } finally {
       setVoiceAuthVerifierForTest(null);
       process.env.GNANI_MONTHLY_BUDGET_INR = prevMonthly;
