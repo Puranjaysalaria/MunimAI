@@ -35,6 +35,11 @@ export interface PendingConfirmation {
   questionToAsk?: string | null;
   oldPrice?: number | null;
   priceType?: 'selling' | 'cost' | null;
+  date?: string | null;
+  note?: string | null;
+  isPaused?: boolean;
+  lastCorrectionReadback?: string | null;
+  changedFields?: string[];
 }
 
 interface ConfirmationCardProps {
@@ -187,7 +192,7 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
     : '';
 
   const pendingKey = pending
-    ? `${pending.intent}_${pending.amount}_${pending.customer?.id || pending.customerName || ''}_${pending.itemName || ''}_${pending.rawText}`
+    ? `${pending.intent}_${pending.amount}_${pending.customer?.id || pending.customerName || ''}_${pending.itemName || ''}_${pending.quantity || ''}_${pending.unit || ''}_${pending.date || ''}_${pending.note || ''}_${pending.rawText}`
     : null;
 
   const onStartListeningRef = useRef(onStartListeningForReply);
@@ -197,7 +202,10 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
   onStopListeningRef.current = onStopListeningForReply;
 
   const spokenPromptRef = useRef(spokenPrompt);
-  spokenPromptRef.current = spokenPrompt;
+  spokenPromptRef.current = pending?.lastCorrectionReadback || spokenPrompt;
+
+  const isPausedRef = useRef(Boolean(pending?.isPaused));
+  isPausedRef.current = Boolean(pending?.isPaused);
 
   const languageRef = useRef(language);
   languageRef.current = language;
@@ -221,7 +229,7 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
     let active = true;
 
     speechSynthesizer.speak(spokenPromptRef.current, languageRef.current).then(() => {
-      if (active && lastSpokenKeyRef.current === pendingKey) {
+      if (active && lastSpokenKeyRef.current === pendingKey && !isPausedRef.current) {
         onStartListeningRef.current?.();
       }
     });
@@ -422,6 +430,27 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                     {pending.quantity ? `${pending.quantity} ${formatUnit(pending.unit, language)} ` : ''}
                     {formatItemName(pending.itemName, language)}
                   </span>
+                </div>
+              )}
+
+              {/* Optional Date / Note / Paused chips */}
+              {(pending.date || pending.note || pending.isPaused) && (
+                <div className="flex flex-wrap gap-2">
+                  {pending.date && (
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-slate-100 text-slate-700 border border-slate-200">
+                      📅 {new Date(pending.date).toLocaleDateString()}
+                    </span>
+                  )}
+                  {pending.note && (
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-slate-100 text-slate-700 border border-slate-200">
+                      📝 {pending.note}
+                    </span>
+                  )}
+                  {pending.isPaused && (
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-xl bg-amber-100 text-amber-800 border border-amber-200">
+                      ⏸ {language === 'en' ? 'Paused' : 'रुका हुआ'}
+                    </span>
+                  )}
                 </div>
               )}
 

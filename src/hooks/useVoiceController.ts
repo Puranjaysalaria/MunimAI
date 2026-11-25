@@ -3,6 +3,7 @@ import { Customer, Item, Transaction, Supplier } from '../types/schema';
 import { createSTTProvider, STTProvider } from '../stt';
 import { parseSpeech } from '../parser';
 import { resolveCrossScriptCustomer } from '../voice/crossScriptMatcher';
+import { parsePendingCorrection } from '../voice/pendingCorrectionParser';
 import { PendingConfirmation } from '../components/ConfirmationCard/ConfirmationCard';
 import { speechSynthesizer } from '../tts/speechSynthesizer';
 import { playAudioCue, triggerHaptic } from '../lib/sound';
@@ -149,6 +150,75 @@ export function useVoiceController({
           });
           if (matchedByDetail) {
             handleSelectDisambiguatedCustomer(matchedByDetail);
+            return;
+          }
+        }
+
+        // 0. Pending Confirmation In-Place Correction (without restarting)
+        const activePending = pendingConfirmationRef.current;
+        if (activePending && currentDisambig.length === 0) {
+          const correction = parsePendingCorrection(text, activePending, {
+            language,
+            customers,
+            items,
+          });
+
+          if (correction.type === 'confirm_yes') {
+            handleConfirmSave();
+            return;
+          }
+
+          if (correction.type === 'cancel') {
+            handleCancelConfirmation();
+            return;
+          }
+
+          if (correction.type === 'pause') {
+            stopListening();
+            setPendingConfirmation((prev) => (prev ? { ...prev, isPaused: true } : null));
+            const pauseMsg =
+              language === 'en'
+                ? 'Paused. Tap Yes to save or Cancel to discard.'
+                : language === 'pa'
+                ? 'ਠੀਕ ਹੈ, ਰੁਕੇ ਹਾਂ। ਸੇਵ ਕਰਨ ਲਈ ਹਾਂ ਦਬਾਓ।'
+                : 'ठीक है, रुके हुए हैं। सेव करने के लिए हाँ बोलें या दबाएँ।';
+            speechSynthesizer.speak(pauseMsg, language);
+            setVoiceState('idle');
+            return;
+          }
+
+          if (correction.type === 'update_slots') {
+            if (correction.ambiguousCustomers && correction.ambiguousCustomers.length > 1) {
+              triggerHaptic('warning');
+              setDisambiguationCustomers(correction.ambiguousCustomers);
+              disambiguationCustomersRef.current = correction.ambiguousCustomers;
+              speechSynthesizer.speak(correction.spokenReadback, language);
+              setVoiceState('idle');
+              return;
+            }
+
+            triggerHaptic('light');
+            playAudioCue('start');
+            setPendingConfirmation((prev) => {
+              if (!prev) return null;
+              return {
+                ...prev,
+                amount: correction.newAmount !== undefined ? correction.newAmount : prev.amount,
+                customer: correction.newCustomer !== undefined ? correction.newCustomer : prev.customer,
+                customerName:
+                  correction.newCustomerName !== undefined ? correction.newCustomerName : prev.customerName,
+                item: correction.newItem !== undefined ? correction.newItem : prev.item,
+                itemName: correction.newItemName !== undefined ? correction.newItemName : prev.itemName,
+                quantity: correction.newQuantity !== undefined ? correction.newQuantity : prev.quantity,
+                unit: correction.newUnit !== undefined ? correction.newUnit : prev.unit,
+                date: correction.newDate !== undefined ? correction.newDate : prev.date,
+                note: correction.newNote !== undefined ? correction.newNote : prev.note,
+                isPaused: false,
+                changedFields: correction.updatedFields,
+                lastCorrectionReadback: correction.spokenReadback,
+              };
+            });
+            setVoiceState('idle');
             return;
           }
         }
@@ -1020,29 +1090,24 @@ export function useVoiceController({
           const isYes = latinYes.test(raw) || indicYes.test(raw);
           const isNo = latinNo.test(raw) || indicNo.test(raw);
 
-          if (isYes && !isNo) {
+          if (res.isFinal) {
+            if (sttProviderRef.current) {
+              try { sttProviderRef.current.stopListening(); } catch {}
+            }
+            setIsListening(false);
+            if (isYes && !isNo) {
+              handleConfirmSave();
+            } else {
+              // Route "nahi", "ruko", "nahi, 600", "200 aur jodo", etc. through processInput
+              processInput(res.transcript);
+            }
+          } else if (isYes && !isNo && raw.split(/\s+/).length <= 2) {
             if (sttProviderRef.current) {
               try { sttProviderRef.current.stopListening(); } catch {}
             }
             setIsListening(false);
             handleConfirmSave();
             return;
-          }
-          if (isNo) {
-            if (sttProviderRef.current) {
-              try { sttProviderRef.current.stopListening(); } catch {}
-            }
-            setIsListening(false);
-            handleCancelConfirmation();
-            return;
-          }
-
-          if (res.isFinal) {
-            if (isYes && !isNo) {
-              handleConfirmSave();
-            } else if (isNo) {
-              handleCancelConfirmation();
-            }
           }
         },
         onError: () => {
