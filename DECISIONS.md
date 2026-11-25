@@ -296,6 +296,16 @@ This log records major technical and product decisions made during the developme
   - **Voice ↔ Tap Parity**: Documented in [VOICE_PARITY.md](file:///C:/Users/Croma/Desktop/DukaanAI/VOICE_PARITY.md); all voice edits have matching tap UIs routed through the same confirmation and audit pipeline.
   - **Atomic Offline Sync & Interim Guard**: Offline corrections queue as `apply_correction` mutations in IndexedDB, replay FIFO after their root transaction via `apply_correction_atomic` with `superseded_by` optimistic concurrency, and voice `"Haan"` requires a final STT result spoken after the confirmation card appeared.
 
+---
+
+### DECISION-027: Gnani Cloud STT & Timbre TTS with Service-Role Atomic Quotas & Device Overrides
+- **Date**: 2026-11-26
+- **Context**: Shopkeepers need accurate regional speech recognition and natural TTS without exposing API keys, risking runaway cloud bills, weakening the `"haan"` safety guard, or breaking offline usability.
+- **Decision**:
+  - **Client Clip Pipeline**: Record short command clips only while the voice pill is active, auto-stop via adaptive VAD (`minSpeechMs = 300`, `trailingSilenceMs = 1200`) or 15s cap, trim silence, encode 16 kHz mono 16-bit WAV, and pass client `utteranceStartedAtMs` through server responses so `canCompleteByVoiceConfirm` works identically on final-only STT.
+  - **Hardened Server Proxies & Service-Role Quotas**: `api/gnani-stt.ts` and `api/gnani-tts.ts` verify Supabase JWTs, derive `shop_id` from `public.users`, enforce `ALLOWED_ORIGINS` CORS and strict payload/model/voice allowlists, and reserve/reconcile quotas in integer paise (`Asia/Kolkata`) via `service_role`-only RPCs (`voice_reservations`, `voice_usage`, `voice_usage_global`). Failed Gnani calls refund once idempotently; any quota/network error fails closed and falls back silently to browser STT / device voice.
+  - **Local A/B Comparison**: Voice Debug in Settings offers `localStorage` device-only provider overrides per language while keeping shared config defaults and consent/budget gates intact.
+
 
 
 

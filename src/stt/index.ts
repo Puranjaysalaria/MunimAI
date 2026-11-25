@@ -27,14 +27,18 @@ export function createSTTProvider(
       ? (import.meta.env.VITE_STT_PROVIDER as STTProviderType | 'gnani' | undefined)
       : undefined;
 
-  const chosenType = type || envType || 'browser';
+  const profile = options?.language ? getLanguageVoiceProfile(options.language) : null;
+  const chosenType =
+    type ||
+    (profile && profile.sttProvider === 'browser' ? 'browser' : undefined) ||
+    envType ||
+    'browser';
 
   if (chosenType === 'gnani') {
     return new GnaniSttProvider();
   }
 
   if (chosenType === 'server') {
-    const profile = options?.language ? getLanguageVoiceProfile(options.language) : null;
     if (!profile || profile.sttProvider === 'gnani') {
       return new GnaniSttProvider();
     }

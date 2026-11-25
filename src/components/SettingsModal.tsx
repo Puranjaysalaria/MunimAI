@@ -6,10 +6,12 @@ import { X, Globe, Lock, Shield, LogOut, Check, Store, UserCheck, Bell, ChevronR
 import { isValidUPI } from '../lib/reminderService';
 import { DEFAULT_EDIT_RUPEE_THRESHOLD, DEFAULT_EDIT_AGE_DAYS_THRESHOLD } from '../voice/safetyTiers';
 import {
+  getDeviceProviderOverride,
   getLanguageVoiceProfile,
   getRemainingVoiceBudgetInr,
   getVoiceTelemetry,
   isCloudSpeechKillSwitchActive,
+  setDeviceProviderOverride,
 } from '../voice/speechConfig';
 import { speechSynthesizer } from '../tts/speechSynthesizer';
 
@@ -369,6 +371,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
             {showVoiceDebug && (() => {
               void debugTick;
               const profile = getLanguageVoiceProfile(language);
+              const devOverride = getDeviceProviderOverride(language);
               const telemetry = getVoiceTelemetry();
               const remainingBudget = getRemainingVoiceBudgetInr();
               const activeStt =
@@ -399,6 +402,48 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                     <div>
                       <span className="text-app-muted block">Budget Remaining</span>
                       <span className="font-bold text-emerald-700">₹{remainingBudget.toFixed(2)}</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+                    <div>
+                      <label className="block text-[10px] font-bold text-app-muted mb-0.5">
+                        Device STT Override ({language})
+                      </label>
+                      <select
+                        value={devOverride.stt || 'default'}
+                        onChange={(e) => {
+                          setDeviceProviderOverride(language, {
+                            ...devOverride,
+                            stt: e.target.value as 'default' | 'gnani' | 'browser',
+                          });
+                          setDebugTick((n) => n + 1);
+                        }}
+                        className="w-full px-2 py-1 rounded border border-slate-200 bg-slate-50 text-[11px] font-semibold"
+                      >
+                        <option value="default">Default (Config)</option>
+                        <option value="gnani">Gnani</option>
+                        <option value="browser">Browser</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-app-muted mb-0.5">
+                        Device TTS Override ({language})
+                      </label>
+                      <select
+                        value={devOverride.tts || 'default'}
+                        onChange={(e) => {
+                          setDeviceProviderOverride(language, {
+                            ...devOverride,
+                            tts: e.target.value as 'default' | 'gnani' | 'device',
+                          });
+                          setDebugTick((n) => n + 1);
+                        }}
+                        className="w-full px-2 py-1 rounded border border-slate-200 bg-slate-50 text-[11px] font-semibold"
+                      >
+                        <option value="default">Default (Config)</option>
+                        <option value="gnani">Gnani (Timbre)</option>
+                        <option value="device">Device Voice</option>
+                      </select>
                     </div>
                   </div>
                   <div className="text-[11px] text-app-muted pt-1 border-t border-slate-100">

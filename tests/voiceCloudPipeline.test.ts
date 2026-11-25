@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   VOICE_LANGUAGE_PROFILES,
+  clearDeviceProviderOverridesForTest,
   estimateSttCostInr,
   estimateTtsCostInr,
   getLanguageVoiceProfile,
@@ -11,6 +12,7 @@ import {
   isCloudSpeechAllowedForShop,
   resetVoiceTelemetryForTest,
   setDailyVoiceBudgetInr,
+  setDeviceProviderOverride,
   setVoiceKillSwitch,
 } from '../src/voice/speechConfig';
 import { createSTTProvider, GnaniSttProvider, BrowserSpeechProvider } from '../src/stt';
@@ -45,6 +47,7 @@ function makeMockRes() {
 describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets & Security', () => {
   beforeEach(() => {
     resetVoiceTelemetryForTest();
+    clearDeviceProviderOverridesForTest();
     clearTTSCacheForTest();
     speechSynthesizer.clearPreRecordedPackForTest();
     resetGnaniSttLimitsForTest();
@@ -460,6 +463,20 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
       expect(() =>
         assertRequiredSecretsEnv({ GNANI_API_KEY: 'k1', SUPABASE_SERVICE_ROLE_KEY: 'k2' } as NodeJS.ProcessEnv)
       ).not.toThrow();
+
+      // Device-only provider override switches local provider per language while keeping shared config intact & respecting consent/budget
+      setDeviceProviderOverride('hi', { stt: 'browser', tts: 'device' });
+      expect(VOICE_LANGUAGE_PROFILES.hi.sttProvider).toBe('gnani'); // shared config untouched
+      expect(getLanguageVoiceProfile('hi').sttProvider).toBe('browser');
+      expect(createSTTProvider(undefined, { language: 'hi', cloudSpeechEnabled: true })).toBeInstanceOf(
+        BrowserSpeechProvider
+      );
+
+      setDeviceProviderOverride('hi', { stt: 'gnani', tts: 'gnani' });
+      // Even with override = gnani, consent off forces BrowserSpeechProvider
+      expect(createSTTProvider(undefined, { language: 'hi', cloudSpeechEnabled: false })).toBeInstanceOf(
+        BrowserSpeechProvider
+      );
     } finally {
       setVoiceAuthVerifierForTest(null);
       process.env.GNANI_MONTHLY_BUDGET_INR = prevMonthly;

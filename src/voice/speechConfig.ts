@@ -156,9 +156,70 @@ export const VOICE_LANGUAGE_PROFILES: Record<LanguageCode, LanguageVoiceProfile>
   },
 };
 
+export interface DeviceProviderOverride {
+  stt?: 'default' | 'gnani' | 'browser';
+  tts?: 'default' | 'gnani' | 'device';
+}
+
+const DEVICE_OVERRIDE_STORAGE_KEY = 'munim_voice_provider_overrides_v1';
+const memoryDeviceOverrides: Partial<Record<string, DeviceProviderOverride>> = {};
+
+export function getDeviceProviderOverride(lang: LanguageCode | string): DeviceProviderOverride {
+  const key = (lang || 'hi').slice(0, 2);
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(DEVICE_OVERRIDE_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Record<string, DeviceProviderOverride>;
+        if (parsed[key]) return parsed[key];
+      }
+    }
+  } catch {
+    // ignore storage errors
+  }
+  return memoryDeviceOverrides[key] || { stt: 'default', tts: 'default' };
+}
+
+export function setDeviceProviderOverride(
+  lang: LanguageCode | string,
+  override: DeviceProviderOverride
+): void {
+  const key = (lang || 'hi').slice(0, 2);
+  memoryDeviceOverrides[key] = override;
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(DEVICE_OVERRIDE_STORAGE_KEY);
+      const parsed: Record<string, DeviceProviderOverride> = raw ? JSON.parse(raw) : {};
+      parsed[key] = override;
+      localStorage.setItem(DEVICE_OVERRIDE_STORAGE_KEY, JSON.stringify(parsed));
+    }
+  } catch {
+    // ignore
+  }
+}
+
+export function clearDeviceProviderOverridesForTest(): void {
+  for (const k of Object.keys(memoryDeviceOverrides)) {
+    delete memoryDeviceOverrides[k];
+  }
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(DEVICE_OVERRIDE_STORAGE_KEY);
+    }
+  } catch {
+    // ignore
+  }
+}
+
 export function getLanguageVoiceProfile(lang: LanguageCode | string): LanguageVoiceProfile {
   const key = (lang || 'hi').slice(0, 2) as LanguageCode;
-  return VOICE_LANGUAGE_PROFILES[key] || VOICE_LANGUAGE_PROFILES.hi;
+  const base = VOICE_LANGUAGE_PROFILES[key] || VOICE_LANGUAGE_PROFILES.hi;
+  const ov = getDeviceProviderOverride(key);
+  return {
+    ...base,
+    sttProvider: ov.stt && ov.stt !== 'default' ? ov.stt : base.sttProvider,
+    ttsProvider: ov.tts && ov.tts !== 'default' ? ov.tts : base.ttsProvider,
+  };
 }
 
 export function estimateSttCostInr(durationMs: number): number {
