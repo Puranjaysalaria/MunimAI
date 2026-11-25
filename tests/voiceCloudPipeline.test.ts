@@ -388,7 +388,7 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
       // Upstream timeout -> 504 and reconciles (refunds) reservation
       const reconcileSpy = vi.fn().mockResolvedValue(undefined);
       setVoiceQuotaAdapterForTest({
-        reserve: vi.fn().mockResolvedValue({ allowed: true, status: 200, reason: 'ok' }),
+        reserve: vi.fn().mockResolvedValue({ allowed: true, status: 200, reason: 'ok', reservationId: 'res-timeout' }),
         reconcile: reconcileSpy,
       });
       const abortErr = new Error('Timed out');
@@ -405,7 +405,7 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
         timeoutRes
       );
       expect(timeoutRes.statusCode).toBe(504);
-      expect(reconcileSpy).toHaveBeenCalledWith(expect.objectContaining({ succeeded: false }));
+      expect(reconcileSpy).toHaveBeenCalledWith(expect.objectContaining({ reservationId: 'res-timeout', actualInr: 0 }));
     } finally {
       setVoiceAuthVerifierForTest(null);
       setVoiceQuotaAdapterForTest(null);

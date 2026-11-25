@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import { getQuotaServiceRoleClient } from './_quotaServiceClient';
 
 export const LANGUAGE_MAP: Record<string, string> = {
   hi: 'hi-IN',
@@ -111,11 +112,13 @@ export interface QuotaCheckResult {
   allowed: boolean;
   status: number;
   reason?: string;
+  reservationId?: string;
 }
 
 export interface VoiceQuotaAdapter {
   reserve(params: {
     auth: VerifiedVoiceAuth;
+    kind: 'stt' | 'tts';
     estimatedInr: number;
     shopDailyCap: number;
     shopMonthlyCap: number;
@@ -124,9 +127,8 @@ export interface VoiceQuotaAdapter {
   }): Promise<QuotaCheckResult>;
   reconcile(params: {
     auth: VerifiedVoiceAuth;
-    reservedInr: number;
+    reservationId: string;
     actualInr: number;
-    succeeded: boolean;
   }): Promise<void>;
 }
 
@@ -141,6 +143,8 @@ const atomicFallbackState = {
   shopMonthly: new Map<string, number>(),
   globalMonthly: new Map<string, number>(),
   globalRpm: { minute: '', count: 0 },
+  reservations: new Map<string, { shopId: string; reservedInr: number; status: 'reserved' | 'settled' }>(),
+  seq: 0,
 };
 
 export function resetAtomicFallbackQuotaForTest(): void {
@@ -148,12 +152,29 @@ export function resetAtomicFallbackQuotaForTest(): void {
   atomicFallbackState.shopMonthly.clear();
   atomicFallbackState.globalMonthly.clear();
   atomicFallbackState.globalRpm = { minute: '', count: 0 };
+  atomicFallbackState.reservations.clear();
+  atomicFallbackState.seq = 0;
+}
+
+function getIstDayAndMonth(): { day: string; month: string; minute: string } {
+  const istMs = Date.now() + 330 * 60 * 1000;
+  const istIso = new Date(istMs).toISOString();
+  return {
+    day: istIso.slice(0, 10),
+    month: istIso.slice(0, 7),
+    minute: istIso.slice(0, 16),
+  };
 }
 
 export async function reserveVoiceQuota(
   auth: VerifiedVoiceAuth,
-  estimatedInr: number
+  estimatedInr: number,
+  kind: 'stt' | 'tts' = 'stt'
 ): Promise<QuotaCheckResult> {
+  if (!auth.shopId || !Number.isFinite(estimatedInr) || estimatedInr <= 0 || estimatedInr > 1000) {
+    return { allowed: false, status: 400, reason: 'invalid_quota_args' };
+  }
+
   const shopDailyCap = Math.max(0, Number(process.env.GNANI_DAILY_BUDGET_INR) || 100);
   const shopMonthlyCap = Math.max(0, Number(process.env.GNANI_MONTHLY_BUDGET_INR) || 1500);
   const globalMonthlyCap = Math.max(0, Number(process.env.GNANI_GLOBAL_MONTHLY_BUDGET_INR) || 25000);
@@ -162,6 +183,7 @@ export async function reserveVoiceQuota(
   if (customVoiceQuotaAdapter) {
     return customVoiceQuotaAdapter.reserve({
       auth,
+      kind,
       estimatedInr,
       shopDailyCap,
       shopMonthlyCap,
@@ -170,20 +192,18 @@ export async function reserveVoiceQuota(
     });
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
-  const anonKey =
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.VITE_SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    '';
-
-  if (supabaseUrl && anonKey && !supabaseUrl.includes('placeholder') && auth.token) {
+  const supabaseUrl = process.env.SUPABASE_URL || '';
+  const serviceClient = getQuotaServiceRoleClient();
+  if (supabaseUrl && !supabaseUrl.includes('placeholder')) {
+    if (!serviceClient) {
+      // Fail closed if SUPABASE_SERVICE_ROLE_KEY is missing
+      return { allowed: false, status: 503, reason: 'service_role_missing' };
+    }
     try {
-      const supabase = createClient(supabaseUrl, anonKey, {
-        auth: { persistSession: false, autoRefreshToken: false },
-        global: { headers: { Authorization: `Bearer ${auth.token}` } },
-      });
-      const { data, error } = await supabase.rpc('reserve_voice_quota', {
+      const { data, error } = await serviceClient.rpc('reserve_voice_quota', {
+        p_shop_id: auth.shopId,
+        p_provider: 'gnani',
+        p_kind: kind,
         p_estimated_inr: estimatedInr,
         p_shop_daily_cap: shopDailyCap,
         p_shop_monthly_cap: shopMonthlyCap,
@@ -191,26 +211,22 @@ export async function reserveVoiceQuota(
         p_global_rpm: globalRpm,
       });
       if (error || !data || !Array.isArray(data) || data.length === 0) {
-        // Fail closed: quota check error -> do not call Gnani
         return { allowed: false, status: 503, reason: 'quota_error' };
       }
-      const row = data[0] as { allowed: boolean; reason?: string };
+      const row = data[0] as { allowed: boolean; reason?: string; reservation_id?: string };
       if (!row.allowed) {
         const status = row.reason === 'global_rate_limit' ? 429 : 402;
         return { allowed: false, status, reason: row.reason };
       }
-      return { allowed: true, status: 200, reason: 'ok' };
+      return { allowed: true, status: 200, reason: 'ok', reservationId: row.reservation_id };
     } catch {
       return { allowed: false, status: 503, reason: 'quota_error' };
     }
   }
 
   // Fallback atomic check for non-Supabase unit test mocks
-  const shopId = auth.shopId || 'default-shop';
-  const now = new Date();
-  const day = now.toISOString().slice(0, 10);
-  const month = now.toISOString().slice(0, 7);
-  const minute = now.toISOString().slice(0, 16);
+  const shopId = auth.shopId;
+  const { day, month, minute } = getIstDayAndMonth();
 
   if (atomicFallbackState.globalRpm.minute !== minute) {
     atomicFallbackState.globalRpm = { minute, count: 0 };
@@ -237,37 +253,32 @@ export async function reserveVoiceQuota(
   atomicFallbackState.globalMonthly.set(month, gUsed + estimatedInr);
   atomicFallbackState.shopDaily.set(sDayKey, sDayUsed + estimatedInr);
   atomicFallbackState.shopMonthly.set(sMonKey, sMonUsed + estimatedInr);
-  return { allowed: true, status: 200, reason: 'ok' };
+  const reservationId = `res-${++atomicFallbackState.seq}`;
+  atomicFallbackState.reservations.set(reservationId, { shopId, reservedInr: estimatedInr, status: 'reserved' });
+  return { allowed: true, status: 200, reason: 'ok', reservationId };
 }
 
 export async function reconcileVoiceQuota(
   auth: VerifiedVoiceAuth,
-  reservedInr: number,
-  actualInr: number,
-  succeeded: boolean
+  reservationId: string | undefined,
+  actualInr: number
 ): Promise<void> {
+  if (!auth.shopId || !reservationId || !Number.isFinite(actualInr) || actualInr < 0) return;
+
   if (customVoiceQuotaAdapter) {
-    await customVoiceQuotaAdapter.reconcile({ auth, reservedInr, actualInr, succeeded });
+    await customVoiceQuotaAdapter.reconcile({ auth, reservationId, actualInr });
     return;
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
-  const anonKey =
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.VITE_SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    '';
-
-  if (supabaseUrl && anonKey && !supabaseUrl.includes('placeholder') && auth.token) {
+  const supabaseUrl = process.env.SUPABASE_URL || '';
+  const serviceClient = getQuotaServiceRoleClient();
+  if (supabaseUrl && !supabaseUrl.includes('placeholder')) {
+    if (!serviceClient) return;
     try {
-      const supabase = createClient(supabaseUrl, anonKey, {
-        auth: { persistSession: false, autoRefreshToken: false },
-        global: { headers: { Authorization: `Bearer ${auth.token}` } },
-      });
-      await supabase.rpc('reconcile_voice_quota', {
-        p_reserved_inr: reservedInr,
+      await serviceClient.rpc('reconcile_voice_quota', {
+        p_reservation_id: reservationId,
+        p_shop_id: auth.shopId,
         p_actual_inr: actualInr,
-        p_succeeded: succeeded,
       });
     } catch {
       // ignore reconciliation network errors
@@ -275,16 +286,20 @@ export async function reconcileVoiceQuota(
     return;
   }
 
-  const shopId = auth.shopId || 'default-shop';
-  const now = new Date();
-  const day = now.toISOString().slice(0, 10);
-  const month = now.toISOString().slice(0, 7);
-  const delta = succeeded ? actualInr - reservedInr : -reservedInr;
-  const sDayKey = `${shopId}:${day}`;
-  const sMonKey = `${shopId}:${month}`;
-  atomicFallbackState.shopDaily.set(sDayKey, Math.max(0, (atomicFallbackState.shopDaily.get(sDayKey) || 0) + delta));
-  atomicFallbackState.shopMonthly.set(sMonKey, Math.max(0, (atomicFallbackState.shopMonthly.get(sMonKey) || 0) + delta));
-  atomicFallbackState.globalMonthly.set(month, Math.max(0, (atomicFallbackState.globalMonthly.get(month) || 0) + delta));
+  const existing = atomicFallbackState.reservations.get(reservationId);
+  if (!existing || existing.shopId !== auth.shopId || existing.status !== 'reserved') return;
+  existing.status = 'settled';
+
+  const clampedActual = Math.min(existing.reservedInr, Math.max(0, actualInr));
+  const refund = existing.reservedInr - clampedActual;
+  if (refund <= 0) return;
+
+  const { day, month } = getIstDayAndMonth();
+  const sDayKey = `${auth.shopId}:${day}`;
+  const sMonKey = `${auth.shopId}:${month}`;
+  atomicFallbackState.shopDaily.set(sDayKey, Math.max(0, (atomicFallbackState.shopDaily.get(sDayKey) || 0) - refund));
+  atomicFallbackState.shopMonthly.set(sMonKey, Math.max(0, (atomicFallbackState.shopMonthly.get(sMonKey) || 0) - refund));
+  atomicFallbackState.globalMonthly.set(month, Math.max(0, (atomicFallbackState.globalMonthly.get(month) || 0) - refund));
 }
 
 /**

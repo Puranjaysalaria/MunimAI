@@ -99,7 +99,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   }
 
   // Reserve estimated cost atomically before calling Timbre (fail closed if quota check errors)
-  const quota = await reserveVoiceQuota(auth, estimatedInr);
+  const quota = await reserveVoiceQuota(auth, estimatedInr, 'tts');
   if (!quota.allowed) {
     res.status(quota.status).json({
       success: false,
@@ -136,7 +136,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const latency = Date.now() - t0;
 
     if (!upstream.ok) {
-      await reconcileVoiceQuota(auth, estimatedInr, 0, false);
+      await reconcileVoiceQuota(auth, quota.reservationId, 0);
       res.status(upstream.status === 429 ? 429 : 502).json({
         success: false,
         error: upstream.status === 429 ? 'Rate limit exceeded' : 'Speech synthesis unavailable',
@@ -160,7 +160,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       }
     }
 
-    await reconcileVoiceQuota(auth, estimatedInr, estimatedInr, true);
+    await reconcileVoiceQuota(auth, quota.reservationId, estimatedInr);
     res.status(200).json({
       success: true,
       provider: 'gnani',
@@ -175,7 +175,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     });
   } catch (err: any) {
     clearTimeout(timer);
-    await reconcileVoiceQuota(auth, estimatedInr, 0, false);
+    await reconcileVoiceQuota(auth, quota.reservationId, 0);
     const isTimeout = err?.name === 'AbortError';
     res.status(isTimeout ? 504 : 502).json({
       success: false,
