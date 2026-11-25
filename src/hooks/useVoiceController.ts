@@ -1038,7 +1038,13 @@ export function useVoiceController({
     setVoiceState('listening');
     setIsListening(true);
 
-    const provider = createSTTProvider();
+    const cloudSpeechAllowed =
+      shopSettings?.cloud_speech_enabled !== false &&
+      Boolean(shopSettings?.cloud_speech_consent_at);
+    const provider = createSTTProvider(undefined, {
+      language,
+      cloudSpeechEnabled: cloudSpeechAllowed,
+    });
     sttProviderRef.current = provider;
 
     provider.startListening(
@@ -1046,6 +1052,8 @@ export function useVoiceController({
         language,
         continuous: false,
         interimResults: true,
+        isPillActive: true,
+        maxDurationMs: 15_000,
       },
       {
         onResult: (res) => {
@@ -1359,7 +1367,13 @@ export function useVoiceController({
     setIsListening(true);
     setVoiceState('listening');
 
-    const provider = createSTTProvider();
+    const cloudSpeechAllowed =
+      shopSettings?.cloud_speech_enabled !== false &&
+      Boolean(shopSettings?.cloud_speech_consent_at);
+    const provider = createSTTProvider(undefined, {
+      language,
+      cloudSpeechEnabled: cloudSpeechAllowed,
+    });
     sttProviderRef.current = provider;
     replySpeechStartedAtRef.current = 0;
 
@@ -1368,6 +1382,8 @@ export function useVoiceController({
         language,
         continuous: true,
         interimResults: true,
+        isPillActive: true,
+        maxDurationMs: 15_000,
       },
       {
         onSpeechStart: (startedAtMs) => {

@@ -12,9 +12,11 @@ export class BrowserSpeechProvider implements STTProvider {
   state: STTState = 'idle';
 
   private recognition: any = null;
+  private speechStartedAtMs: number | undefined;
   private onResultCallback?: (result: STTResult) => void;
   private onErrorCallback?: (error: STTError) => void;
   private onStateChangeCallback?: (state: STTState) => void;
+  private onSpeechStartCallback?: (startedAtMs: number) => void;
 
   get isSupported(): boolean {
     if (typeof window === 'undefined') return false;
@@ -55,6 +57,7 @@ export class BrowserSpeechProvider implements STTProvider {
       onResult: (result: STTResult) => void;
       onError: (error: STTError) => void;
       onStateChange: (state: STTState) => void;
+      onSpeechStart?: (startedAtMs: number) => void;
     }
   ): Promise<void> {
     const lang = options.language || 'hi';
@@ -72,9 +75,11 @@ export class BrowserSpeechProvider implements STTProvider {
       return;
     }
 
+    this.speechStartedAtMs = undefined;
     this.onResultCallback = callbacks.onResult;
     this.onErrorCallback = callbacks.onError;
     this.onStateChangeCallback = callbacks.onStateChange;
+    this.onSpeechStartCallback = callbacks.onSpeechStart;
 
     const win = window as IWindow;
     const SpeechRecognitionClass = win.SpeechRecognition || win.webkitSpeechRecognition;
@@ -89,6 +94,12 @@ export class BrowserSpeechProvider implements STTProvider {
       this.recognition.onstart = () => {
         this.state = 'listening';
         this.onStateChangeCallback?.('listening');
+      };
+
+      this.recognition.onspeechstart = () => {
+        const now = Date.now();
+        this.speechStartedAtMs = now;
+        this.onSpeechStartCallback?.(now);
       };
 
       this.recognition.onresult = (event: any) => {
@@ -115,6 +126,7 @@ export class BrowserSpeechProvider implements STTProvider {
             transcript,
             isFinal,
             confidence: isFinal ? confidence : 0.8,
+            speechStartedAtMs: this.speechStartedAtMs,
           });
         }
       };

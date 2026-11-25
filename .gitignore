@@ -31,3 +31,7 @@ dist-ssr
 # Temporary Vite files
 .vite-temp
 scratch*
+
+# Phase 6 Voice Evaluation audio/tts folders
+tests/audio-eval
+tests/tts-eval

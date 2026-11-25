@@ -5,6 +5,10 @@ export interface STTOptions {
   continuous?: boolean;
   interimResults?: boolean;
   maxAlternatives?: number;
+  /** Maximum command clip length in milliseconds (default 15,000 ms). */
+  maxDurationMs?: number;
+  /** True only while the voice pill is active; server recorder refuses to capture otherwise. */
+  isPillActive?: boolean;
 }
 
 export type STTState = 'idle' | 'listening' | 'processing' | 'error';

@@ -1,4 +1,13 @@
 import { LanguageCode } from '../i18n/types';
+import { getCachedTTSAudio, hashTTSText, setCachedTTSAudio } from './ttsCache';
+import {
+  SpeakingProviderId,
+  estimateTtsCostInr,
+  getLanguageVoiceProfile,
+  getRemainingVoiceBudgetInr,
+  isCloudSpeechKillSwitchActive,
+  recordVoiceUsage,
+} from '../voice/speechConfig';
 
 /**
  * Transliterates Gurmukhi text (Punjabi) to Devanagari Unicode.
@@ -539,7 +548,178 @@ export class SpeechSynthesizer {
     };
   }
 
-  speak(text: string, lang: LanguageCode | string = 'hi'): Promise<void> {
+  speak(
+    text: string,
+    lang: LanguageCode | string = 'hi',
+    options?: { cloudSpeechEnabled?: boolean; shopId?: string }
+  ): Promise<SpeakingProviderId> {
+    return this.speakWithOrder(text, lang, options);
+  }
+
+  private preRecordedPack = new Map<string, string>();
+
+  registerPreRecordedPack(entries: Array<{ language: string; text: string; url: string }>): void {
+    for (const e of entries) {
+      this.preRecordedPack.set(`${e.language.slice(0, 2)}::${hashTTSText(e.text)}`, e.url);
+    }
+  }
+
+  clearPreRecordedPackForTest(): void {
+    this.preRecordedPack.clear();
+  }
+
+  private async playBase64OrUrl(src: string): Promise<boolean> {
+    if (typeof Audio === 'undefined') return false;
+    return new Promise((resolve) => {
+      try {
+        const audio = new Audio(src);
+        let settled = false;
+        const done = (ok: boolean) => {
+          if (!settled) {
+            settled = true;
+            resolve(ok);
+          }
+        };
+        audio.onended = () => done(true);
+        audio.onerror = () => done(false);
+        setTimeout(() => done(true), 8000);
+        const p = audio.play();
+        if (p && typeof p.catch === 'function') {
+          p.catch(() => done(false));
+        }
+      } catch {
+        resolve(false);
+      }
+    });
+  }
+
+  /**
+   * Provider order for speaking:
+   * 1. Pre-recorded pack
+   * 2. Configured cloud provider (Gnani / Timbre) with (language, voice, model, textHash) cache
+   * 3. Device voice (Web Speech synthesis)
+   * 4. Text only (silent resolve)
+   */
+  async speakWithOrder(
+    text: string,
+    lang: LanguageCode | string = 'hi',
+    options?: { cloudSpeechEnabled?: boolean; shopId?: string }
+  ): Promise<SpeakingProviderId> {
+    if (this.isMuted || !text) {
+      return 'text';
+    }
+
+    const code = (lang || 'hi').slice(0, 2);
+    const profile = getLanguageVoiceProfile(code);
+
+    // 1. Pre-recorded pack
+    const packUrl = this.preRecordedPack.get(`${code}::${hashTTSText(text)}`);
+    if (packUrl) {
+      const t0 = Date.now();
+      const ok = await this.playBase64OrUrl(packUrl);
+      if (ok) {
+        recordVoiceUsage({
+          channel: 'tts',
+          provider: 'device_tts',
+          activeProviderLabel: 'pack',
+          latencyMs: Date.now() - t0,
+          costInr: 0,
+        });
+        return 'pack';
+      }
+    }
+
+    // 2. Configured cloud provider (Gnani / Timbre) with cache
+    const allowCloud =
+      options?.cloudSpeechEnabled !== false &&
+      profile.ttsProvider === 'gnani' &&
+      !isCloudSpeechKillSwitchActive() &&
+      getRemainingVoiceBudgetInr() > 0 &&
+      (typeof navigator === 'undefined' || navigator.onLine !== false);
+
+    if (allowCloud) {
+      const cacheParams = {
+        language: profile.ttsLanguageCode,
+        voice: profile.ttsVoice,
+        model: profile.ttsModel,
+        text,
+      };
+      const cached = getCachedTTSAudio(cacheParams);
+      if (cached) {
+        const dataUri = `data:${cached.mimeType};base64,${cached.audioBase64}`;
+        const ok = await this.playBase64OrUrl(dataUri);
+        if (ok) {
+          recordVoiceUsage({
+            channel: 'tts',
+            provider: 'gnani_tts',
+            activeProviderLabel: 'gnani',
+            latencyMs: 1,
+            costInr: 0,
+          });
+          return 'gnani';
+        }
+      } else if (typeof fetch !== 'undefined') {
+        const t0 = Date.now();
+        try {
+          const endpoint =
+            (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TTS_API_URL) || '/api/gnani-tts';
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(options?.shopId ? { 'x-shop-id': options.shopId } : {}),
+            },
+            body: JSON.stringify(cacheParams),
+          });
+          if (res.ok) {
+            const data = (await res.json()) as {
+              audioBase64?: string;
+              mimeType?: string;
+              latency?: number;
+              costInr?: number;
+            };
+            if (data.audioBase64) {
+              const mimeType = data.mimeType || 'audio/wav';
+              setCachedTTSAudio(cacheParams, data.audioBase64, mimeType);
+              const costInr =
+                typeof data.costInr === 'number' ? data.costInr : estimateTtsCostInr(text.length);
+              const latencyMs = typeof data.latency === 'number' ? data.latency : Date.now() - t0;
+              recordVoiceUsage({
+                channel: 'tts',
+                provider: 'gnani_tts',
+                activeProviderLabel: 'gnani',
+                latencyMs,
+                costInr,
+              });
+              const ok = await this.playBase64OrUrl(`data:${mimeType};base64,${data.audioBase64}`);
+              if (ok) return 'gnani';
+            }
+          }
+        } catch {
+          // Silent fallback to device voice
+        }
+      }
+    }
+
+    // 3. Device voice (Web Speech API)
+    if (this.synth) {
+      const t0 = Date.now();
+      await this.speakWithDeviceSynth(text, lang);
+      recordVoiceUsage({
+        channel: 'tts',
+        provider: 'device_tts',
+        activeProviderLabel: 'device',
+        latencyMs: Date.now() - t0,
+        costInr: 0,
+      });
+      return 'device';
+    }
+
+    // 4. Text only fallback
+    return 'text';
+  }
+
+  private speakWithDeviceSynth(text: string, lang: LanguageCode | string = 'hi'): Promise<void> {
     return new Promise((resolve) => {
       if (!this.synth || this.isMuted || !text) {
         resolve();

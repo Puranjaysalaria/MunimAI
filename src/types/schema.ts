@@ -45,6 +45,8 @@ export interface Shop {
     reminder_settings?: ReminderSettings;
     edit_rupee_threshold?: number;
     edit_age_days_threshold?: number;
+    cloud_speech_enabled?: boolean;
+    cloud_speech_consent_at?: string;
   };
   created_at?: string;
 }

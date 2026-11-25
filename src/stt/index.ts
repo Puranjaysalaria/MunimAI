@@ -1,16 +1,39 @@
 import { STTProvider, STTProviderType } from './types';
 import { BrowserSpeechProvider } from './browserSpeechProvider';
 import { ServerSpeechProvider } from './serverSpeechProvider';
+import { GnaniSttProvider } from './gnaniSttProvider';
+import { getLanguageVoiceProfile, isCloudSpeechKillSwitchActive } from '../voice/speechConfig';
 
 export * from './types';
 export * from './browserSpeechProvider';
 export * from './serverSpeechProvider';
+export * from './gnaniSttProvider';
+export * from './audioClipProcessor';
 
-export function createSTTProvider(type?: STTProviderType): STTProvider {
-  const chosenType =
-    type || (import.meta.env.VITE_STT_PROVIDER as STTProviderType) || 'browser';
+export function createSTTProvider(
+  type?: STTProviderType | 'gnani',
+  options?: { language?: string; cloudSpeechEnabled?: boolean }
+): STTProvider {
+  if (options?.cloudSpeechEnabled === false || isCloudSpeechKillSwitchActive()) {
+    return new BrowserSpeechProvider();
+  }
+
+  const envType =
+    typeof import.meta !== 'undefined' && import.meta.env
+      ? (import.meta.env.VITE_STT_PROVIDER as STTProviderType | 'gnani' | undefined)
+      : undefined;
+
+  const chosenType = type || envType || 'browser';
+
+  if (chosenType === 'gnani') {
+    return new GnaniSttProvider();
+  }
 
   if (chosenType === 'server') {
+    const profile = options?.language ? getLanguageVoiceProfile(options.language) : null;
+    if (!profile || profile.sttProvider === 'gnani') {
+      return new GnaniSttProvider();
+    }
     return new ServerSpeechProvider();
   }
 

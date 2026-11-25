@@ -10,6 +10,7 @@ import { Today } from './pages/Today';
 import { Auth } from './pages/Auth';
 import { PinLock } from './pages/PinLock';
 import { SettingsModal } from './components/SettingsModal';
+import { CloudSpeechConsentModal } from './components/Voice/CloudSpeechConsentModal';
 import { ConfirmationCard } from './components/ConfirmationCard/ConfirmationCard';
 import { DisambiguationModal } from './components/DisambiguationModal/DisambiguationModal';
 import { EntryDisambiguationModal } from './components/DisambiguationModal/EntryDisambiguationModal';
@@ -742,6 +743,36 @@ export const AppContent: React.FC = () => {
           setIsSettingsOpen(false);
           setIsReminderSettingsOpen(true);
         }}
+      />
+
+      {/* First-time Cloud Speech Consent Notice (Phase 4) */}
+      <CloudSpeechConsentModal
+        isOpen={
+          (import.meta.env.VITE_STT_PROVIDER === 'gnani' ||
+            import.meta.env.VITE_STT_PROVIDER === 'server') &&
+          shop.settings?.cloud_speech_enabled !== false &&
+          !shop.settings?.cloud_speech_consent_at &&
+          voice.isListening
+        }
+        language={language}
+        onAccept={() =>
+          updateShopSettings({
+            settings: {
+              ...shop.settings,
+              cloud_speech_enabled: true,
+              cloud_speech_consent_at: new Date().toISOString(),
+            },
+          })
+        }
+        onDecline={() =>
+          updateShopSettings({
+            settings: {
+              ...shop.settings,
+              cloud_speech_enabled: false,
+              cloud_speech_consent_at: new Date().toISOString(),
+            },
+          })
+        }
       />
     </div>
   );
