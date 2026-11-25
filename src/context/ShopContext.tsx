@@ -22,9 +22,11 @@ import {
 } from '../data/mockData';
 import {
   queueTransactionOffline,
+  queueCorrectionOffline,
   drainOfflineQueue,
   getOfflinePendingCount,
   announceSyncSuccess,
+  SyncConflictNotice,
 } from '../offline/syncEngine';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
@@ -44,6 +46,8 @@ interface ShopContextType {
   isLoggedIn: boolean;
   hasPin: boolean;
   offlinePendingCount: number;
+  syncConflicts: SyncConflictNotice[];
+  dismissSyncConflicts: () => void;
   loginWithPhone: (phone: string, otp: string) => boolean;
   loginWithSupabase: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signUpWithSupabase: (email: string, password: string, shopName: string, ownerName: string) => Promise<{ success: boolean; error?: string }>;
@@ -190,6 +194,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return null;
   });
   const [offlinePendingCount, setOfflinePendingCount] = useState<number>(0);
+  const [syncConflicts, setSyncConflicts] = useState<SyncConflictNotice[]>([]);
 
   // Initialize and monitor offline queue count
   useEffect(() => {
@@ -244,6 +249,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await drainOfflineQueue(shop.id);
       if (res.syncedCount > 0) {
         announceSyncSuccess(res.syncedCount, 'hi');
+      }
+      if (res.conflicts.length > 0) {
+        setSyncConflicts((prev) => [...prev, ...res.conflicts]);
       }
       const remaining = await getOfflinePendingCount();
       setOfflinePendingCount(remaining);
@@ -776,26 +784,48 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCorrectionUndoStack((prev) => [computed.undoRecord, ...prev]);
     setLastTransaction(computed.correctionTx);
 
-    if (isSupabaseConfigured() && navigator.onLine) {
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    if (isOffline) {
+      queueCorrectionOffline(
+        {
+          targetTxId: targetTx.id,
+          expectedSupersededBy: targetTx.superseded_by ?? null,
+          reversalTx: computed.reversalTx,
+          correctionTx: computed.correctionTx,
+          customerBalanceDeltas: computed.customerBalanceDeltas,
+          itemStockDeltas: computed.itemStockDeltas,
+          auditLog: computed.auditLog,
+        },
+        shop.id
+      ).then(() => {
+        getOfflinePendingCount().then((count) => setOfflinePendingCount(count));
+      });
+    } else if (isSupabaseConfigured()) {
       supabase
-        .from('audit_logs')
-        .insert({
-          shop_id: shop.id,
-          entity_type: computed.auditLog.entity_type,
-          entity_id: computed.auditLog.entity_id,
-          previous_correction_id: computed.auditLog.previous_correction_id || null,
-          action: computed.auditLog.action,
-          actor_id: computed.auditLog.actor_id,
-          actor_name: computed.auditLog.actor_name,
-          actor_role: computed.auditLog.actor_role,
-          before_value: computed.auditLog.before_value,
-          after_value: computed.auditLog.after_value,
-          reason: computed.auditLog.reason,
-          source: computed.auditLog.source,
-          created_at: computed.auditLog.created_at,
+        .rpc('apply_correction_atomic', {
+          p_shop_id: shop.id,
+          p_target_tx_id: targetTx.id,
+          p_expected_superseded_by: targetTx.superseded_by ?? null,
+          p_reversal_tx: computed.reversalTx,
+          p_correction_tx: computed.correctionTx,
+          p_customer_deltas: computed.customerBalanceDeltas,
+          p_stock_deltas: computed.itemStockDeltas,
+          p_audit_log: computed.auditLog,
         })
-        .then(({ error }) => {
-          if (error) console.error('Failed to persist audit log to Supabase:', error);
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Failed to persist atomic correction to Supabase:', error);
+          } else if (data?.status === 'conflict') {
+            setSyncConflicts((prev) => [
+              ...prev,
+              {
+                mutationId: computed.correctionTx.id,
+                targetTxId: targetTx.id,
+                message:
+                  'This entry was already edited on another device. Your edit was held to prevent overwriting.',
+              },
+            ]);
+          }
         });
     }
 
@@ -1162,6 +1192,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoggedIn,
         hasPin: Boolean(shop.pin_hash),
         offlinePendingCount,
+        syncConflicts,
+        dismissSyncConflicts: () => setSyncConflicts([]),
         loginWithPhone,
         loginWithSupabase,
         signUpWithSupabase,

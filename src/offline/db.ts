@@ -21,7 +21,7 @@ interface MunimDBSchema extends DBSchema {
     value: {
       id: string;
       shopId: string;
-      type: 'add_transaction' | 'upload_proof' | 'delete_proof';
+      type: 'add_transaction' | 'apply_correction' | 'upload_proof' | 'delete_proof';
       payload: any;
       timestamp: string;
     };
@@ -116,7 +116,7 @@ export async function getAllOfflineProofClips() {
 export interface OfflineMutation {
   id: string;
   shopId: string;
-  type: 'add_transaction' | 'upload_proof' | 'delete_proof';
+  type: 'add_transaction' | 'apply_correction' | 'upload_proof' | 'delete_proof';
   payload: any;
   timestamp: string;
 }
