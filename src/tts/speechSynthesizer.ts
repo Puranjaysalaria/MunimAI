@@ -663,11 +663,19 @@ export class SpeechSynthesizer {
         try {
           const endpoint =
             (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TTS_API_URL) || '/api/gnani-tts';
+          let authToken = '';
+          try {
+            const { supabase } = await import('../lib/supabase');
+            const { data } = await supabase.auth.getSession();
+            authToken = data?.session?.access_token || '';
+          } catch {
+            authToken = '';
+          }
           const res = await fetch(endpoint, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              ...(options?.shopId ? { 'x-shop-id': options.shopId } : {}),
+              ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
             },
             body: JSON.stringify(cacheParams),
           });

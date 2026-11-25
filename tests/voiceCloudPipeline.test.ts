@@ -20,6 +20,7 @@ import { speechSynthesizer } from '../src/tts/speechSynthesizer';
 import { formatAmountForSpeech, numberToIndianWords } from '../src/tts/numberToWords';
 import gnaniSttHandler, { resetGnaniSttLimitsForTest } from '../api/gnani-stt';
 import gnaniTtsHandler, { resetGnaniTtsLimitsForTest } from '../api/gnani-tts';
+import { setVoiceAuthVerifierForTest } from '../api/_voiceShared';
 import { scanBuiltFilesForSecrets } from '../scripts/check-no-secrets-in-bundle';
 import { LanguageCode } from '../src/i18n/types';
 
@@ -124,10 +125,13 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
 
     const prevUrl = process.env.GNANI_STT_URL;
     const prevKey = process.env.GNANI_API_KEY;
-    const prevSecret = process.env.INTERNAL_STT_SECRET;
     process.env.GNANI_STT_URL = 'https://gnani.example/stt';
     process.env.GNANI_API_KEY = 'secret-gnani-key';
-    process.env.INTERNAL_STT_SECRET = 'internal-token';
+    setVoiceAuthVerifierForTest(async (token) =>
+      token === 'internal-token'
+        ? { ok: true, status: 200, userId: 'u-1', shopId: 'shop-1' }
+        : { ok: false, status: 401 }
+    );
 
     vi.stubGlobal(
       'fetch',
@@ -148,7 +152,7 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
       await gnaniSttHandler(
         {
           method: 'POST',
-          headers: { authorization: 'Bearer internal-token', 'x-shop-id': 'shop-1' },
+          headers: { authorization: 'Bearer internal-token' },
           body: { audioBase64: wavBase64, language: 'hi', speechStartedAtMs: 55555 },
         } as any,
         okRes
@@ -159,9 +163,9 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
       expect(typeof okRes.body.latency).toBe('number');
       expect(okRes.body.speechStartedAtMs).toBe(55555);
     } finally {
+      setVoiceAuthVerifierForTest(null);
       process.env.GNANI_STT_URL = prevUrl;
       process.env.GNANI_API_KEY = prevKey;
-      process.env.INTERNAL_STT_SECRET = prevSecret;
     }
   });
 
@@ -218,6 +222,7 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
     const prevKey = process.env.GNANI_API_KEY;
     process.env.TIMBRE_TTS_URL = 'https://timbre.example/tts';
     process.env.GNANI_API_KEY = 'secret-timbre-key';
+    setVoiceAuthVerifierForTest(async () => ({ ok: true, status: 200, userId: 'u-1', shopId: 'shop-1' }));
 
     vi.stubGlobal(
       'fetch',
@@ -231,7 +236,11 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
     try {
       const res = makeMockRes();
       await gnaniTtsHandler(
-        { method: 'POST', headers: {}, body: { text: 'Namaste', language: 'hi', voice: 'ananya', model: 'timbre-v1' } } as any,
+        {
+          method: 'POST',
+          headers: { authorization: 'Bearer test-jwt' },
+          body: { text: 'Namaste', language: 'hi', voice: 'ananya', model: 'timbre-v1' },
+        } as any,
         res
       );
       expect(res.statusCode).toBe(200);
@@ -239,6 +248,7 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
       expect(res.body.charCount).toBe(7);
       expect(res.body.costInr).toBeGreaterThan(0);
     } finally {
+      setVoiceAuthVerifierForTest(null);
       process.env.TIMBRE_TTS_URL = prevUrl;
       process.env.GNANI_API_KEY = prevKey;
     }

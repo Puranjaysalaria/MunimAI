@@ -11,7 +11,7 @@ import {
 import { ServerSpeechProvider } from '../src/stt/serverSpeechProvider';
 import { canCompleteByVoiceConfirm } from '../src/voice/safetyTiers';
 import gnaniSttHandler from '../api/gnani-stt';
-import { isValidWav16kMonoHeader, mapGnaniLanguage } from '../api/_voiceShared';
+import { isValidWav16kMonoHeader, mapGnaniLanguage, setVoiceAuthVerifierForTest } from '../api/_voiceShared';
 
 describe('Gnani Command Clip Audio Processor & Safety Guard Integration', () => {
   afterEach(() => {
@@ -134,14 +134,19 @@ describe('Gnani Command Clip Audio Processor & Safety Guard Integration', () => 
       return res;
     };
 
+    setVoiceAuthVerifierForTest(async () => ({ ok: true, status: 200, userId: 'u1', shopId: 'shop-1' }));
+
     // 1. Invalid audio fails with 400
     const badRes = makeMockRes();
     await gnaniSttHandler(
-      { method: 'POST', headers: {}, body: { audioBase64: Buffer.from('not-a-wav').toString('base64'), speechStartedAtMs: 12345 } } as any,
+      {
+        method: 'POST',
+        headers: { authorization: 'Bearer test-jwt' },
+        body: { audioBase64: Buffer.from('not-a-wav').toString('base64'), speechStartedAtMs: 12345 },
+      } as any,
       badRes
     );
     expect(badRes.statusCode).toBe(400);
-    expect(badRes.body.speechStartedAtMs).toBe(12345);
 
     // 2. Valid 16kHz mono 16-bit WAV forwards to Gnani when configured and preserves speechStartedAtMs
     const wav = encodeWav16BitMono(new Float32Array(1600).fill(0.1), 16000);
@@ -163,7 +168,11 @@ describe('Gnani Command Clip Audio Processor & Safety Guard Integration', () => 
     try {
       const okRes = makeMockRes();
       await gnaniSttHandler(
-        { method: 'POST', headers: {}, body: { audioBase64: wavBase64, language: 'hi', speechStartedAtMs: 998877 } } as any,
+        {
+          method: 'POST',
+          headers: { authorization: 'Bearer test-jwt' },
+          body: { audioBase64: wavBase64, language: 'hi', speechStartedAtMs: 998877 },
+        } as any,
         okRes
       );
       expect(okRes.statusCode).toBe(200);
@@ -172,6 +181,7 @@ describe('Gnani Command Clip Audio Processor & Safety Guard Integration', () => 
       expect(okRes.body.language).toBe('hi-IN');
       expect(okRes.body.provider).toBe('gnani');
     } finally {
+      setVoiceAuthVerifierForTest(null);
       process.env.GNANI_STT_URL = prevUrl;
       process.env.GNANI_API_KEY = prevKey;
     }

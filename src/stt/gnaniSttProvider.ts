@@ -192,6 +192,15 @@ export class GnaniSttProvider implements STTProvider {
           const endpoint =
             (typeof import.meta !== 'undefined' && import.meta.env?.VITE_STT_API_URL) || '/api/gnani-stt';
 
+          let authToken = '';
+          try {
+            const { supabase } = await import('../lib/supabase');
+            const { data } = await supabase.auth.getSession();
+            authToken = data?.session?.access_token || '';
+          } catch {
+            authToken = '';
+          }
+
           const controller = new AbortController();
           const timer = setTimeout(() => controller.abort(), timeoutMs);
           const t0 = Date.now();
@@ -201,7 +210,7 @@ export class GnaniSttProvider implements STTProvider {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                ...(options.shopId ? { 'x-shop-id': options.shopId } : {}),
+                ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
               },
               body: JSON.stringify({
                 audioBase64: processed.wavBase64,

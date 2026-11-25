@@ -1,5 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { isValidWav16kMonoHeader, mapGnaniLanguage } from './_voiceShared';
+import {
+  ALLOWED_STT_MODELS,
+  DEFAULT_UPSTREAM_TIMEOUT_MS,
+  MAX_STT_BODY_BYTES,
+  applyCorsAllowlist,
+  isAllowedLanguageInput,
+  isValidWav16kMonoHeader,
+  mapGnaniLanguage,
+  verifySupabaseUserAndShop,
+} from './_voiceShared';
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_RATE_LIMIT_MAX = 30;
@@ -14,17 +23,6 @@ export function resetGnaniSttLimitsForTest(): void {
   dailySpendByShop.clear();
 }
 
-function checkAuth(req: VercelRequest): { ok: boolean; shopId: string } {
-  const shopId = ((req.headers['x-shop-id'] as string) || 'default-shop').trim();
-  const requiredSecret = process.env.INTERNAL_STT_SECRET || '';
-  if (!requiredSecret) {
-    return { ok: true, shopId };
-  }
-  const auth = (req.headers.authorization || '').trim();
-  const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : auth;
-  return { ok: token === requiredSecret, shopId };
-}
-
 function checkRateLimit(shopId: string, nowMs: number = Date.now()): boolean {
   const maxReqs = Math.max(1, Number(process.env.GNANI_STT_RPM) || DEFAULT_RATE_LIMIT_MAX);
   const bucket = requestBuckets.get(shopId);
@@ -32,26 +30,18 @@ function checkRateLimit(shopId: string, nowMs: number = Date.now()): boolean {
     requestBuckets.set(shopId, { count: 1, windowStart: nowMs });
     return true;
   }
-  if (bucket.count >= maxReqs) {
-    return false;
-  }
+  if (bucket.count >= maxReqs) return false;
   bucket.count += 1;
   return true;
 }
 
-function getSpendKey(shopId: string): string {
-  return `${shopId}:${new Date().toISOString().slice(0, 10)}`;
-}
-
-function checkAndRecordBudget(shopId: string, estimatedInr: number): { allowed: boolean; remainingInr: number } {
+function checkAndRecordBudget(shopId: string, estimatedInr: number): { allowed: boolean } {
   const cap = Math.max(0, Number(process.env.GNANI_DAILY_BUDGET_INR) || DEFAULT_DAILY_BUDGET_INR);
-  const key = getSpendKey(shopId);
+  const key = `${shopId}:${new Date().toISOString().slice(0, 10)}`;
   const used = dailySpendByShop.get(key) || 0;
-  if (used + estimatedInr > cap) {
-    return { allowed: false, remainingInr: Math.max(0, cap - used) };
-  }
+  if (used + estimatedInr > cap) return { allowed: false };
   dailySpendByShop.set(key, used + estimatedInr);
-  return { allowed: true, remainingInr: Math.max(0, cap - (used + estimatedInr)) };
+  return { allowed: true };
 }
 
 /** Treats transcript strictly as plain data (strips control characters). */
@@ -61,12 +51,13 @@ function sanitizeTranscriptData(raw: unknown): string {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-shop-id');
+  if (!applyCorsAllowlist(req, res)) {
+    res.status(403).json({ success: false, error: 'Origin not allowed' });
+    return;
+  }
 
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
+    res.status(204).end();
     return;
   }
 
@@ -75,35 +66,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return;
   }
 
-  const auth = checkAuth(req);
-  if (!auth.ok) {
-    res.status(401).json({ success: false, error: 'Unauthorized' });
+  // Verify Supabase access token and derive shop_id from DB (never from request body)
+  const auth = await verifySupabaseUserAndShop(req);
+  if (!auth.ok || !auth.shopId) {
+    res.status(auth.status).json({ success: false, error: 'Unauthorized' });
     return;
   }
 
-  if (!checkRateLimit(auth.shopId)) {
-    res.status(429).json({ success: false, error: 'Rate limit exceeded for gnani-stt' });
+  const shopId = auth.shopId;
+  if (!checkRateLimit(shopId)) {
+    res.status(429).json({ success: false, error: 'Rate limit exceeded' });
     return;
   }
 
   let payload = req.body;
   if (typeof payload === 'string') {
+    if (Buffer.byteLength(payload, 'utf8') > MAX_STT_BODY_BYTES * 1.4) {
+      res.status(413).json({ success: false, error: 'Request body too large' });
+      return;
+    }
     try {
       payload = JSON.parse(payload);
     } catch {
-      res.status(400).json({ success: false, error: 'Invalid JSON body' });
+      res.status(400).json({ success: false, error: 'Invalid request body' });
       return;
     }
   }
   payload = payload || {};
 
-  const {
-    audioBase64,
-    language,
-    model,
-    hinglishMode,
-    speechStartedAtMs,
-  } = payload as {
+  const { audioBase64, language, model, hinglishMode, speechStartedAtMs } = payload as {
     audioBase64?: string;
     language?: string;
     model?: string;
@@ -111,34 +102,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     speechStartedAtMs?: number;
   };
 
+  if (!isAllowedLanguageInput(language)) {
+    res.status(400).json({ success: false, error: 'Unsupported language' });
+    return;
+  }
+
+  const chosenModel = (model || process.env.GNANI_STT_MODEL || 'gnani-stt-v2').trim();
+  if (!ALLOWED_STT_MODELS.has(chosenModel)) {
+    res.status(400).json({ success: false, error: 'Unsupported model' });
+    return;
+  }
+
   if (!audioBase64 || typeof audioBase64 !== 'string') {
-    res.status(400).json({ success: false, error: 'Missing audioBase64', speechStartedAtMs });
+    res.status(400).json({ success: false, error: 'Missing audio payload' });
     return;
   }
 
   const cleanBase64 = audioBase64.replace(/^data:[^;]+;base64,/, '');
   const audioBuffer = Buffer.from(cleanBase64, 'base64');
 
-  if (!isValidWav16kMonoHeader(audioBuffer)) {
-    res.status(400).json({
-      success: false,
-      error: 'Audio must be 16 kHz mono 16-bit PCM WAV.',
-      speechStartedAtMs,
-    });
+  if (audioBuffer.length > MAX_STT_BODY_BYTES) {
+    res.status(413).json({ success: false, error: 'Audio payload exceeds 1 MB limit' });
     return;
   }
 
-  // Compute clip duration from PCM payload bytes (16kHz * 2 bytes/sample = 32,000 bytes/sec)
+  if (!isValidWav16kMonoHeader(audioBuffer)) {
+    res.status(400).json({ success: false, error: 'Invalid audio format' });
+    return;
+  }
+
   const durationSec = Math.max(0.1, (audioBuffer.length - 44) / 32000);
   const estimatedInr = Number((durationSec * GNANI_STT_INR_PER_SEC).toFixed(6));
-  const budget = checkAndRecordBudget(auth.shopId, estimatedInr);
+  const budget = checkAndRecordBudget(shopId, estimatedInr);
   if (!budget.allowed) {
-    res.status(402).json({
-      success: false,
-      error: 'Daily Gnani STT budget exceeded',
-      remainingInr: budget.remainingInr,
-      speechStartedAtMs,
-    });
+    res.status(402).json({ success: false, error: 'Voice quota exceeded' });
     return;
   }
 
@@ -147,16 +144,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const gnaniProductId = process.env.GNANI_PRODUCT_ID || '';
 
   if (!gnaniUrl || !gnaniApiKey) {
-    res.status(503).json({
-      success: false,
-      error: 'Gnani STT credentials not configured on server',
-      speechStartedAtMs,
-    });
+    res.status(503).json({ success: false, error: 'Speech service unavailable' });
     return;
   }
 
   const mappedLang = mapGnaniLanguage(language);
-  const chosenModel = (model || process.env.GNANI_STT_MODEL || 'gnani-stt-v2').trim();
+  const timeoutMs = Math.max(1000, Number(process.env.GNANI_UPSTREAM_TIMEOUT_MS) || DEFAULT_UPSTREAM_TIMEOUT_MS);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   const t0 = Date.now();
 
   try {
@@ -168,7 +163,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     formData.append('encoding', 'pcm16');
     formData.append('sample_rate', '16000');
 
-    // Only attach Hinglish auto/mixed option when explicitly requested & supported
     if (hinglishMode === 'auto' || hinglishMode === 'mixed') {
       formData.append('mixed_language', hinglishMode);
     }
@@ -185,16 +179,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       method: 'POST',
       headers,
       body: formData,
+      signal: controller.signal,
     });
+    clearTimeout(timer);
 
     const latency = Date.now() - t0;
 
     if (!upstream.ok) {
       res.status(upstream.status === 429 ? 429 : 502).json({
         success: false,
-        error: `Gnani STT HTTP ${upstream.status}`,
-        latency,
-        speechStartedAtMs,
+        error: upstream.status === 429 ? 'Rate limit exceeded' : 'Speech recognition unavailable',
       });
       return;
     }
@@ -223,11 +217,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       speechStartedAtMs,
     });
   } catch (err: any) {
-    res.status(502).json({
+    clearTimeout(timer);
+    const isTimeout = err?.name === 'AbortError';
+    res.status(isTimeout ? 504 : 502).json({
       success: false,
-      error: err?.message || 'Gnani STT request failed',
-      latency: Date.now() - t0,
-      speechStartedAtMs,
+      error: isTimeout ? 'Speech recognition timed out' : 'Speech recognition failed',
     });
   }
 }

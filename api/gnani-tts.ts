@@ -1,5 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { mapGnaniLanguage } from './_voiceShared';
+import {
+  ALLOWED_TTS_MODELS,
+  ALLOWED_TTS_VOICES,
+  DEFAULT_TTS_MAX_CHARS,
+  DEFAULT_UPSTREAM_TIMEOUT_MS,
+  applyCorsAllowlist,
+  isAllowedLanguageInput,
+  mapGnaniLanguage,
+  verifySupabaseUserAndShop,
+} from './_voiceShared';
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_RATE_LIMIT_MAX = 40;
@@ -14,15 +23,6 @@ export function resetGnaniTtsLimitsForTest(): void {
   dailySpendByShop.clear();
 }
 
-function checkAuth(req: VercelRequest): { ok: boolean; shopId: string } {
-  const shopId = ((req.headers['x-shop-id'] as string) || 'default-shop').trim();
-  const requiredSecret = process.env.INTERNAL_TTS_SECRET || '';
-  if (!requiredSecret) return { ok: true, shopId };
-  const auth = (req.headers.authorization || '').trim();
-  const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : auth;
-  return { ok: token === requiredSecret, shopId };
-}
-
 function checkRateLimit(shopId: string, nowMs: number = Date.now()): boolean {
   const maxReqs = Math.max(1, Number(process.env.GNANI_TTS_RPM) || DEFAULT_RATE_LIMIT_MAX);
   const bucket = requestBuckets.get(shopId);
@@ -35,24 +35,23 @@ function checkRateLimit(shopId: string, nowMs: number = Date.now()): boolean {
   return true;
 }
 
-function checkAndRecordBudget(shopId: string, estimatedInr: number): { allowed: boolean; remainingInr: number } {
+function checkAndRecordBudget(shopId: string, estimatedInr: number): { allowed: boolean } {
   const cap = Math.max(0, Number(process.env.GNANI_DAILY_BUDGET_INR) || DEFAULT_DAILY_BUDGET_INR);
   const key = `${shopId}:${new Date().toISOString().slice(0, 10)}`;
   const used = dailySpendByShop.get(key) || 0;
-  if (used + estimatedInr > cap) {
-    return { allowed: false, remainingInr: Math.max(0, cap - used) };
-  }
+  if (used + estimatedInr > cap) return { allowed: false };
   dailySpendByShop.set(key, used + estimatedInr);
-  return { allowed: true, remainingInr: Math.max(0, cap - (used + estimatedInr)) };
+  return { allowed: true };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-shop-id');
+  if (!applyCorsAllowlist(req, res)) {
+    res.status(403).json({ success: false, error: 'Origin not allowed' });
+    return;
+  }
 
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
+    res.status(204).end();
     return;
   }
 
@@ -61,14 +60,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return;
   }
 
-  const auth = checkAuth(req);
-  if (!auth.ok) {
-    res.status(401).json({ success: false, error: 'Unauthorized' });
+  const auth = await verifySupabaseUserAndShop(req);
+  if (!auth.ok || !auth.shopId) {
+    res.status(auth.status).json({ success: false, error: 'Unauthorized' });
     return;
   }
 
-  if (!checkRateLimit(auth.shopId)) {
-    res.status(429).json({ success: false, error: 'Rate limit exceeded for gnani-tts' });
+  const shopId = auth.shopId;
+  if (!checkRateLimit(shopId)) {
+    res.status(429).json({ success: false, error: 'Rate limit exceeded' });
     return;
   }
 
@@ -77,7 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     try {
       payload = JSON.parse(payload);
     } catch {
-      res.status(400).json({ success: false, error: 'Invalid JSON body' });
+      res.status(400).json({ success: false, error: 'Invalid request body' });
       return;
     }
   }
@@ -90,20 +90,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     model?: string;
   };
 
-  if (!text || typeof text !== 'string' || !text.trim()) {
-    res.status(400).json({ success: false, error: 'Missing text in request body' });
+  if (!isAllowedLanguageInput(language)) {
+    res.status(400).json({ success: false, error: 'Unsupported language' });
     return;
   }
 
-  const cleanText = text.trim().slice(0, 1000);
+  const chosenModel = (model || process.env.TIMBRE_TTS_MODEL || 'timbre-v1').trim();
+  if (!ALLOWED_TTS_MODELS.has(chosenModel)) {
+    res.status(400).json({ success: false, error: 'Unsupported model' });
+    return;
+  }
+
+  const chosenVoice = (voice || process.env.TIMBRE_TTS_VOICE || 'ananya').trim();
+  if (!ALLOWED_TTS_VOICES.has(chosenVoice)) {
+    res.status(400).json({ success: false, error: 'Unsupported voice' });
+    return;
+  }
+
+  if (!text || typeof text !== 'string' || !text.trim()) {
+    res.status(400).json({ success: false, error: 'Missing text payload' });
+    return;
+  }
+
+  const maxChars = Math.max(1, Number(process.env.GNANI_TTS_MAX_CHARS) || DEFAULT_TTS_MAX_CHARS);
+  const cleanText = text.trim();
+  if (cleanText.length > maxChars) {
+    res.status(413).json({ success: false, error: `Text exceeds ${maxChars} character limit` });
+    return;
+  }
+
   const estimatedInr = Number((cleanText.length * GNANI_TTS_INR_PER_CHAR).toFixed(6));
-  const budget = checkAndRecordBudget(auth.shopId, estimatedInr);
+  const budget = checkAndRecordBudget(shopId, estimatedInr);
   if (!budget.allowed) {
-    res.status(402).json({
-      success: false,
-      error: 'Daily Gnani TTS budget exceeded',
-      remainingInr: budget.remainingInr,
-    });
+    res.status(402).json({ success: false, error: 'Voice quota exceeded' });
     return;
   }
 
@@ -111,16 +130,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   const apiKey = process.env.GNANI_API_KEY || process.env.TIMBRE_API_KEY || '';
 
   if (!timbreUrl || !apiKey) {
-    res.status(503).json({
-      success: false,
-      error: 'Timbre/Gnani TTS credentials not configured on server',
-    });
+    res.status(503).json({ success: false, error: 'Speech service unavailable' });
     return;
   }
 
   const mappedLang = mapGnaniLanguage(language);
-  const chosenModel = (model || process.env.TIMBRE_TTS_MODEL || 'timbre-v1').trim();
-  const chosenVoice = (voice || process.env.TIMBRE_TTS_VOICE || 'ananya').trim();
+  const timeoutMs = Math.max(1000, Number(process.env.GNANI_UPSTREAM_TIMEOUT_MS) || DEFAULT_UPSTREAM_TIMEOUT_MS);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   const t0 = Date.now();
 
   try {
@@ -138,15 +155,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
         model: chosenModel,
         format: 'wav',
       }),
+      signal: controller.signal,
     });
+    clearTimeout(timer);
 
     const latency = Date.now() - t0;
 
     if (!upstream.ok) {
       res.status(upstream.status === 429 ? 429 : 502).json({
         success: false,
-        error: `Timbre TTS HTTP ${upstream.status}`,
-        latency,
+        error: upstream.status === 429 ? 'Rate limit exceeded' : 'Speech synthesis unavailable',
       });
       return;
     }
@@ -180,10 +198,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       latency,
     });
   } catch (err: any) {
-    res.status(502).json({
+    clearTimeout(timer);
+    const isTimeout = err?.name === 'AbortError';
+    res.status(isTimeout ? 504 : 502).json({
       success: false,
-      error: err?.message || 'Timbre TTS request failed',
-      latency: Date.now() - t0,
+      error: isTimeout ? 'Speech synthesis timed out' : 'Speech synthesis failed',
     });
   }
 }
