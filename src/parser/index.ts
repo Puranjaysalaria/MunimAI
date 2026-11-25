@@ -67,7 +67,22 @@ export async function parseSpeech(
       items: context.items,
       isOnline: context.isOnline,
     });
-    result = routed.intent !== 'unknown' ? routed : ruleRes;
+    if (routed.intent !== 'unknown') {
+      result =
+        routed.intent === ruleRes.intent
+          ? {
+              ...ruleRes,
+              ...routed,
+              item: routed.item ?? ruleRes.item,
+              customer: routed.customer ?? ruleRes.customer,
+              amount: routed.amount ?? ruleRes.amount,
+              quantity: routed.quantity ?? ruleRes.quantity,
+              unit: routed.unit ?? ruleRes.unit,
+            }
+          : routed;
+    } else {
+      result = ruleRes;
+    }
   }
 
   // Validate with Zod schema
