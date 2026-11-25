@@ -294,6 +294,7 @@ This log records major technical and product decisions made during the developme
   - **Diff Confirmation & Side-Effect Warnings**: Every saved-entry edit requires a Before/After diff confirmation card and surfaces warnings for attached proof clips (preserving `proof_original_amount`), sent reminders, and stock/profit deltas.
   - **Tiered Safety**: Deletes (entries, clips, bills) and proof recordings remain strictly tap-only. Edits exceeding configurable `edit_rupee_threshold` (default ₹2,000) or `edit_age_days_threshold` (default 7 days), or touching entries with proof/reminders, disable voice auto-confirm and require a deliberate tap on Confirm. Voice `"Haan"` only completes standard actions while the mic pill is active and a confirmation card is showing.
   - **Voice ↔ Tap Parity**: Documented in [VOICE_PARITY.md](file:///C:/Users/Croma/Desktop/DukaanAI/VOICE_PARITY.md); all voice edits have matching tap UIs routed through the same confirmation and audit pipeline.
+  - **Atomic Offline Sync & Interim Guard**: Offline corrections queue as `apply_correction` mutations in IndexedDB, replay FIFO after their root transaction via `apply_correction_atomic` with `superseded_by` optimistic concurrency, and voice `"Haan"` requires a final STT result spoken after the confirmation card appeared.
 
 
 

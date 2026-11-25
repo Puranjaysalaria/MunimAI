@@ -22,16 +22,16 @@ export function parseReminderPreviewEdit(rawText: string): ReminderPreviewEditPa
 
   if (/\b(polite|naram|soft|pyaar|meetha|विनम्र|नरम|ਨਰਮ)\b/iu.test(rawText) || /\b(polite|naram|soft)\b/i.test(lower)) {
     patch.tone = 'polite';
-  } else if (/\b(firm|sakht|strict|kadak|दृढ़|सख्त|ਸਖ਼ਤ)\b/iu.test(rawText) || /\b(firm|sakht|strict)\b/i.test(lower)) {
+  } else if (/\b(firm|sakht|strict|kadak)\b|दृढ़|सख्त|फर्म|ਸਖ਼ਤ|ਫਰਮ/iu.test(rawText) || /\b(firm|sakht|strict)\b/i.test(lower)) {
     patch.tone = 'firm';
   } else if (/\b(standard|normal|regular|saadharan|सामान्य|ਆਮ)\b/iu.test(rawText) || /\b(standard|normal|regular)\b/i.test(lower)) {
     patch.tone = 'standard';
   }
 
-  if (/\b(upi|link|payment\s*details?)\b/i.test(lower)) {
-    if (/\b(remove|hatao|hata\s*do|band|no|without|bina|mat|हटाओ|हटा\s*दो|ਹਟਾਓ)\b/iu.test(rawText)) {
+  if (/\b(upi|link|payment\s*details?)\b/i.test(lower) || /यूपीआई|ਯੂਪੀਆਈ/iu.test(rawText)) {
+    if (/\b(remove|hatao|hata\s*do|band|no|without|bina|mat)\b|हटाओ|हटा\s*दो|ਹਟਾਓ/iu.test(rawText)) {
       patch.includeUpi = false;
-    } else if (/\b(add|jodo|lagao|include|with|shamil|जोड़ो|लगाओ|ਜੋੜੋ)\b/iu.test(rawText)) {
+    } else if (/\b(add|jodo|lagao|include|with|shamil)\b|जोड़ो|लगाओ|ਜੋੜੋ/iu.test(rawText)) {
       patch.includeUpi = true;
     }
   }

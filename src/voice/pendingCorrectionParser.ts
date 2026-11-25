@@ -285,7 +285,7 @@ export function parsePendingCorrection(
   }
 
   // 5. Date Correction ("aaj nahi kal" / "kal" / "yesterday")
-  if (/\b(kal|yesterday|beeta\s*kal|कल|ਬੀਤਾ\s*ਕੱਲ੍ਹ)\b/iu.test(effectiveText) && !parsedNum) {
+  if (/(?:^|\s)(?:kal|yesterday|beeta\s*kal|कल|ਬੀਤਾ\s*ਕੱਲ੍ਹ)(?:$|\s)/iu.test(effectiveText) && !parsedNum) {
     const d = new Date();
     d.setDate(d.getDate() - 1);
     return {
@@ -299,7 +299,11 @@ export function parsePendingCorrection(
   }
 
   // 6. Customer Correction ("Ramesh Kumar wala" / "Ramesh nahi Suresh")
-  const customerQuery = effectiveText.replace(/\b(wala|wali|wale|customer|grahak|name|naam)\b/gi, '').trim();
+  const customerQuery = effectiveText
+    .replace(/\b(wala|wali|wale|customer|grahak|name|naam|arre|suno|bhaiya|please|kar\s*do|likho)\b/gi, ' ')
+    .replace(/(वाला|वाली|वाले|ग्राहक|नाम|अरे|सुनो|भैया|कर\s*दो|लिखो)/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
   const custResolution = resolveCrossScriptCustomer(customerQuery || effectiveText, customers);
   if (custResolution.matchedCustomer) {
     return {

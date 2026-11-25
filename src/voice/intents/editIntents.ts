@@ -19,7 +19,7 @@ export const EDIT_INTENT_PATTERNS: Record<LanguageCode, IntentMatchPattern[]> = 
     {
       intent: 'change_item',
       patterns: [
-        /(?:सामान|चीज़|आइटम|सौदा|item|samaan|saaman)\s*(?:बदलो|बदल\s*दो|चेंज\s*करो|badlo|badal\s*do|change|update)/iu,
+        /(?:सामान|चीज़|आइटम|सौदा|item|samaan|saaman)\s*(?:बदलो|बदल\s*दो|चेंज\s*करो|सुधारो|सही\s*करो|ठीक\s*करो|badlo|badal\s*do|change|update|sudharo|sahi\s*karo|theek\s*karo)/iu,
         /(?:बदलो|बदल\s*दो|चेंज\s*करो|badlo|change)\s*(?:सामान|चीज़|आइटम|item|samaan)/iu,
       ],
       confidence: 0.94,
@@ -27,7 +27,7 @@ export const EDIT_INTENT_PATTERNS: Record<LanguageCode, IntentMatchPattern[]> = 
     {
       intent: 'change_customer',
       patterns: [
-        /(?:ग्राहक|कस्टमर|नाम|customer|grahak|naam)\s*(?:बदलो|बदल\s*दो|चेंज\s*करो|सुधारो|badlo|badal\s*do|change|update)/iu,
+        /(?:ग्राहक|कस्टमर|नाम|customer|grahak|naam)\s*(?:बदलो|बदल\s*दो|चेंज\s*करो|सुधारो|सही\s*करो|ठीक\s*करो|badlo|badal\s*do|change|update|sudharo|sahi\s*karo|theek\s*karo)/iu,
         /(?:बदलो|बदल\s*दो|चेंज\s*करो|badlo|change)\s*(?:ग्राहक|कस्टमर|नाम|customer|grahak)/iu,
       ],
       confidence: 0.94,
@@ -35,7 +35,7 @@ export const EDIT_INTENT_PATTERNS: Record<LanguageCode, IntentMatchPattern[]> = 
     {
       intent: 'change_quantity',
       patterns: [
-        /(?:मात्रा|क्वांटिटी|किलो|लीटर|पैकेट|वजन|quantity|qty|maatra|wazan)\s*(?:बदलो|बदल\s*दो|चेंज\s*करो|बढ़ाओ|घटाओ|कर\s*दो|badlo|badal\s*do|change|update)/iu,
+        /(?:मात्रा|क्वांटिटी|किलो|लीटर|पैकेट|वजन|quantity|qty|maatra|wazan)\s*(?:बदलो|बदल\s*दो|चेंज\s*करो|बढ़ाओ|घटाओ|कर\s*दो|सुधारो|सही\s*करो|badlo|badal\s*do|change|update|sudharo|sahi\s*karo|theek\s*karo)/iu,
         /(?:बदलो|बदल\s*दो|चेंज\s*करो|badlo|change)\s*(?:मात्रा|क्वांटिटी|quantity|qty)/iu,
       ],
       confidence: 0.94,
@@ -43,7 +43,7 @@ export const EDIT_INTENT_PATTERNS: Record<LanguageCode, IntentMatchPattern[]> = 
     {
       intent: 'change_date',
       patterns: [
-        /(?:तारीख|तारीख़|दिन|डेट|date|taarikh|tarikh)\s*(?:बदलो|बदल\s*दो|चेंज\s*करो|कर\s*दो|badlo|badal\s*do|change|update)/iu,
+        /(?:तारीख|तारीख़|दिन|डेट|date|taarikh|tarikh)\s*(?:बदलो|बदल\s*दो|चेंज\s*करो|कर\s*दो|सुधारो|सही\s*करो|badlo|badal\s*do|change|update|sudharo|sahi\s*karo|theek\s*karo)/iu,
         /(?:बदलो|बदल\s*दो|चेंज\s*करो|badlo|change)\s*(?:तारीख|तारीख़|date|taarikh)/iu,
       ],
       confidence: 0.94,

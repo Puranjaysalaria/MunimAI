@@ -4,6 +4,7 @@ import { useI18n } from '../i18n';
 import { LanguageCode } from '../i18n/types';
 import { X, Globe, Lock, Shield, LogOut, Check, Store, UserCheck, Bell, ChevronRight, Mic, AlertTriangle } from 'lucide-react';
 import { isValidUPI } from '../lib/reminderService';
+import { DEFAULT_EDIT_RUPEE_THRESHOLD, DEFAULT_EDIT_AGE_DAYS_THRESHOLD } from '../voice/safetyTiers';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -20,6 +21,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
   const [upiId, setUpiId] = useState(shop.upi_id || '');
   const [pinInput, setPinInput] = useState(shop.pin_hash || '');
   const [wakeWordEnabled, setWakeWordEnabled] = useState(shop.settings?.wake_word_enabled ?? true);
+  const [editRupeeThreshold, setEditRupeeThreshold] = useState<string>(
+    String(shop.settings?.edit_rupee_threshold ?? DEFAULT_EDIT_RUPEE_THRESHOLD)
+  );
+  const [editAgeDaysThreshold, setEditAgeDaysThreshold] = useState<string>(
+    String(shop.settings?.edit_age_days_threshold ?? DEFAULT_EDIT_AGE_DAYS_THRESHOLD)
+  );
   const [savedNotice, setSavedNotice] = useState(false);
 
   if (!isOpen) return null;
@@ -32,6 +39,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
       settings: {
         ...shop.settings,
         wake_word_enabled: wakeWordEnabled,
+        edit_rupee_threshold: Math.max(0, Number(editRupeeThreshold) || DEFAULT_EDIT_RUPEE_THRESHOLD),
+        edit_age_days_threshold: Math.max(0, Number(editAgeDaysThreshold) || DEFAULT_EDIT_AGE_DAYS_THRESHOLD),
       },
     });
     if (pinInput.length === 4) {
@@ -264,6 +273,41 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
               <ChevronRight className="w-5 h-5 text-gray-400" />
             </div>
           )}
+
+          {/* Edit Safety Tier Thresholds */}
+          <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-3.5 space-y-3">
+            <p className="text-xs font-black text-amber-950">
+              {t.editing.tapConfirmRequired}
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                  Max Voice Edit (₹)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="100"
+                  value={editRupeeThreshold}
+                  onChange={(e) => setEditRupeeThreshold(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-amber-200 bg-white text-sm font-black text-slate-900"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                  Max Entry Age (Days)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={editAgeDaysThreshold}
+                  onChange={(e) => setEditAgeDaysThreshold(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-amber-200 bg-white text-sm font-black text-slate-900"
+                />
+              </div>
+            </div>
+          </div>
 
           {/* Privacy Note */}
           <div
