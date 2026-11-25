@@ -179,6 +179,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return [];
   });
   const [lastCorrectionUndo, setLastCorrectionUndo] = useState<LastCorrectionUndo | null>(null);
+  const [correctionUndoStack, setCorrectionUndoStack] = useState<LastCorrectionUndo[]>([]);
   const [lastPriceChange, setLastPriceChange] = useState<LastPriceChange | null>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}last_price_change`);
     if (saved) {
@@ -772,6 +773,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setAuditLogs((prev) => [computed.auditLog, ...prev]);
     setLastCorrectionUndo(computed.undoRecord);
+    setCorrectionUndoStack((prev) => [computed.undoRecord, ...prev]);
     setLastTransaction(computed.correctionTx);
 
     if (isSupabaseConfigured() && navigator.onLine) {
@@ -781,6 +783,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
           shop_id: shop.id,
           entity_type: computed.auditLog.entity_type,
           entity_id: computed.auditLog.entity_id,
+          previous_correction_id: computed.auditLog.previous_correction_id || null,
           action: computed.auditLog.action,
           actor_id: computed.auditLog.actor_id,
           actor_name: computed.auditLog.actor_name,
@@ -985,11 +988,15 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
           )
       );
 
+      const rootEntityId =
+        transactions.find((t) => t.id === undoRec.originalTxId)?.parent_transaction_id ||
+        undoRec.originalTxId;
       const undoAudit: AuditLogEntry = {
         id: `audit-undo-${Date.now()}`,
         shop_id: shop.id,
         entity_type: 'transaction',
-        entity_id: undoRec.originalTxId,
+        entity_id: rootEntityId,
+        previous_correction_id: undoRec.correctionTxId,
         action: 'undo',
         actor_id: user?.id || null,
         actor_name: user?.name || 'Shop Owner',
@@ -1000,7 +1007,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         created_at: new Date().toISOString(),
       };
       setAuditLogs((prev) => [undoAudit, ...prev]);
-      setLastCorrectionUndo(null);
+      const remainingStack = correctionUndoStack.slice(1);
+      setCorrectionUndoStack(remainingStack);
+      setLastCorrectionUndo(remainingStack[0] || null);
       setLastTransaction(null);
 
       return {

@@ -100,6 +100,7 @@ export interface Transaction {
   synced?: boolean;
   // Append-only correction & audit fields
   parent_transaction_id?: string | null;
+  previous_correction_id?: string | null;
   is_correction?: boolean;
   is_reversal?: boolean;
   superseded_by?: string | null;
@@ -237,6 +238,7 @@ export interface AuditLogEntry {
   shop_id: string;
   entity_type: 'transaction' | 'customer' | 'item' | 'supplier_order' | 'reminder' | 'bill_scan';
   entity_id: string;
+  previous_correction_id?: string | null;
   action: 'edit' | 'undo' | 'create' | 'delete_proof';
   actor_id?: string | null;
   actor_name: string;

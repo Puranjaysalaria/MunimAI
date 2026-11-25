@@ -6,6 +6,7 @@
 -- 1. Extend transactions table for append-only corrections (never overwrite originals)
 ALTER TABLE public.transactions
   ADD COLUMN IF NOT EXISTS parent_transaction_id UUID REFERENCES public.transactions(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS previous_correction_id UUID REFERENCES public.transactions(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS is_correction BOOLEAN NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS is_reversal BOOLEAN NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS superseded_by UUID REFERENCES public.transactions(id) ON DELETE SET NULL,
@@ -22,6 +23,7 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
     shop_id UUID NOT NULL REFERENCES public.shops(id) ON DELETE CASCADE,
     entity_type TEXT NOT NULL CHECK (entity_type IN ('transaction', 'customer', 'item', 'supplier_order', 'reminder', 'bill_scan')),
     entity_id TEXT NOT NULL,
+    previous_correction_id TEXT,
     action TEXT NOT NULL CHECK (action IN ('edit', 'undo', 'create', 'delete_proof')),
     actor_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
     actor_name TEXT NOT NULL,

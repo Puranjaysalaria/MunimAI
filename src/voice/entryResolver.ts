@@ -4,6 +4,7 @@ import { resolveCrossScriptCustomer } from './crossScriptMatcher';
 import { findMentionedItems } from '../parser/synonyms';
 import { parseMultilingualNumber } from './multilingualNumbers';
 import { transliterateIndicToLatin } from '../parser/indicNormalizer';
+import { getEffectiveTransactions } from '../lib/correctionService';
 
 export interface EntryResolutionQuery {
   rawText: string;
@@ -64,10 +65,10 @@ export function resolveTargetEntry(
   customers: Customer[],
   language: LanguageCode = 'hi'
 ): EntryResolutionResult {
-  // Filter out pure reversal/correction child records so user edits primary/effective entries
-  const activeEntries = [...transactions]
-    .filter((tx) => !tx.is_reversal && !tx.is_correction)
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  // Use only currently effective transactions (excludes reversals & superseded versions)
+  const activeEntries = [...getEffectiveTransactions(transactions)].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
 
   if (activeEntries.length === 0) {
     return {

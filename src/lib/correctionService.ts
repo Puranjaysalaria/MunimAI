@@ -60,7 +60,10 @@ export function buildAppendOnlyCorrection(
   const newCreatedAt = patch.created_at !== undefined ? patch.created_at : originalTx.created_at;
   const newNote = patch.note !== undefined ? patch.note : (originalTx.note ?? null);
 
-  // 1. Reversal record (undoes the original's financial & stock effect in the append-only ledger)
+  const rootTxId = originalTx.parent_transaction_id || originalTx.id;
+  const previousCorrectionId = originalTx.is_correction ? originalTx.id : null;
+
+  // 1. Reversal record (undoes the previous effective version's financial & stock effect)
   const reversalTx: Transaction = {
     id: reversalTxId,
     shop_id: options.shopId,
@@ -70,7 +73,8 @@ export function buildAppendOnlyCorrection(
     customer_id: originalTx.customer_id ?? null,
     created_at: nowIso,
     confirmed_by_voice: options.source === 'voice',
-    parent_transaction_id: originalTx.id,
+    parent_transaction_id: rootTxId,
+    previous_correction_id: previousCorrectionId,
     is_reversal: true,
     is_correction: false,
     source: options.source,
@@ -78,7 +82,7 @@ export function buildAppendOnlyCorrection(
     synced: false,
   };
 
-  // 2. Correction record (applies the new values, linked to originalTx)
+  // 2. Correction record (applies the new values, chained to root & previous correction)
   const correctionTx: Transaction = {
     id: correctionTxId,
     shop_id: options.shopId,
@@ -94,7 +98,8 @@ export function buildAppendOnlyCorrection(
         ? (originalTx.proof_original_amount ?? originalTx.amount)
         : originalTx.proof_original_amount ?? null,
     voice_transcript: originalTx.voice_transcript ?? null,
-    parent_transaction_id: originalTx.id,
+    parent_transaction_id: rootTxId,
+    previous_correction_id: previousCorrectionId,
     is_reversal: false,
     is_correction: true,
     source: options.source,
@@ -144,12 +149,13 @@ export function buildAppendOnlyCorrection(
     }
   });
 
-  // 5. Audit Log Entry
+  // 5. Audit Log Entry (normalized to root transaction id + previous_correction_id)
   const auditLog: AuditLogEntry = {
     id: `audit-${ts}-${Math.floor(Math.random() * 1000)}`,
     shop_id: options.shopId,
     entity_type: 'transaction',
-    entity_id: originalTx.id,
+    entity_id: rootTxId,
+    previous_correction_id: previousCorrectionId,
     action: 'edit',
     actor_id: options.actor?.id || null,
     actor_name: options.actor?.name || 'Shop Owner',
