@@ -486,5 +486,7 @@ export const te: Translations = {
     priceHistoryTitle: 'ధరల చరిత్ర',
     editCustomerTitle: 'కస్టమర్ వివరాలు సవరించండి',
     customerPhoneLabel: 'ఫోన్ నంబర్',
+    syncConflictTitle: 'సింక్ విభేదం గుర్తించబడింది',
+    syncConflictDismiss: 'సరే',
   },
 };

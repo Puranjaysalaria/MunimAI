@@ -486,5 +486,7 @@ export const bn: Translations = {
     priceHistoryTitle: 'দামের ইতিহাস',
     editCustomerTitle: 'গ্রাহকের তথ্য পরিবর্তন',
     customerPhoneLabel: 'ফোন নম্বর',
+    syncConflictTitle: 'সিঙ্ক দ্বন্দ্ব (অন্য ডিভাইস থেকে পরিবর্তন)',
+    syncConflictDismiss: 'বুঝেছি',
   },
 };

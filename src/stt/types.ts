@@ -18,6 +18,7 @@ export interface STTResult {
   transcript: string;
   isFinal: boolean;
   confidence: number;
+  speechStartedAtMs?: number;
 }
 
 export interface STTProvider {
@@ -32,6 +33,7 @@ export interface STTProvider {
       onResult: (result: STTResult) => void;
       onError: (error: STTError) => void;
       onStateChange: (state: STTState) => void;
+      onSpeechStart?: (startedAtMs: number) => void;
     }
   ): Promise<void>;
 

@@ -1,13 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder-dukana-ai.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key';
+const env = (import.meta as any).env || {};
+const supabaseUrl = env.VITE_SUPABASE_URL || 'https://placeholder-dukana-ai.supabase.co';
+const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key';
 
 export const isSupabaseConfigured = () => {
   return (
-    import.meta.env.VITE_SUPABASE_URL &&
-    import.meta.env.VITE_SUPABASE_ANON_KEY &&
-    !import.meta.env.VITE_SUPABASE_URL.includes('placeholder')
+    env.VITE_SUPABASE_URL &&
+    env.VITE_SUPABASE_ANON_KEY &&
+    !env.VITE_SUPABASE_URL.includes('placeholder')
   );
 };
 

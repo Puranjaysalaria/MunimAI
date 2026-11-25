@@ -486,5 +486,7 @@ export const pa: Translations = {
     priceHistoryTitle: 'ਰੇਟ ਦਾ ਇਤਿਹਾਸ',
     editCustomerTitle: 'ਗਾਹਕ ਵੇਰਵੇ ਬਦਲੋ',
     customerPhoneLabel: 'ਫ਼ੋਨ ਨੰਬਰ',
+    syncConflictTitle: 'ਸਿੰਕ ਟਕਰਾਅ (ਦੂਜੇ ਫ਼ੋਨ ਤੋਂ ਬਦਲਾਅ)',
+    syncConflictDismiss: 'ਸਮਝ ਗਿਆ',
   },
 };

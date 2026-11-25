@@ -486,5 +486,7 @@ export const mr: Translations = {
     priceHistoryTitle: 'दराचा इतिहास',
     editCustomerTitle: 'ग्राहक तपशील बदला',
     customerPhoneLabel: 'फोन नंबर',
+    syncConflictTitle: 'सिंक संघर्ष (इतर उपकरणावरून बदल)',
+    syncConflictDismiss: 'समजले',
   },
 };

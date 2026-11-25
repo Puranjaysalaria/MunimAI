@@ -486,5 +486,7 @@ export const ml: Translations = {
     priceHistoryTitle: 'വില ചരിത്രം',
     editCustomerTitle: 'ഉപഭോക്തൃ വിവരങ്ങൾ തിരുത്തുക',
     customerPhoneLabel: 'ഫോൺ നമ്പർ',
+    syncConflictTitle: 'സിങ്ക് പൊരുത്തക്കേട് കണ്ടെത്തി',
+    syncConflictDismiss: 'മനസ്സിലായി',
   },
 };

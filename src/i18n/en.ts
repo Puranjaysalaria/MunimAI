@@ -486,5 +486,7 @@ export const en: Translations = {
     priceHistoryTitle: 'Price History',
     editCustomerTitle: 'Edit Customer Details',
     customerPhoneLabel: 'Phone Number',
+    syncConflictTitle: 'Sync Conflict Detected',
+    syncConflictDismiss: 'Dismiss',
   },
 };

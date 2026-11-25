@@ -486,5 +486,7 @@ export const kn: Translations = {
     priceHistoryTitle: 'ಬೆಲೆ ಇತಿಹಾಸ',
     editCustomerTitle: 'ಗ್ರಾಹಕರ ವಿವರ ತಿದ್ದುಪಡಿ',
     customerPhoneLabel: 'ಫೋನ್ ಸಂಖ್ಯೆ',
+    syncConflictTitle: 'ಸಿಂಕ್ ಸಂಘರ್ಷ ಕಂಡುಬಂದಿದೆ',
+    syncConflictDismiss: 'ಸರಿ',
   },
 };

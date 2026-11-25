@@ -1361,8 +1361,13 @@ export function useVoiceController({
         interimResults: true,
       },
       {
+        onSpeechStart: (startedAtMs) => {
+          replySpeechStartedAtRef.current = startedAtMs;
+        },
         onResult: (res) => {
-          if (replySpeechStartedAtRef.current === 0) {
+          if (res.speechStartedAtMs !== undefined) {
+            replySpeechStartedAtRef.current = res.speechStartedAtMs;
+          } else if (replySpeechStartedAtRef.current === 0) {
             replySpeechStartedAtRef.current = Date.now();
           }
           setLiveTranscript(res.transcript);

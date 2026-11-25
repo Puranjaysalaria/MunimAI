@@ -50,8 +50,12 @@ export function buildAppendOnlyCorrection(
 ): CorrectionComputationResult {
   const nowIso = options.nowIso || new Date().toISOString();
   const ts = Date.now();
-  const reversalTxId = `rev-${ts}-${Math.floor(Math.random() * 1000)}`;
-  const correctionTxId = `corr-${ts}-${Math.floor(Math.random() * 1000)}`;
+  const genUuid = () =>
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${ts}-${Math.random().toString(36).slice(2, 10)}`;
+  const reversalTxId = genUuid();
+  const correctionTxId = genUuid();
 
   const newAmount = patch.amount !== undefined ? patch.amount : originalTx.amount;
   const newCustomerId =
@@ -151,7 +155,7 @@ export function buildAppendOnlyCorrection(
 
   // 5. Audit Log Entry (normalized to root transaction id + previous_correction_id)
   const auditLog: AuditLogEntry = {
-    id: `audit-${ts}-${Math.floor(Math.random() * 1000)}`,
+    id: genUuid(),
     shop_id: options.shopId,
     entity_type: 'transaction',
     entity_id: rootTxId,

@@ -498,5 +498,7 @@ export interface Translations {
     priceHistoryTitle: string;
     editCustomerTitle: string;
     customerPhoneLabel: string;
+    syncConflictTitle: string;
+    syncConflictDismiss: string;
   };
 }

@@ -486,5 +486,7 @@ export const ta: Translations = {
     priceHistoryTitle: 'விலை வரலாறு',
     editCustomerTitle: 'வாடிக்கையாளர் விவரம் திருத்து',
     customerPhoneLabel: 'தொலைபேசி எண்',
+    syncConflictTitle: 'ஒத்திசைவு முரண்பாடு கண்டறியப்பட்டது',
+    syncConflictDismiss: 'புரிந்தது',
   },
 };

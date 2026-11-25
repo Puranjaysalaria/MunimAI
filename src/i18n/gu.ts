@@ -486,5 +486,7 @@ export const gu: Translations = {
     priceHistoryTitle: 'ભાવનો ઇતિહાસ',
     editCustomerTitle: 'ગ્રાહકની વિગત બદલો',
     customerPhoneLabel: 'ફોન નંબર',
+    syncConflictTitle: 'સિંક ટકરાવ (અન્ય ઉપકરણ પરથી ફેરફાર)',
+    syncConflictDismiss: 'બરાબર',
   },
 };

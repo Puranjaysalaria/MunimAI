@@ -60,6 +60,8 @@ export const AppContent: React.FC = () => {
     updateShopSettings,
     updateItemPrice,
     undoLastPriceChange,
+    syncConflicts,
+    dismissSyncConflicts,
   } = useShop();
 
   const { language, t } = useI18n();
@@ -656,6 +658,30 @@ export const AppContent: React.FC = () => {
         }}
         onDismiss={() => setShowPriceToast(false)}
       />
+
+      {/* Sync Conflict Alert Modal (Optimistic Concurrency Notice) */}
+      {syncConflicts.length > 0 && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl border-t-4 border-rose-500 space-y-4">
+            <h3 className="text-lg font-black text-rose-800">{t.editing.syncConflictTitle}</h3>
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {syncConflicts.map((c) => (
+                <div key={c.mutationId} className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-900">
+                  <p className="font-bold">{c.message}</p>
+                  <p className="text-[11px] text-rose-700 mt-1">Entry ID: {c.targetTxId}</p>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={dismissSyncConflicts}
+              className="w-full touch-target-64 bg-slate-900 text-white font-black rounded-2xl shadow-md"
+            >
+              {t.editing.syncConflictDismiss}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* PWA Home Screen Install Prompt Banner */}
       <PWAInstallPrompt />
