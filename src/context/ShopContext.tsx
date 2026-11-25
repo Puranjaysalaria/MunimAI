@@ -1,5 +1,18 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Customer, Item, Shop, Supplier, Transaction, User, UserRole, LastPriceChange } from '../types/schema';
+import {
+  AuditLogEntry,
+  Customer,
+  Item,
+  LastCorrectionUndo,
+  LastPriceChange,
+  PriceHistoryEntry,
+  Shop,
+  Supplier,
+  Transaction,
+  User,
+  UserRole,
+} from '../types/schema';
+import { buildAppendOnlyCorrection, TransactionCorrectionPatch } from '../lib/correctionService';
 import {
   DEMO_SHOP_ID,
   INITIAL_CUSTOMERS,
@@ -22,8 +35,11 @@ interface ShopContextType {
   items: Item[];
   suppliers: Supplier[];
   transactions: Transaction[];
+  auditLogs: AuditLogEntry[];
+  priceHistory: PriceHistoryEntry[];
   lastTransaction: Transaction | null;
   lastPriceChange: LastPriceChange | null;
+  lastCorrectionUndo: LastCorrectionUndo | null;
   isLocked: boolean;
   isLoggedIn: boolean;
   hasPin: boolean;
@@ -37,11 +53,23 @@ interface ShopContextType {
   setShopPin: (pin: string) => void;
   lockApp: () => void;
   addTransaction: (tx: Omit<Transaction, 'id' | 'shop_id' | 'created_at'>) => Transaction;
+  applyTransactionCorrection: (
+    targetTxId: string,
+    patch: TransactionCorrectionPatch,
+    source?: 'voice' | 'tap',
+    reason?: string
+  ) => { success: boolean; correctionTx?: Transaction; auditLog?: AuditLogEntry; error?: string };
   undoLastTransaction: () => { success: boolean; message: string };
   updateItemPrice: (
     itemNameOrId: string,
-    updates: { selling_price?: number; cost_price?: number }
+    updates: { selling_price?: number; cost_price?: number },
+    source?: 'voice' | 'tap' | 'bill_scan'
   ) => { success: boolean; previousItem?: Item; updatedItem?: Item };
+  updateItemStockCount: (
+    itemNameOrId: string,
+    newStockCount: number,
+    source?: 'voice' | 'tap'
+  ) => { success: boolean; updatedItem?: Item };
   undoLastPriceChange: () => { success: boolean; message: string; restoredItem?: Item };
   updateCustomerBalance: (customerId: string, amountChange: number) => void;
   updateItemStock: (itemNameOrId: string, quantitySold: number) => void;
@@ -136,6 +164,21 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}audit_logs`);
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return [];
+  });
+  const [priceHistory, setPriceHistory] = useState<PriceHistoryEntry[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}price_history`);
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return [];
+  });
+  const [lastCorrectionUndo, setLastCorrectionUndo] = useState<LastCorrectionUndo | null>(null);
   const [lastPriceChange, setLastPriceChange] = useState<LastPriceChange | null>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}last_price_change`);
     if (saved) {
@@ -225,6 +268,14 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY_PREFIX}transactions`, JSON.stringify(transactions));
   }, [transactions]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}audit_logs`, JSON.stringify(auditLogs));
+  }, [auditLogs]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}price_history`, JSON.stringify(priceHistory));
+  }, [priceHistory]);
 
   // Auth functions
   const loginWithPhone = (phone: string, otp: string): boolean => {
@@ -507,10 +558,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
-  // Update item price (selling or cost price)
+  // Update item price (selling or cost price) with PriceHistory & AuditLog
   const updateItemPrice = (
     itemNameOrId: string,
-    updates: { selling_price?: number; cost_price?: number }
+    updates: { selling_price?: number; cost_price?: number },
+    source: 'voice' | 'tap' | 'bill_scan' = 'tap'
   ): { success: boolean; previousItem?: Item; updatedItem?: Item } => {
     let prevItem: Item | undefined;
     let nextItem: Item | undefined;
@@ -549,6 +601,35 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
               JSON.stringify(priceRecord)
             );
           } catch {}
+
+          const historyEntry: PriceHistoryEntry = {
+            id: `ph-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            shop_id: shop.id,
+            item_id: item.id,
+            item_name: item.name,
+            price_type: priceType,
+            old_price: oldPrice,
+            new_price: newPrice,
+            source,
+            created_at: new Date().toISOString(),
+          };
+          setPriceHistory((ph) => [historyEntry, ...ph]);
+
+          const auditEntry: AuditLogEntry = {
+            id: `audit-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            shop_id: shop.id,
+            entity_type: 'item',
+            entity_id: item.id,
+            action: 'edit',
+            actor_id: user?.id || null,
+            actor_name: user?.name || 'Shop Owner',
+            actor_role: user?.role || 'owner',
+            before_value: { [priceType === 'selling' ? 'selling_price' : 'cost_price']: oldPrice },
+            after_value: { [priceType === 'selling' ? 'selling_price' : 'cost_price']: newPrice },
+            source: source === 'bill_scan' ? 'tap' : source,
+            created_at: new Date().toISOString(),
+          };
+          setAuditLogs((logs) => [auditEntry, ...logs]);
 
           return nextItem;
         }
@@ -597,6 +678,129 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {}
 
     return { success: true, updatedItem: createdItem };
+  };
+
+  // Update stock count directly (voice/tap stock edit with audit log)
+  const updateItemStockCount = (
+    itemNameOrId: string,
+    newStockCount: number,
+    source: 'voice' | 'tap' = 'tap'
+  ): { success: boolean; updatedItem?: Item } => {
+    let updated: Item | undefined;
+    const clamped = Math.max(0, newStockCount);
+    setItems((prev) =>
+      prev.map((item) => {
+        if (
+          item.id === itemNameOrId ||
+          item.name.toLowerCase() === itemNameOrId.toLowerCase() ||
+          item.synonyms.some((s) => s.toLowerCase() === itemNameOrId.toLowerCase())
+        ) {
+          const oldStock = item.current_stock;
+          const dailyAvg = item.daily_avg_sales || 5;
+          const daysLeft = Number((clamped / dailyAvg).toFixed(1));
+          updated = { ...item, current_stock: clamped, days_stock_left: daysLeft };
+
+          const auditEntry: AuditLogEntry = {
+            id: `audit-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            shop_id: shop.id,
+            entity_type: 'item',
+            entity_id: item.id,
+            action: 'edit',
+            actor_id: user?.id || null,
+            actor_name: user?.name || 'Shop Owner',
+            actor_role: user?.role || 'owner',
+            before_value: { current_stock: oldStock },
+            after_value: { current_stock: clamped },
+            source,
+            created_at: new Date().toISOString(),
+          };
+          setAuditLogs((logs) => [auditEntry, ...logs]);
+          return updated;
+        }
+        return item;
+      })
+    );
+    return { success: Boolean(updated), updatedItem: updated };
+  };
+
+  // Append-only transaction correction (NEVER overwrites original values)
+  const applyTransactionCorrection = (
+    targetTxId: string,
+    patch: TransactionCorrectionPatch,
+    source: 'voice' | 'tap' = 'voice',
+    reason?: string
+  ): { success: boolean; correctionTx?: Transaction; auditLog?: AuditLogEntry; error?: string } => {
+    const targetTx = transactions.find((t) => t.id === targetTxId);
+    if (!targetTx) {
+      return { success: false, error: 'Transaction not found' };
+    }
+
+    const computed = buildAppendOnlyCorrection(targetTx, patch, {
+      shopId: shop.id,
+      actor: user,
+      source,
+      reason,
+    });
+
+    // Apply customer balance deltas
+    for (const { customerId, delta } of computed.customerBalanceDeltas) {
+      updateCustomerBalance(customerId, delta);
+    }
+
+    // Apply item stock deltas
+    for (const { itemName, quantityDelta } of computed.itemStockDeltas) {
+      updateItemStock(itemName, quantityDelta);
+    }
+
+    // Append reversal + correction records, and set superseded_by pointer on original (leaving original amount/items/customer untouched)
+    setTransactions((prev) => [
+      computed.correctionTx,
+      computed.reversalTx,
+      ...prev.map((tx) =>
+        tx.id === targetTx.id
+          ? {
+              ...tx,
+              superseded_by: computed.correctionTx.id,
+              proof_original_amount:
+                tx.proof_clip_path && patch.amount !== undefined && patch.amount !== tx.amount
+                  ? (tx.proof_original_amount ?? tx.amount)
+                  : tx.proof_original_amount,
+            }
+          : tx
+      ),
+    ]);
+
+    setAuditLogs((prev) => [computed.auditLog, ...prev]);
+    setLastCorrectionUndo(computed.undoRecord);
+    setLastTransaction(computed.correctionTx);
+
+    if (isSupabaseConfigured() && navigator.onLine) {
+      supabase
+        .from('audit_logs')
+        .insert({
+          shop_id: shop.id,
+          entity_type: computed.auditLog.entity_type,
+          entity_id: computed.auditLog.entity_id,
+          action: computed.auditLog.action,
+          actor_id: computed.auditLog.actor_id,
+          actor_name: computed.auditLog.actor_name,
+          actor_role: computed.auditLog.actor_role,
+          before_value: computed.auditLog.before_value,
+          after_value: computed.auditLog.after_value,
+          reason: computed.auditLog.reason,
+          source: computed.auditLog.source,
+          created_at: computed.auditLog.created_at,
+        })
+        .then(({ error }) => {
+          if (error) console.error('Failed to persist audit log to Supabase:', error);
+        });
+    }
+
+    return {
+      success: true,
+      correctionTx: computed.correctionTx,
+      auditLog: computed.auditLog,
+    };
   };
 
   // Add Customer (Local + Cloud)
@@ -754,8 +958,57 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   };
 
-  // Undo Last Transaction or Price Change ("Wapas karo")
+  // Undo Last Transaction, Correction, or Price Change ("Wapas karo")
   const undoLastTransaction = (): { success: boolean; message: string; restoredItem?: Item } => {
+    // 0. If a correction was performed most recently, undo that correction cleanly
+    if (
+      lastCorrectionUndo &&
+      (!lastPriceChange || lastCorrectionUndo.timestamp >= lastPriceChange.timestamp)
+    ) {
+      const undoRec = lastCorrectionUndo;
+
+      for (const { customerId, delta } of undoRec.customerBalanceDeltas) {
+        updateCustomerBalance(customerId, -delta);
+      }
+
+      for (const { itemName, quantityDelta } of undoRec.itemStockDeltas) {
+        updateItemStock(itemName, -quantityDelta);
+      }
+
+      setTransactions((prev) =>
+        prev
+          .filter((tx) => tx.id !== undoRec.correctionTxId && tx.id !== undoRec.reversalTxId)
+          .map((tx) =>
+            tx.id === undoRec.originalTxId
+              ? { ...tx, superseded_by: undoRec.previousSupersededBy ?? null }
+              : tx
+          )
+      );
+
+      const undoAudit: AuditLogEntry = {
+        id: `audit-undo-${Date.now()}`,
+        shop_id: shop.id,
+        entity_type: 'transaction',
+        entity_id: undoRec.originalTxId,
+        action: 'undo',
+        actor_id: user?.id || null,
+        actor_name: user?.name || 'Shop Owner',
+        actor_role: user?.role || 'owner',
+        before_value: { correction_tx_id: undoRec.correctionTxId },
+        after_value: { restored_tx_id: undoRec.originalTxId },
+        source: 'voice',
+        created_at: new Date().toISOString(),
+      };
+      setAuditLogs((prev) => [undoAudit, ...prev]);
+      setLastCorrectionUndo(null);
+      setLastTransaction(null);
+
+      return {
+        success: true,
+        message: 'Correction undone and original entry restored',
+      };
+    }
+
     // If a price change was performed more recently than last transaction, undo price change
     if (
       lastPriceChange &&
@@ -891,8 +1144,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         items,
         suppliers,
         transactions,
+        auditLogs,
+        priceHistory,
         lastTransaction,
         lastPriceChange,
+        lastCorrectionUndo,
         isLocked,
         isLoggedIn,
         hasPin: Boolean(shop.pin_hash),
@@ -906,9 +1162,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setShopPin,
         lockApp,
         addTransaction,
+        applyTransactionCorrection,
         addCustomer,
         undoLastTransaction,
         updateItemPrice,
+        updateItemStockCount,
         undoLastPriceChange,
         updateCustomerBalance,
         updateItemStock,

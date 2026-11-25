@@ -230,6 +230,44 @@ export interface LastPriceChange {
   timestamp: number;
 }
 
+export interface AuditLogEntry {
+  id: string;
+  shop_id: string;
+  entity_type: 'transaction' | 'customer' | 'item' | 'supplier_order' | 'reminder' | 'bill_scan';
+  entity_id: string;
+  action: 'edit' | 'undo' | 'create' | 'delete_proof';
+  actor_id?: string | null;
+  actor_name: string;
+  actor_role: UserRole;
+  before_value: Record<string, any>;
+  after_value: Record<string, any>;
+  reason?: string | null;
+  source: 'voice' | 'tap';
+  created_at: string;
+}
+
+export interface PriceHistoryEntry {
+  id: string;
+  shop_id: string;
+  item_id: string;
+  item_name: string;
+  price_type: 'selling' | 'cost';
+  old_price: number;
+  new_price: number;
+  source: 'voice' | 'tap' | 'bill_scan';
+  created_at: string;
+}
+
+export interface LastCorrectionUndo {
+  originalTxId: string;
+  reversalTxId: string;
+  correctionTxId: string;
+  previousSupersededBy?: string | null;
+  customerBalanceDeltas: Array<{ customerId: string; delta: number }>;
+  itemStockDeltas: Array<{ itemName: string; quantityDelta: number }>;
+  timestamp: number;
+}
+
 export interface ParseResult {
   intent: ParsedIntent;
   customer?: string | null;

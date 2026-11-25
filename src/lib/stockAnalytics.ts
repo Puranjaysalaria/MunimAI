@@ -1,5 +1,6 @@
 import { Item, Supplier, Transaction } from '../types/schema';
 import { formatItemName, formatUnit } from './nameTranslation';
+import { getEffectiveTransactions } from './correctionService';
 
 export interface ItemStockAnalysis {
   item: Item;
@@ -44,8 +45,8 @@ export function compute14DayStockAnalysis(
   const now = Date.now();
   const fourteenDaysAgo = now - 14 * 86400000;
 
-  // Filter transactions within the last 14 days
-  const recentTxs = transactions.filter(
+  // Filter effective transactions within the last 14 days (excludes reversals & superseded originals)
+  const recentTxs = getEffectiveTransactions(transactions).filter(
     (t) => new Date(t.created_at).getTime() >= fourteenDaysAgo
   );
 
@@ -208,7 +209,7 @@ export function computeDailySummary(transactions: Transaction[]): DailySummaryMe
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
-  const todayTxs = transactions.filter(
+  const todayTxs = getEffectiveTransactions(transactions).filter(
     (t) => new Date(t.created_at).getTime() >= todayStart.getTime()
   );
 
