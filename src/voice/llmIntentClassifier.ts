@@ -74,6 +74,38 @@ export class MockIntentClassifier implements IntentClassifierProvider {
       return { intent: 'play_proof', confidence: 0.9, reasoning: 'Matched voice proof' };
     }
 
+    // Saved-entry edits
+    if (
+      lower.includes('edit') ||
+      lower.includes('change') ||
+      lower.includes('update') ||
+      lower.includes('badlo') ||
+      lower.includes('sudharo') ||
+      lower.includes('correct')
+    ) {
+      if (lower.includes('amount') || lower.includes('raqam') || lower.includes('paise')) {
+        return { intent: 'change_amount', amount, confidence: 0.9, reasoning: 'Matched change_amount' };
+      }
+      if (lower.includes('item') || lower.includes('samaan')) {
+        return { intent: 'change_item', confidence: 0.9, reasoning: 'Matched change_item' };
+      }
+      if (lower.includes('customer') || lower.includes('grahak') || lower.includes('naam')) {
+        return { intent: 'change_customer', confidence: 0.9, reasoning: 'Matched change_customer' };
+      }
+      if (lower.includes('quantity') || lower.includes('qty') || lower.includes('kilo')) {
+        return { intent: 'change_quantity', quantity, unit, confidence: 0.9, reasoning: 'Matched change_quantity' };
+      }
+      if (lower.includes('date') || lower.includes('tarikh') || lower.includes('taarikh')) {
+        return { intent: 'change_date', confidence: 0.9, reasoning: 'Matched change_date' };
+      }
+      if (lower.includes('note') || lower.includes('remark') || lower.includes('tippani')) {
+        return { intent: 'edit_note', confidence: 0.9, reasoning: 'Matched edit_note' };
+      }
+      if (lower.includes('entry') || lower.includes('transaction') || lower.includes('hisab')) {
+        return { intent: 'edit_entry', amount, confidence: 0.88, reasoning: 'Matched edit_entry' };
+      }
+    }
+
     // General transaction detection (sale / credit / payment)
     if (lower.includes('udhaar') || lower.includes('credit') || lower.includes('likh do') || lower.includes('baki')) {
       return {

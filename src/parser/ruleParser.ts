@@ -132,6 +132,47 @@ export function parseWithRules(
     };
   }
 
+  // 3b. Saved-Entry Edit Intents (edit_entry, change_amount, change_item, change_customer, change_quantity, change_date, edit_note)
+  const isEditVerb =
+    /\b(badlo|badal\s*do|change|edit|update|sudharo|sahi\s*karo|theek\s*karo|modify|fix|correct)\b/i.test(lower) ||
+    /(बदलो|बदल\s*दो|सुधारो|सही\s*करो|एडिट|चेंज|ਬਦਲੋ|ਸੁਧਾਰੋ|ਬਦਲ\s*ਦਿਓ)/.test(rawTrimmed);
+
+  const isRateOrPriceEdit =
+    /\b(rate|bhav|mul|selling\s*price|cost\s*price|khareed|kharid)\b/i.test(lower) ||
+    /(रेत|रेट|खरीद|ਰੇਟ|ਖਰੀਦ)/.test(rawTrimmed);
+
+  if (isEditVerb && !isRateOrPriceEdit) {
+    let editIntent: ParseResult['intent'] | null = null;
+    if (/\b(amount|raqam|paisa|paise|rupaye|total)\b/i.test(lower) || /(रकम|अमाउंट|पैसे|ਰਕਮ)/.test(rawTrimmed)) {
+      editIntent = 'change_amount';
+    } else if (/\b(item|samaan|saaman|product)\b/i.test(lower) || /(सामान|आइटम|ਸਾਮਾਨ)/.test(rawTrimmed)) {
+      editIntent = 'change_item';
+    } else if (/\b(customer|grahak|naam|buyer)\b/i.test(lower) || /(ग्राहक|नाम|ਗਾਹਕ)/.test(rawTrimmed)) {
+      editIntent = 'change_customer';
+    } else if (/\b(quantity|qty|maatra|wazan|weight)\b/i.test(lower) || /(मात्रा|क्वांटिटी|ਮਾਤਰਾ)/.test(rawTrimmed)) {
+      editIntent = 'change_quantity';
+    } else if (/\b(date|taarikh|tarikh|day)\b/i.test(lower) || /(तारीख|तारीख़|ਤਾਰੀਖ਼)/.test(rawTrimmed)) {
+      editIntent = 'change_date';
+    } else if (/\b(note|remark|comment|tippani)\b/i.test(lower) || /(नोट|टिप्पणी|ਨੋਟ)/.test(rawTrimmed)) {
+      editIntent = 'edit_note';
+    } else if (/\b(entry|transaction|hisab|hisaab|record|len\s*den)\b/i.test(lower) || /(एंट्री|लेन-देन|हिसाब|ਐਂਟਰੀ)/.test(rawTrimmed)) {
+      editIntent = 'edit_entry';
+    }
+
+    if (editIntent) {
+      return {
+        intent: editIntent,
+        amount,
+        item: firstItem,
+        quantity: qtyInfo.quantity,
+        unit: qtyInfo.unit,
+        confidence: 0.94,
+        language: detectedLang,
+        rawText: rawTrimmed,
+      };
+    }
+  }
+
   // Proof Intent: "Customer se bulwayein"
   if (/\b(customer se bulwayein|proof|audio recording|saboot|awaaz record|grahak di awaaz)\b/i.test(lower)) {
     return {

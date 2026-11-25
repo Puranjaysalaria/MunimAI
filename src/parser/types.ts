@@ -37,6 +37,13 @@ export const ParsedIntentEnum = z.enum([
   'yesterday',
   'this_week',
   'play_proof',
+  'edit_entry',
+  'change_amount',
+  'change_item',
+  'change_customer',
+  'change_quantity',
+  'change_date',
+  'edit_note',
   'unknown',
 ]);
 

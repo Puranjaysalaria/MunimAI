@@ -92,9 +92,18 @@ export interface Transaction {
   created_at: string;
   confirmed_by_voice: boolean;
   proof_clip_path?: string | null;
+  proof_original_amount?: number | null;
   voice_transcript?: string | null;
   client_sync_id?: string;
   synced?: boolean;
+  // Append-only correction & audit fields
+  parent_transaction_id?: string | null;
+  is_correction?: boolean;
+  is_reversal?: boolean;
+  superseded_by?: string | null;
+  note?: string | null;
+  source?: 'voice' | 'tap';
+  has_sent_reminder?: boolean;
 }
 
 export interface Item {
@@ -204,6 +213,13 @@ export type ParsedIntent =
   | 'yesterday'
   | 'this_week'
   | 'play_proof'
+  | 'edit_entry'
+  | 'change_amount'
+  | 'change_item'
+  | 'change_customer'
+  | 'change_quantity'
+  | 'change_date'
+  | 'edit_note'
   | 'unknown';
 
 export interface LastPriceChange {
