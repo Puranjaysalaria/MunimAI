@@ -10,7 +10,8 @@ import {
 } from '../src/stt/audioClipProcessor';
 import { ServerSpeechProvider } from '../src/stt/serverSpeechProvider';
 import { canCompleteByVoiceConfirm } from '../src/voice/safetyTiers';
-import sttGnaniHandler, { isValidWav16kMonoHeader, mapGnaniLanguage } from '../api/stt-gnani';
+import gnaniSttHandler from '../api/gnani-stt';
+import { isValidWav16kMonoHeader, mapGnaniLanguage } from '../api/_voiceShared';
 
 describe('Gnani Command Clip Audio Processor & Safety Guard Integration', () => {
   afterEach(() => {
@@ -111,7 +112,7 @@ describe('Gnani Command Clip Audio Processor & Safety Guard Integration', () => 
     expect(allowedAfterCard).toBe(true);
   });
 
-  it('api/stt-gnani validates 16kHz mono WAV and echoes speechStartedAtMs with Gnani response', async () => {
+  it('api/gnani-stt validates 16kHz mono WAV and echoes speechStartedAtMs with Gnani response', async () => {
     expect(mapGnaniLanguage('pa')).toBe('pa-IN');
     expect(mapGnaniLanguage('hi')).toBe('hi-IN');
 
@@ -135,8 +136,8 @@ describe('Gnani Command Clip Audio Processor & Safety Guard Integration', () => 
 
     // 1. Invalid audio fails with 400
     const badRes = makeMockRes();
-    await sttGnaniHandler(
-      { method: 'POST', body: { audioBase64: Buffer.from('not-a-wav').toString('base64'), speechStartedAtMs: 12345 } } as any,
+    await gnaniSttHandler(
+      { method: 'POST', headers: {}, body: { audioBase64: Buffer.from('not-a-wav').toString('base64'), speechStartedAtMs: 12345 } } as any,
       badRes
     );
     expect(badRes.statusCode).toBe(400);
@@ -161,8 +162,8 @@ describe('Gnani Command Clip Audio Processor & Safety Guard Integration', () => 
 
     try {
       const okRes = makeMockRes();
-      await sttGnaniHandler(
-        { method: 'POST', body: { audioBase64: wavBase64, language: 'hi', speechStartedAtMs: 998877 } } as any,
+      await gnaniSttHandler(
+        { method: 'POST', headers: {}, body: { audioBase64: wavBase64, language: 'hi', speechStartedAtMs: 998877 } } as any,
         okRes
       );
       expect(okRes.statusCode).toBe(200);

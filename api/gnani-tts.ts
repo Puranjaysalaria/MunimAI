@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { mapGnaniLanguage } from './stt-gnani';
+import { mapGnaniLanguage } from './_voiceShared';
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_RATE_LIMIT_MAX = 40;

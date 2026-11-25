@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { isValidWav16kMonoHeader, mapGnaniLanguage } from './stt-gnani';
+import { isValidWav16kMonoHeader, mapGnaniLanguage } from './_voiceShared';
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_RATE_LIMIT_MAX = 30;

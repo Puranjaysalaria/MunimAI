@@ -223,7 +223,7 @@ export class ServerSpeechProvider implements STTProvider {
       typeof import.meta !== 'undefined' && import.meta.env
         ? import.meta.env.VITE_STT_API_URL
         : undefined;
-    const endpoint = customUrl || '/api/stt-gnani';
+    const endpoint = customUrl || '/api/gnani-stt';
 
     const res = await fetch(endpoint, {
       method: 'POST',
