@@ -12,6 +12,7 @@ import { PinLock } from './pages/PinLock';
 import { SettingsModal } from './components/SettingsModal';
 import { ConfirmationCard } from './components/ConfirmationCard/ConfirmationCard';
 import { DisambiguationModal } from './components/DisambiguationModal/DisambiguationModal';
+import { EntryDisambiguationModal } from './components/DisambiguationModal/EntryDisambiguationModal';
 import { UndoToast } from './components/Voice/UndoToast';
 import { ProofRecorderModal } from './components/ProofRecorder/ProofRecorderModal';
 import { PrivacyModal } from './components/PrivacyModal';
@@ -51,6 +52,7 @@ export const AppContent: React.FC = () => {
     lastTransaction,
     offlinePendingCount,
     addTransaction,
+    applyTransactionCorrection,
     undoLastTransaction,
     attachProofClip,
     syncOfflineData,
@@ -163,6 +165,8 @@ export const AppContent: React.FC = () => {
     transactions,
     isOnline,
     activeStockItem: activeTab === 'stock' ? selectedStockItem : null,
+    shopSettings: shop.settings,
+    onApplyTransactionCorrection: applyTransactionCorrection,
     onSaveTransaction: (txData) => {
       const savedTx = addTransaction(txData);
       return savedTx;
@@ -412,6 +416,9 @@ export const AppContent: React.FC = () => {
                 onPlayProof={handlePlayProofAudio}
                 onQuickAction={handleQuickCustomerAction}
                 onRecordProofForTransaction={handleOpenProofRecorder}
+                onEditTransaction={(tx, patch) =>
+                  voice.openDiffConfirmationForEdit(tx, patch, 'tap')
+                }
               />
             </motion.div>
           )}
@@ -499,6 +506,12 @@ export const AppContent: React.FC = () => {
         pending={voice.pendingConfirmation}
         onConfirm={voice.handleConfirmSave}
         onCancel={voice.handleCancelConfirmation}
+        onRerecordProof={(tx, cust) => {
+          voice.handleCancelConfirmation();
+          setProofTargetTx(tx);
+          setProofTargetCustomer(cust || null);
+          setShowProofPrompt(false);
+        }}
         isListeningForReply={voice.isListening}
         onStartListeningForReply={voice.startListeningForReply}
         onStopListeningForReply={voice.stopListening}
@@ -510,6 +523,15 @@ export const AppContent: React.FC = () => {
         customers={voice.disambiguationCustomers}
         onSelectCustomer={voice.handleSelectDisambiguatedCustomer}
         onCancel={voice.handleCancelConfirmation}
+      />
+
+      {/* Entry Disambiguation Modal ("Which entry do you want to edit?") */}
+      <EntryDisambiguationModal
+        candidates={voice.disambiguationEntries}
+        customers={customers}
+        question={voice.disambiguationEntryQuestion}
+        onSelect={voice.handleSelectDisambiguatedEntry}
+        onCancel={voice.cancelEntryDisambiguation}
       />
 
       {/* Proof Recorder Modal (5-second customer audio clip) */}

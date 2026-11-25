@@ -31,9 +31,13 @@ import {
   Share2,
   Languages,
   UserPlus,
+  Edit2,
+  History,
 } from 'lucide-react';
 import { triggerHaptic, playAudioCue } from '../lib/sound';
 import { CustomerAvatar } from '../components/CustomerAvatar';
+import { EditTransactionModal } from '../components/Ledger/EditTransactionModal';
+import { TransactionCorrectionPatch } from '../lib/correctionService';
 
 interface LedgerProps {
   onSelectCustomer?: (customer: Customer) => void;
@@ -43,6 +47,7 @@ interface LedgerProps {
   onPlayProof: (clipPath: string) => void;
   onQuickAction: (customer: Customer, action: 'credit' | 'payment') => void;
   onRecordProofForTransaction?: (transaction: Transaction, customer: Customer) => void;
+  onEditTransaction?: (tx: Transaction, patch: TransactionCorrectionPatch) => void;
 }
 
 export const Ledger: React.FC<LedgerProps> = ({
@@ -53,8 +58,9 @@ export const Ledger: React.FC<LedgerProps> = ({
   onPlayProof,
   onQuickAction,
   onRecordProofForTransaction,
+  onEditTransaction,
 }) => {
-  const { customers, transactions, shop, attachProofClip, updateCustomer, addCustomer } = useShop();
+  const { customers, transactions, auditLogs, shop, attachProofClip, updateCustomer, addCustomer } = useShop();
   const { t, language } = useI18n();
 
   const [search, setSearch] = useState('');
@@ -80,6 +86,14 @@ export const Ledger: React.FC<LedgerProps> = ({
   const [newCustAddress, setNewCustAddress] = useState('');
   const [newCustLimit, setNewCustLimit] = useState('5000');
   const [newCustLang, setNewCustLang] = useState<CustomerLanguage | ''>('');
+
+  // Edit Transaction, History View & Edit Customer Modals (Tap Parity)
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  const [historyTxId, setHistoryTxId] = useState<string | null>(null);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [editCustName, setEditCustName] = useState('');
+  const [editCustPhone, setEditCustPhone] = useState('');
+  const [editCustLang, setEditCustLang] = useState<CustomerLanguage | ''>('');
 
   React.useEffect(() => {
     if (selectedCustomerId) {
@@ -173,9 +187,24 @@ export const Ledger: React.FC<LedgerProps> = ({
                 showBadge
               />
               <div>
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">
-                  {getLocalizedCustomerName(cust.name, language)}
-                </h2>
+                <div className="flex items-center space-x-2">
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">
+                    {getLocalizedCustomerName(cust.name, language)}
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingCustomer(cust);
+                      setEditCustName(cust.name);
+                      setEditCustPhone(cust.phone || '');
+                      setEditCustLang(cust.preferred_language || '');
+                    }}
+                    className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-slate-600"
+                    title={t.editing.editCustomerTitle}
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
                 <p className="text-xs text-slate-500 flex items-center mt-0.5 font-medium">
                   <MapPin className="w-3.5 h-3.5 mr-1 text-slate-400" />
                   {cust.address_note || getLocalizedCustomerName(cust.name, language)}
@@ -335,13 +364,27 @@ export const Ledger: React.FC<LedgerProps> = ({
             ) : (
               custTxs.map((tx) => {
                 const isCredit = tx.type === 'credit';
+                const isEdited = Boolean(tx.superseded_by || tx.is_correction);
+                const rootId = tx.parent_transaction_id || tx.id;
                 return (
-                  <div key={tx.id} className="p-3.5 flex items-center justify-between hover:bg-white transition-colors">
-                    <div>
-                      <p className="text-xs font-black text-slate-900">
-                        {tx.voice_transcript ||
-                          (isCredit ? t.ledger.giveCreditBtn : t.ledger.receivePaymentBtn)}
-                      </p>
+                  <div key={tx.id} className={`p-3.5 flex items-center justify-between hover:bg-white transition-colors ${tx.is_reversal ? 'opacity-60 bg-rose-50/30' : ''}`}>
+                    <div className="min-w-0 pr-2">
+                      <div className="flex items-center flex-wrap gap-1.5">
+                        <p className="text-xs font-black text-slate-900 truncate">
+                          {tx.voice_transcript ||
+                            (isCredit ? t.ledger.giveCreditBtn : t.ledger.receivePaymentBtn)}
+                        </p>
+                        {isEdited && (
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
+                            {t.editing.editedBadge}
+                          </span>
+                        )}
+                        {tx.is_reversal && (
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">
+                            {t.editing.reversalEntry}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[10px] text-slate-400 flex items-center mt-0.5 font-medium">
                         <Calendar className="w-3 h-3 mr-1" />
                         {formatRelativeTime(
@@ -352,21 +395,49 @@ export const Ledger: React.FC<LedgerProps> = ({
                             ? 'en'
                             : 'hi'
                         )}
+                        {tx.note && <span className="ml-2 text-slate-500">• {tx.note}</span>}
                       </p>
                     </div>
 
-                    <div className="text-right flex items-center space-x-2">
+                    <div className="text-right flex items-center space-x-1.5 flex-shrink-0">
                       <span
                         className={`text-sm font-black ${
-                          isCredit ? 'text-owed' : 'text-received'
+                          tx.superseded_by ? 'line-through text-slate-400' : isCredit ? 'text-owed' : 'text-received'
                         }`}
                       >
                         {isCredit ? '+' : '-'}
                         {formatINR(tx.amount)}
                       </span>
 
+                      {!tx.is_reversal && !tx.superseded_by && onEditTransaction && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingTx(tx)}
+                          className="p-1.5 rounded-lg bg-gray-100 hover:bg-amber-100 text-slate-600 hover:text-amber-800"
+                          title={t.editing.editEntryBtn}
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+
+                      {(isEdited || tx.parent_transaction_id) && (
+                        <button
+                          type="button"
+                          onClick={() => setHistoryTxId(rootId)}
+                          className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700"
+                          title={t.editing.historyTitle}
+                        >
+                          <History className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+
                       {tx.proof_clip_path && (
                         <div className="flex items-center space-x-1">
+                          {tx.proof_original_amount && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                              ₹{tx.proof_original_amount}
+                            </span>
+                          )}
                           <button
                             onClick={() => handlePlayProof(tx)}
                             className={`p-1.5 rounded-lg ${
@@ -911,6 +982,134 @@ export const Ledger: React.FC<LedgerProps> = ({
                   Save Customer
                 </button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Transaction Modal (Tap Parity -> Diff Confirmation) */}
+      <EditTransactionModal
+        transaction={editingTx}
+        customers={customers}
+        onClose={() => setEditingTx(null)}
+        onReviewEdit={(tx, patch) => {
+          setEditingTx(null);
+          if (onEditTransaction) {
+            onEditTransaction(tx, patch);
+          }
+        }}
+      />
+
+      {/* Correction History Modal */}
+      {historyTxId && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl max-h-[85vh] overflow-y-auto space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+              <h3 className="text-lg font-black text-slate-900 flex items-center space-x-2">
+                <History className="w-5 h-5 text-amber-600" />
+                <span>{t.editing.historyTitle}</span>
+              </h3>
+              <button
+                onClick={() => setHistoryTxId(null)}
+                className="p-2 rounded-full hover:bg-gray-100 text-slate-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-2.5">
+              {auditLogs.filter((l) => l.entity_id === historyTxId).length === 0 ? (
+                <p className="text-xs text-slate-500 text-center py-4">{t.editing.noHistory}</p>
+              ) : (
+                auditLogs
+                  .filter((l) => l.entity_id === historyTxId)
+                  .map((log) => (
+                    <div key={log.id} className="p-3 rounded-2xl bg-gray-50 border border-gray-200 text-xs space-y-1">
+                      <div className="flex justify-between font-black text-slate-800">
+                        <span>{log.actor_name} ({log.action.toUpperCase()})</span>
+                        <span className="px-2 py-0.5 rounded bg-slate-200 text-slate-700 text-[10px]">
+                          {log.source === 'voice' ? t.editing.sourceVoice : t.editing.sourceTap}
+                        </span>
+                      </div>
+                      <div className="text-slate-600">
+                        {t.editing.beforeLabel}: ₹{log.before_value?.amount ?? '-'} ➔ {t.editing.afterLabel}: ₹{log.after_value?.amount ?? '-'}
+                      </div>
+                      <div className="text-[10px] text-slate-400">
+                        {new Date(log.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                  ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Customer Details Modal (Tap Parity) */}
+      {editingCustomer && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+              <h3 className="text-lg font-black text-slate-900">{t.editing.editCustomerTitle}</h3>
+              <button
+                onClick={() => setEditingCustomer(null)}
+                className="p-2 rounded-full hover:bg-gray-100 text-slate-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!editCustName.trim()) return;
+                updateCustomer(editingCustomer.id, {
+                  name: editCustName.trim(),
+                  phone: editCustPhone.trim() || undefined,
+                  preferred_language: editCustLang || undefined,
+                });
+                setEditingCustomer(null);
+              }}
+              className="space-y-3"
+            >
+              <div>
+                <label className="text-xs font-bold text-slate-600 block mb-1">{t.slips.customer}</label>
+                <input
+                  type="text"
+                  value={editCustName}
+                  onChange={(e) => setEditCustName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm font-bold"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-600 block mb-1">{t.editing.customerPhoneLabel}</label>
+                <input
+                  type="tel"
+                  value={editCustPhone}
+                  onChange={(e) => setEditCustPhone(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm font-bold"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-600 block mb-1">{t.ledger.preferredLanguageLabel}</label>
+                <select
+                  value={editCustLang}
+                  onChange={(e) => setEditCustLang(e.target.value as CustomerLanguage | '')}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm font-bold bg-white"
+                >
+                  <option value="">{t.ledger.sameAsShopLanguage} ({language.toUpperCase()})</option>
+                  {availableLanguages.map((l) => (
+                    <option key={l.code} value={l.code}>
+                      {l.nativeLabel} ({l.label})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="submit"
+                className="w-full touch-target-64 bg-primary text-white font-black rounded-2xl shadow-md"
+              >
+                {t.settings.saveSettings}
+              </button>
             </form>
           </div>
         </div>

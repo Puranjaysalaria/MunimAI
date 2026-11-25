@@ -136,6 +136,23 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
         return;
       }
 
+      // 1b. Check for line removal ("remove sugar" / "chini hatao")
+      const isRemoveLine = /\b(remove|hatao|hata\s*do|delete|nikalo|हटाओ|निकालो|ਹਟਾਓ)\b/iu.test(text);
+      const itemsForRemove = currentItems.length > 0 ? currentItems : extractedItemsRef.current;
+      if (isRemoveLine && itemsForRemove.length > 0) {
+        const target = itemsForRemove.find((it) => {
+          const n = it.name.toLowerCase();
+          const loc = formatItemName(it.name, language).toLowerCase();
+          return lower.includes(n) || lower.includes(loc);
+        });
+        if (target) {
+          setExtractedItems((prev) => prev.map((it) => (it.id === target.id ? { ...it, selected: false } : it)));
+          triggerHaptic('stop');
+          playAudioCue('cancel');
+          return;
+        }
+      }
+
       // 2. Check for item price discrepancy adjustment (e.g. "Butter biscuit 45", "Rusk 25 rupaye")
       const numMatches = text.match(/\b(\d+(?:\.\d+)?)\b/g);
       const itemsToSearch = currentItems.length > 0 ? currentItems : extractedItemsRef.current;

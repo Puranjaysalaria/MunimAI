@@ -15,6 +15,9 @@ import {
   Sparkles,
   TrendingUp,
   PackageCheck,
+  Edit2,
+  X,
+  History,
 } from 'lucide-react';
 import { triggerHaptic, playAudioCue } from '../lib/sound';
 
@@ -35,10 +38,14 @@ export const Stock: React.FC<StockProps> = ({
   selectedItemId,
   onSelectItem,
 }) => {
-  const { items, transactions, user } = useShop();
+  const { items, transactions, user, priceHistory, updateItemPrice, updateItemStockCount } = useShop();
   const { t, language } = useI18n();
 
   const [filter, setFilter] = useState<'all' | 'low'>('all');
+  const [editingItem, setEditingItem] = useState<Item | null>(null);
+  const [editStockVal, setEditStockVal] = useState('');
+  const [editSellVal, setEditSellVal] = useState('');
+  const [editCostVal, setEditCostVal] = useState('');
 
   // Auto-scroll to highlighted item with reduced-motion support
   useEffect(() => {
@@ -348,13 +355,30 @@ export const Stock: React.FC<StockProps> = ({
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.92 }}
-                        onClick={() => handleOrderClick(item)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOrderClick(item);
+                        }}
                         className="px-3 py-1.5 bg-primary text-white rounded-xl text-xs font-black shadow-xs flex items-center space-x-1"
                       >
                         <ShoppingCart className="w-3 h-3 mr-0.5" />
                         <span>{t.stock.orderBtn}</span>
                       </motion.button>
                     )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingItem(item);
+                        setEditStockVal(String(item.current_stock));
+                        setEditSellVal(String(item.selling_price));
+                        setEditCostVal(String(item.cost_price));
+                      }}
+                      className="p-2 rounded-xl bg-gray-100 hover:bg-amber-100 text-slate-600 hover:text-amber-800 transition-colors"
+                      title={t.editing.editStockTitle}
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               </motion.div>
@@ -362,6 +386,112 @@ export const Stock: React.FC<StockProps> = ({
           })
         )}
       </div>
+
+      {/* Tap Parity: Edit Stock & Prices + Price History Modal */}
+      {editingItem && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl max-h-[85vh] overflow-y-auto space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+              <h3 className="text-lg font-black text-slate-900">
+                {t.editing.editStockTitle}: {formatItemName(editingItem.name, language)}
+              </h3>
+              <button
+                onClick={() => setEditingItem(null)}
+                className="p-2 rounded-full hover:bg-gray-100 text-slate-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const s = Number(editStockVal);
+                const sell = Number(editSellVal);
+                const cost = Number(editCostVal);
+                if (!isNaN(s) && s !== editingItem.current_stock) {
+                  updateItemStockCount(editingItem.id, s, 'tap');
+                }
+                if (!isNaN(sell) && sell > 0 && sell !== editingItem.selling_price) {
+                  updateItemPrice(editingItem.id, { selling_price: sell }, 'tap');
+                }
+                if (isOwner && !isNaN(cost) && cost >= 0 && cost !== editingItem.cost_price) {
+                  updateItemPrice(editingItem.id, { cost_price: cost }, 'tap');
+                }
+                setEditingItem(null);
+              }}
+              className="space-y-3"
+            >
+              <div>
+                <label className="text-xs font-bold text-slate-600 block mb-1">
+                  {t.editing.stockCountLabel} ({formatUnit(editingItem.unit, language)})
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={editStockVal}
+                  onChange={(e) => setEditStockVal(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 font-black text-base"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-600 block mb-1">
+                  {t.stock.sellingPrice} (₹)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={editSellVal}
+                  onChange={(e) => setEditSellVal(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 font-black text-base"
+                />
+              </div>
+              {isOwner && (
+                <div>
+                  <label className="text-xs font-bold text-slate-600 block mb-1">
+                    {t.stock.costPrice} (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editCostVal}
+                    onChange={(e) => setEditCostVal(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 font-black text-base"
+                  />
+                </div>
+              )}
+              <button
+                type="submit"
+                className="w-full touch-target-64 bg-primary text-white font-black rounded-2xl shadow-md"
+              >
+                {t.settings.saveSettings}
+              </button>
+            </form>
+
+            {/* Price History */}
+            <div className="pt-3 border-t border-gray-100 space-y-2">
+              <h4 className="text-xs font-black text-slate-600 flex items-center space-x-1.5">
+                <History className="w-3.5 h-3.5 text-amber-600" />
+                <span>{t.editing.priceHistoryTitle}</span>
+              </h4>
+              {priceHistory.filter((ph) => ph.item_id === editingItem.id).length === 0 ? (
+                <p className="text-xs text-slate-400">{t.editing.noHistory}</p>
+              ) : (
+                priceHistory
+                  .filter((ph) => ph.item_id === editingItem.id)
+                  .slice(0, 5)
+                  .map((ph) => (
+                    <div key={ph.id} className="text-xs flex justify-between p-2 rounded-xl bg-gray-50">
+                      <span className="font-bold capitalize">{ph.price_type}</span>
+                      <span>₹{ph.old_price} ➔ ₹{ph.new_price} ({ph.source})</span>
+                    </div>
+                  ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
