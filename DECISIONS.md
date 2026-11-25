@@ -283,6 +283,18 @@ This log records major technical and product decisions made during the developme
   - Languages marked **Good** (`hi`, `en`, `gu`, `mr`, `bn`, `ta`, `te`) operate with exceptional accuracy directly via Android Chrome's built-in Web Speech API with zero network latency.
   - Languages marked **Usable** (`pa`, `kn`, `ml`) work well with our cross-script fuzzy matcher and multilingual number converter, but benefit significantly from a server speech provider (`Sarvam` / `Bhashini` / `Whisper` via Supabase Edge Function `stt-proxy`) on older Android devices where Google Speech regional acoustic packages are not pre-installed.
 
+---
+
+### DECISION-026: Append-Only Corrections, Immutable Audit Logs, and Tiered Voice Safety
+- **Date**: 2026-11-25
+- **Context**: Editing saved financial entries by voice or tap introduces risk of silent data tampering, balance/stock drift, or accidental confirmation of high-value changes.
+- **Decision**:
+  - **Append-Only Ledger**: Saved transactions are never mutated in-place. Every edit appends a linked `is_reversal` record and `is_correction` record (`parent_transaction_id`), updating only a non-destructive `superseded_by` pointer on the original while computing exact customer balance, stock, and profit deltas.
+  - **Immutable Audit & Price History**: Every edit and undo writes an `audit_logs` record (`who`, `when`, `before_value`, `after_value`, `source: 'voice' | 'tap'`) and price edits write `price_history` records, both protected by multi-tenant Supabase RLS.
+  - **Diff Confirmation & Side-Effect Warnings**: Every saved-entry edit requires a Before/After diff confirmation card and surfaces warnings for attached proof clips (preserving `proof_original_amount`), sent reminders, and stock/profit deltas.
+  - **Tiered Safety**: Deletes (entries, clips, bills) and proof recordings remain strictly tap-only. Edits exceeding configurable `edit_rupee_threshold` (default ₹2,000) or `edit_age_days_threshold` (default 7 days), or touching entries with proof/reminders, disable voice auto-confirm and require a deliberate tap on Confirm. Voice `"Haan"` only completes standard actions while the mic pill is active and a confirmation card is showing.
+  - **Voice ↔ Tap Parity**: Documented in [VOICE_PARITY.md](file:///C:/Users/Croma/Desktop/DukaanAI/VOICE_PARITY.md); all voice edits have matching tap UIs routed through the same confirmation and audit pipeline.
+
 
 
 

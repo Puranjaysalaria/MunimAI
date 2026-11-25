@@ -53,9 +53,13 @@ export async function routeVoiceIntent(
     lower.startsWith('no ') ||
     lower === 'nahi' ||
     lower === 'no' ||
-    lower.startsWith('ਨਹੀਂ') ||
-    lower.startsWith('ਨਾ') ||
-    lower.startsWith('ना') ||
+    lower === 'ਨਹੀਂ' ||
+    lower.startsWith('ਨਹੀਂ ') ||
+    lower === 'ਨਾ' ||
+    lower.startsWith('ਨਾ ') ||
+    lower === 'ना' ||
+    lower.startsWith('ना ') ||
+    lower.startsWith('नहीं') ||
     lower.startsWith('இல்லை') ||
     lower.startsWith('కాదు') ||
     lower.startsWith('ಇಲ್ಲ') ||

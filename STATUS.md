@@ -213,6 +213,22 @@
     - 526/526 vitest tests passing across 15 test suites.
     - Zero TypeScript errors (`tsc --noEmit`).
     - Production build passing cleanly via `npm run build`.
+- [x] **Step 20: Voice-First Editing, Append-Only Corrections, Safety Tiers & Tap Parity**
+  - **Pending Confirmation In-Place Corrections ([pendingCorrectionParser.ts](file:///C:/Users/Croma/Desktop/DukaanAI/src/voice/pendingCorrectionParser.ts))**:
+    - Supports slot overrides (`"nahi, 600"`, `"600 nahi 500"`, `"Ramesh Kumar wala"`, `"chini nahi aata"`, `"do kilo nahi paanch"`, `"aaj nahi kal"`) and relative math (`"200 aur jodo"`, `"double kar do"`, `"aadha kar do"`, `"thoda kam karo"`) without restarting.
+    - Updates [ConfirmationCard.tsx](file:///C:/Users/Croma/Desktop/DukaanAI/src/components/ConfirmationCard/ConfirmationCard.tsx) in place, speaks only the changed field, pauses on `"ruko"` without saving, and discards on `"cancel"` / `"nahi"`.
+  - **Saved-Entry Edit Intents & Target Resolution ([entryResolver.ts](file:///C:/Users/Croma/Desktop/DukaanAI/src/voice/entryResolver.ts), [editIntents.ts](file:///C:/Users/Croma/Desktop/DukaanAI/src/voice/intents/editIntents.ts))**:
+    - Added `edit_entry`, `change_amount`, `change_item`, `change_customer`, `change_quantity`, `change_date`, and `edit_note` across rule parser, LLM classifier, and all 10 language tables.
+    - Resolves targets by context/most recent, customer, amount, item, or date; triggers [EntryDisambiguationModal.tsx](file:///C:/Users/Croma/Desktop/DukaanAI/src/components/DisambiguationModal/EntryDisambiguationModal.tsx) when ambiguous (never guesses).
+  - **Append-Only Corrections & Audit Log ([correctionService.ts](file:///C:/Users/Croma/Desktop/DukaanAI/src/lib/correctionService.ts), [20261125000000_append_only_corrections_audit.sql](file:///C:/Users/Croma/Desktop/DukaanAI/supabase/migrations/20261125000000_append_only_corrections_audit.sql))**:
+    - Original entries are never overwritten; edits append linked reversal + correction records, recalculate customer balances, stock, and profit, and write immutable `audit_logs` + `price_history` rows with shop-scoped RLS.
+    - Added "Edited" badge and Correction History view in [Ledger.tsx](file:///C:/Users/Croma/Desktop/DukaanAI/src/pages/Ledger.tsx), with full `Wapas karo` undo support.
+  - **Diff Confirmation, Side-Effect Warnings & Safety Tiers ([sideEffectAnalyzer.ts](file:///C:/Users/Croma/Desktop/DukaanAI/src/voice/sideEffectAnalyzer.ts), [safetyTiers.ts](file:///C:/Users/Croma/Desktop/DukaanAI/src/voice/safetyTiers.ts))**:
+    - Before/After diff confirmation card (`"Pehle: ₹500, ab: ₹600. Badal doon?"`) with 64px Haan/Nahi buttons.
+    - Warns on attached proof clips (displays original amount + tap-only re-record with consent), sent reminders, and stock/profit deltas.
+    - Enforces tap-only deletes and deliberate tap confirmation for edits above `edit_rupee_threshold`, older than `edit_age_days_threshold`, or with proof/reminders.
+  - **Domain Voice Edits & Tap Parity ([domainEditParser.ts](file:///C:/Users/Croma/Desktop/DukaanAI/src/voice/domainEditParser.ts), [EditTransactionModal.tsx](file:///C:/Users/Croma/Desktop/DukaanAI/src/components/Ledger/EditTransactionModal.tsx), [VOICE_PARITY.md](file:///C:/Users/Croma/Desktop/DukaanAI/VOICE_PARITY.md))**:
+    - Voice and tap parity for reminder previews, supplier order lists, stock counts/prices (with price history), customer details, and bill-scan review lines across all 10 languages (442 keys).
 - [x] **Step 19: Plain-Text UPI Payment Details in Reminders & Clean Console Auditing**
   - **Plain-Text UPI Details (`src/lib/reminderService.ts`)**:
     - Per user requirement, removed web links from reminder messages. Messages sent via WhatsApp or SMS now strictly contain plain-text UPI payment details (UPI ID, payee store name, formatted amount with Indian digit grouping e.g. `₹20,500`).
@@ -226,3 +242,19 @@
     - 526/526 vitest tests passing across 15 test suites.
     - Zero TypeScript errors (`tsc --noEmit`).
     - Production build passing cleanly via `npm run build`.
+- [x] **Step 20: Voice-First Editing, Append-Only Corrections, Safety Tiers & Tap Parity**
+  - **Pending Confirmation In-Place Corrections ([pendingCorrectionParser.ts](file:///C:/Users/Croma/Desktop/DukaanAI/src/voice/pendingCorrectionParser.ts))**:
+    - Supports slot overrides (`"nahi, 600"`, `"600 nahi 500"`, `"Ramesh Kumar wala"`, `"chini nahi aata"`, `"do kilo nahi paanch"`, `"aaj nahi kal"`) and relative math (`"200 aur jodo"`, `"double kar do"`, `"aadha kar do"`, `"thoda kam karo"`) without restarting.
+    - Updates [ConfirmationCard.tsx](file:///C:/Users/Croma/Desktop/DukaanAI/src/components/ConfirmationCard/ConfirmationCard.tsx) in place, speaks only the changed field, pauses on `"ruko"` without saving, and discards on `"cancel"` / `"nahi"`.
+  - **Saved-Entry Edit Intents & Target Resolution ([entryResolver.ts](file:///C:/Users/Croma/Desktop/DukaanAI/src/voice/entryResolver.ts), [editIntents.ts](file:///C:/Users/Croma/Desktop/DukaanAI/src/voice/intents/editIntents.ts))**:
+    - Added `edit_entry`, `change_amount`, `change_item`, `change_customer`, `change_quantity`, `change_date`, and `edit_note` across rule parser, LLM classifier, and all 10 language tables.
+    - Resolves targets by context/most recent, customer, amount, item, or date; triggers [EntryDisambiguationModal.tsx](file:///C:/Users/Croma/Desktop/DukaanAI/src/components/DisambiguationModal/EntryDisambiguationModal.tsx) when ambiguous (never guesses).
+  - **Append-Only Corrections & Audit Log ([correctionService.ts](file:///C:/Users/Croma/Desktop/DukaanAI/src/lib/correctionService.ts), [20261125000000_append_only_corrections_audit.sql](file:///C:/Users/Croma/Desktop/DukaanAI/supabase/migrations/20261125000000_append_only_corrections_audit.sql))**:
+    - Original entries are never overwritten; edits append linked reversal + correction records, recalculate customer balances, stock, and profit, and write immutable `audit_logs` + `price_history` rows with shop-scoped RLS.
+    - Added "Edited" badge and Correction History view in [Ledger.tsx](file:///C:/Users/Croma/Desktop/DukaanAI/src/pages/Ledger.tsx), with full `Wapas karo` undo support.
+  - **Diff Confirmation, Side-Effect Warnings & Safety Tiers ([sideEffectAnalyzer.ts](file:///C:/Users/Croma/Desktop/DukaanAI/src/voice/sideEffectAnalyzer.ts), [safetyTiers.ts](file:///C:/Users/Croma/Desktop/DukaanAI/src/voice/safetyTiers.ts))**:
+    - Before/After diff confirmation card (`"Pehle: ₹500, ab: ₹600. Badal doon?"`) with 64px Haan/Nahi buttons.
+    - Warns on attached proof clips (displays original amount + tap-only re-record with consent), sent reminders, and stock/profit deltas.
+    - Enforces tap-only deletes and deliberate tap confirmation for edits above `edit_rupee_threshold`, older than `edit_age_days_threshold`, or with proof/reminders.
+  - **Domain Voice Edits & Tap Parity ([domainEditParser.ts](file:///C:/Users/Croma/Desktop/DukaanAI/src/voice/domainEditParser.ts), [EditTransactionModal.tsx](file:///C:/Users/Croma/Desktop/DukaanAI/src/components/Ledger/EditTransactionModal.tsx), [VOICE_PARITY.md](file:///C:/Users/Croma/Desktop/DukaanAI/VOICE_PARITY.md))**:
+    - Voice and tap parity for reminder previews, supplier order lists, stock counts/prices (with price history), customer details, and bill-scan review lines across all 10 languages (442 keys).

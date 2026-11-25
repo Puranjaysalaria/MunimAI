@@ -59,6 +59,8 @@ const DOUBLE_KEYWORDS =
 const HALF_KEYWORDS =
   /\b(aadha|adha|half|adh|50%)\b|आधा|अर्धा|ਅੱਧਾ|અડધું|অর্ধেক|பாதி|సగం|ಅರ್ಧ|പകുതി/iu;
 
+const SLIGHT_LESS_KEYWORDS_GU = /થોડ[\u0AC1\u0AC2\u0A82]+\s*ઓછ[\u0AC1\u0AC2\u0A82]+/iu;
+
 const SLIGHT_LESS_KEYWORDS =
   /\b(thoda\s*kam|thoda\s*ghatao|slightly\s*less|little\s*less|thoda\s*chhota)\b|थोड़ा\s*कम|ਥੋੜ੍ਹਾ\s*ਘੱਟ|થੋડું\s*ઓછું|थोडं\s*कमी|একটু\s*কম|கொஞ்சம்\s*குறை|కొంచెం\s*తగ్గించు|ಸ್ವಲ್ಪ\s*ಕಡಿಮೆ|കുറച്ച്\s*കുറയ്ക്കൂ/iu;
 
@@ -239,7 +241,7 @@ export function parsePendingCorrection(
     };
   }
 
-  if (SLIGHT_LESS_KEYWORDS.test(latinEffective) || SLIGHT_LESS_KEYWORDS.test(effectiveText)) {
+  if (SLIGHT_LESS_KEYWORDS.test(latinEffective) || SLIGHT_LESS_KEYWORDS.test(effectiveText) || SLIGHT_LESS_KEYWORDS_GU.test(effectiveText)) {
     const step = baseAmount >= 500 ? Math.max(50, Math.round((baseAmount * 0.1) / 10) * 10) : Math.max(10, Math.round(baseAmount * 0.1));
     const newAmount = Math.max(1, baseAmount - step);
     return {
