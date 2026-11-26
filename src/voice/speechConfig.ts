@@ -250,10 +250,13 @@ export type FallbackReason =
   | 'kill_switch'
   | 'budget_exceeded'
   | 'offline'
+  | 'http_400'
   | 'http_401'
   | 'http_402'
   | 'http_429'
   | 'http_5xx'
+  | 'decode_error'
+  | 'mic_error'
   | 'timeout'
   | 'error';
 

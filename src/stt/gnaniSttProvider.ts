@@ -33,7 +33,7 @@ export interface GnaniSttOptions extends STTOptions {
   shopId?: string;
 }
 
-const DEFAULT_GNANI_TIMEOUT_MS = 8_000;
+const DEFAULT_GNANI_TIMEOUT_MS = 12_000;
 
 // Single-active-request queue + exponential backoff for Gnani REST calls
 let activeSttQueue: Promise<unknown> = Promise.resolve();
@@ -300,7 +300,13 @@ export class GnaniSttProvider implements STTProvider {
             }
             consecutive429s = 0;
 
-            const data = await res.json();
+            const data = (await res.json()) as {
+              transcript?: string;
+              confidence?: number;
+              latency?: number;
+              costInr?: number;
+              speechStartedAtMs?: number;
+            };
             const latency = typeof data.latency === 'number' ? data.latency : Date.now() - t0;
             const costInr =
               typeof data.costInr === 'number' ? data.costInr : estimateSttCostInr(processed.durationMs);
@@ -330,6 +336,8 @@ export class GnaniSttProvider implements STTProvider {
             const reason: FallbackReason =
               err?.name === 'AbortError'
                 ? 'timeout'
+                : msg.includes('400')
+                ? 'http_400'
                 : msg.includes('401')
                 ? 'http_401'
                 : msg.includes('402')
@@ -343,14 +351,14 @@ export class GnaniSttProvider implements STTProvider {
             await this.fallbackToBrowser(options, callbacks, reason);
           }
         } catch {
-          await this.fallbackToBrowser(options, callbacks);
+          await this.fallbackToBrowser(options, callbacks, 'decode_error');
         }
       };
 
       this.mediaRecorder.start(250);
     } catch {
       // Silent fallback to browser STT on any capture failure
-      await this.fallbackToBrowser(options, callbacks);
+      await this.fallbackToBrowser(options, callbacks, 'mic_error');
     }
   }
 

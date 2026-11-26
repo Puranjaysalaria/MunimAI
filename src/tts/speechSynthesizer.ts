@@ -561,6 +561,7 @@ export class SpeechSynthesizer {
   private activeAudio: HTMLAudioElement | null = null;
   private ttsQueue: Promise<unknown> = Promise.resolve();
   private ttsCooldownUntilMs = 0;
+  private speechEpoch = 0;
 
   registerPreRecordedPack(entries: Array<{ language: string; text: string; url: string }>): void {
     for (const e of entries) {
@@ -579,9 +580,9 @@ export class SpeechSynthesizer {
     return next;
   }
 
-  private async playBase64OrUrl(src: string): Promise<boolean> {
-    if (typeof Audio === 'undefined') return false;
-    this.stop();
+  private async playBase64OrUrl(src: string, epoch: number): Promise<boolean> {
+    if (typeof Audio === 'undefined' || epoch !== this.speechEpoch) return false;
+    this.stopAudioOnly();
     return new Promise((resolve) => {
       try {
         const audio = new Audio(src);
@@ -609,6 +610,21 @@ export class SpeechSynthesizer {
     });
   }
 
+  private stopAudioOnly(): void {
+    if (this.activeAudio) {
+      try {
+        this.activeAudio.pause();
+        this.activeAudio.src = '';
+      } catch {}
+      this.activeAudio = null;
+    }
+    if (this.synth) {
+      try {
+        this.synth.cancel();
+      } catch {}
+    }
+  }
+
   /**
    * Provider order for speaking:
    * 1. Pre-recorded pack
@@ -625,8 +641,9 @@ export class SpeechSynthesizer {
       return 'text';
     }
 
-    // Cancel any active cloud Audio or device SpeechSynthesis so two voices never overlap
-    this.stop();
+    // Supersede any in-flight or active speech so two voices NEVER play together
+    const myEpoch = ++this.speechEpoch;
+    this.stopAudioOnly();
 
     const code = (lang || 'hi').slice(0, 2);
     const profile = getLanguageVoiceProfile(code);
@@ -635,7 +652,8 @@ export class SpeechSynthesizer {
     const packUrl = this.preRecordedPack.get(`${code}::${hashTTSText(text)}`);
     if (packUrl) {
       const t0 = Date.now();
-      const ok = await this.playBase64OrUrl(packUrl);
+      const ok = await this.playBase64OrUrl(packUrl, myEpoch);
+      if (myEpoch !== this.speechEpoch) return 'text';
       if (ok) {
         recordVoiceUsage({
           channel: 'tts',
@@ -678,7 +696,8 @@ export class SpeechSynthesizer {
       const cached = getCachedTTSAudio(cacheParams);
       if (cached) {
         const dataUri = `data:${cached.mimeType};base64,${cached.audioBase64}`;
-        const ok = await this.playBase64OrUrl(dataUri);
+        const ok = await this.playBase64OrUrl(dataUri, myEpoch);
+        if (myEpoch !== this.speechEpoch) return 'text';
         if (ok) {
           recordVoiceUsage({
             channel: 'tts',
@@ -703,16 +722,21 @@ export class SpeechSynthesizer {
           } catch {
             authToken = '';
           }
-          const res = await this.enqueueTtsFetch(() =>
-            fetch(endpoint, {
+          if (myEpoch !== this.speechEpoch) return 'text';
+          const res = await this.enqueueTtsFetch(() => {
+            if (myEpoch !== this.speechEpoch) {
+              return Promise.resolve(null);
+            }
+            return fetch(endpoint, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
                 ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
               },
               body: JSON.stringify(cacheParams),
-            })
-          );
+            });
+          });
+          if (!res || myEpoch !== this.speechEpoch) return 'text';
           if (res.ok) {
             const data = (await res.json()) as {
               audioBase64?: string;
@@ -720,6 +744,7 @@ export class SpeechSynthesizer {
               latency?: number;
               costInr?: number;
             };
+            if (myEpoch !== this.speechEpoch) return 'text';
             if (data.audioBase64) {
               const mimeType = data.mimeType || 'audio/wav';
               setCachedTTSAudio(cacheParams, data.audioBase64, mimeType);
@@ -734,7 +759,8 @@ export class SpeechSynthesizer {
                 costInr,
                 fallbackReason: 'none',
               });
-              const ok = await this.playBase64OrUrl(`data:${mimeType};base64,${data.audioBase64}`);
+              const ok = await this.playBase64OrUrl(`data:${mimeType};base64,${data.audioBase64}`, myEpoch);
+              if (myEpoch !== this.speechEpoch) return 'text';
               if (ok) return 'gnani';
             }
           } else {
@@ -757,6 +783,10 @@ export class SpeechSynthesizer {
           ttsFallbackReason = err?.name === 'AbortError' ? 'timeout' : 'error';
         }
       }
+    }
+
+    if (myEpoch !== this.speechEpoch) {
+      return 'text';
     }
 
     // 3. Device voice (Web Speech API)
@@ -836,18 +866,8 @@ export class SpeechSynthesizer {
   }
 
   stop() {
-    if (this.activeAudio) {
-      try {
-        this.activeAudio.pause();
-        this.activeAudio.src = '';
-      } catch {}
-      this.activeAudio = null;
-    }
-    if (this.synth) {
-      try {
-        this.synth.cancel();
-      } catch {}
-    }
+    this.speechEpoch++;
+    this.stopAudioOnly();
   }
 }
 
