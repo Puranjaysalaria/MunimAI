@@ -629,10 +629,13 @@ export class SpeechSynthesizer {
       }
     }
 
-    // 2. Configured cloud provider (Gnani / Timbre) with cache
+    // 2. Configured cloud provider (Gnani / Timbre) with cache + 500-char text rule
+    const sanitizedText = text.replace(/[\u0000-\u001F\u007F]/g, ' ').replace(/\s+/g, ' ').trim();
     const allowCloud =
       options?.cloudSpeechEnabled !== false &&
       profile.ttsProvider === 'gnani' &&
+      sanitizedText.length > 0 &&
+      sanitizedText.length <= 500 &&
       !isCloudSpeechKillSwitchActive() &&
       getRemainingVoiceBudgetInr() > 0 &&
       (typeof navigator === 'undefined' || navigator.onLine !== false);
@@ -642,7 +645,7 @@ export class SpeechSynthesizer {
         language: profile.ttsLanguageCode,
         voice: profile.ttsVoice,
         model: profile.ttsModel,
-        text,
+        text: sanitizedText,
       };
       const cached = getCachedTTSAudio(cacheParams);
       if (cached) {

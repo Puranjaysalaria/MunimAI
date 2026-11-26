@@ -59,12 +59,12 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
     vi.unstubAllGlobals();
   });
 
-  it('routes all 10 languages with Hinglish mixed-language support only where supported', () => {
+  it('routes all 10 languages with fail-closed browser/device defaults and Hinglish mixed-language support only where supported', () => {
     const langs: LanguageCode[] = ['hi', 'en', 'pa', 'gu', 'mr', 'bn', 'ta', 'te', 'kn', 'ml'];
     for (const lang of langs) {
       const profile = getLanguageVoiceProfile(lang);
-      expect(profile.sttProvider).toBe('gnani');
-      expect(profile.ttsProvider).toBe('gnani');
+      expect(profile.sttProvider).toBe('browser');
+      expect(profile.ttsProvider).toBe('device');
       expect(profile.sttLanguageCode).toMatch(/^[a-z]{2}-IN$/);
     }
 
@@ -197,6 +197,9 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
     expect(p1).toBe('pack');
     expect(fetchMock).not.toHaveBeenCalled();
 
+    // Enable Gnani TTS via device override (since default is fail-closed 'device')
+    setDeviceProviderOverride('hi', { tts: 'gnani' });
+
     // 2. Uncached text calls /api/gnani-tts once, then cache hit serves second call with zero fetches
     const p2 = await speechSynthesizer.speakWithOrder('रमेश के 500 रुपये लिखे', 'hi', { cloudSpeechEnabled: true });
     expect(p2).toBe('gnani');
@@ -204,8 +207,8 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
 
     const cached = getCachedTTSAudio({
       language: 'hi-IN',
-      voice: 'ananya',
-      model: 'timbre-v1',
+      voice: 'Nalini',
+      model: 'timbre-v2.5',
       text: 'रमेश के 500 रुपये लिखे',
     });
     expect(cached).not.toBeNull();
@@ -215,7 +218,7 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     // 3. With cloudSpeechEnabled=false and no synth in Node test env, falls through cleanly to 'text'
-    setCachedTTSAudio({ language: 'en-IN', voice: 'kavya', model: 'timbre-v1', text: 'Done' }, 'UklGRg==');
+    setCachedTTSAudio({ language: 'en-IN', voice: 'Kaveri', model: 'timbre-v2.5', text: 'Done' }, 'UklGRg==');
     const p4 = await speechSynthesizer.speakWithOrder('Done', 'en', { cloudSpeechEnabled: false });
     expect(p4).toBe('text');
   });
@@ -242,7 +245,7 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
         {
           method: 'POST',
           headers: { authorization: 'Bearer test-jwt' },
-          body: { text: 'Namaste', language: 'hi', voice: 'ananya', model: 'timbre-v1' },
+          body: { text: 'Namaste', language: 'hi', voice: 'Nalini', model: 'timbre-v2.5' },
         } as any,
         res
       );
@@ -279,7 +282,7 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
   it('calculates STT/TTS costs and enforces shop consent & daily budget gates', () => {
     expect(estimateSttCostInr(10_000)).toBeCloseTo(0.15, 4);
     expect(estimateTtsCostInr(1000)).toBeCloseTo(0.5, 4);
-    expect(getRemainingVoiceBudgetInr()).toBe(100);
+    expect(getRemainingVoiceBudgetInr()).toBe(5);
 
     expect(
       isCloudSpeechAllowedForShop({
@@ -465,11 +468,11 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
       ).not.toThrow();
 
       // Device-only provider override switches local provider per language while keeping shared config intact & respecting consent/budget
-      setDeviceProviderOverride('hi', { stt: 'browser', tts: 'device' });
-      expect(VOICE_LANGUAGE_PROFILES.hi.sttProvider).toBe('gnani'); // shared config untouched
-      expect(getLanguageVoiceProfile('hi').sttProvider).toBe('browser');
+      setDeviceProviderOverride('hi', { stt: 'gnani', tts: 'gnani' });
+      expect(VOICE_LANGUAGE_PROFILES.hi.sttProvider).toBe('browser'); // shared fail-closed config untouched
+      expect(getLanguageVoiceProfile('hi').sttProvider).toBe('gnani');
       expect(createSTTProvider(undefined, { language: 'hi', cloudSpeechEnabled: true })).toBeInstanceOf(
-        BrowserSpeechProvider
+        GnaniSttProvider
       );
 
       setDeviceProviderOverride('hi', { stt: 'gnani', tts: 'gnani' });

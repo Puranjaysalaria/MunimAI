@@ -74,13 +74,13 @@ async function handleGnaniTts(req: VercelRequest, res: VercelResponse): Promise<
     return;
   }
 
-  const chosenModel = (model || process.env.TIMBRE_TTS_MODEL || 'timbre-v1').trim();
+  const chosenModel = (model || process.env.TIMBRE_TTS_MODEL || 'timbre-v2.5').trim();
   if (!ALLOWED_TTS_MODELS.has(chosenModel)) {
     res.status(400).json({ success: false, error: 'Unsupported model' });
     return;
   }
 
-  const chosenVoice = (voice || process.env.TIMBRE_TTS_VOICE || 'ananya').trim();
+  const chosenVoice = (voice || process.env.TIMBRE_TTS_VOICE || 'Nalini').trim();
   if (!ALLOWED_TTS_VOICES.has(chosenVoice)) {
     res.status(400).json({ success: false, error: 'Unsupported voice' });
     return;
@@ -129,15 +129,21 @@ async function handleGnaniTts(req: VercelRequest, res: VercelResponse): Promise<
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-        'x-api-key': apiKey,
+        'X-API-Key-ID': apiKey,
       },
       body: JSON.stringify({
         text: cleanText,
-        language: mappedLang,
         voice: chosenVoice,
         model: chosenModel,
-        format: 'wav',
+        language: mappedLang,
+        speed: 1.0,
+        audio_config: {
+          encoding: 'linear_pcm',
+          container: 'wav',
+          num_channels: 1,
+          sample_rate: 16000,
+          sample_width: 2,
+        },
       }),
       signal: controller.signal,
     });

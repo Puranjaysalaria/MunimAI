@@ -86,7 +86,7 @@ async function handleGnaniStt(req: VercelRequest, res: VercelResponse): Promise<
     return;
   }
 
-  const chosenModel = (model || process.env.GNANI_STT_MODEL || 'gnani-stt-v2').trim();
+  const chosenModel = (model || process.env.GNANI_STT_MODEL || 'prisma-v3.0').trim();
   if (!ALLOWED_STT_MODELS.has(chosenModel)) {
     res.status(400).json({ success: false, error: 'Unsupported model' });
     return;
@@ -141,19 +141,14 @@ async function handleGnaniStt(req: VercelRequest, res: VercelResponse): Promise<
   try {
     const formData = new FormData();
     const audioBlob = new Blob([new Uint8Array(audioBuffer)], { type: 'audio/wav' });
-    formData.append('audio', audioBlob, 'command.wav');
-    formData.append('lang', mappedLang);
+    const targetLangCode =
+      hinglishMode === 'auto' || hinglishMode === 'mixed' ? 'indic-auto' : mappedLang;
+    formData.append('audio_file', audioBlob, 'command.wav');
+    formData.append('language_code', targetLangCode);
     formData.append('model', chosenModel);
-    formData.append('encoding', 'pcm16');
-    formData.append('sample_rate', '16000');
-
-    if (hinglishMode === 'auto' || hinglishMode === 'mixed') {
-      formData.append('mixed_language', hinglishMode);
-    }
 
     const headers: Record<string, string> = {
-      Authorization: `Bearer ${gnaniApiKey}`,
-      'x-api-key': gnaniApiKey,
+      'X-API-Key-ID': gnaniApiKey,
     };
     if (gnaniProductId) {
       headers['x-product-id'] = gnaniProductId;

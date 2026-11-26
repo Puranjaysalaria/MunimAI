@@ -30,7 +30,7 @@ export function createSTTProvider(
   const profile = options?.language ? getLanguageVoiceProfile(options.language) : null;
   const chosenType =
     type ||
-    (profile && profile.sttProvider === 'browser' ? 'browser' : undefined) ||
+    (profile ? profile.sttProvider : undefined) ||
     envType ||
     'browser';
 

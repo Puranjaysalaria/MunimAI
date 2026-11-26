@@ -26,20 +26,9 @@ export const LANGUAGE_MAP: Record<string, string> = {
 };
 
 export const ALLOWED_LANGUAGES = new Set(Object.values(LANGUAGE_MAP));
-export const ALLOWED_STT_MODELS = new Set(['gnani-stt-v2']);
-export const ALLOWED_TTS_MODELS = new Set(['timbre-v1']);
-export const ALLOWED_TTS_VOICES = new Set([
-  'ananya',
-  'kavya',
-  'simran',
-  'diya',
-  'sai',
-  'roshni',
-  'nithya',
-  'sri',
-  'ananya-kn',
-  'lekha',
-]);
+export const ALLOWED_STT_MODELS = new Set(['prisma-v2.5', 'prisma-v3.0']);
+export const ALLOWED_TTS_MODELS = new Set(['timbre-v2.5', 'timbre-v3.0']);
+export const ALLOWED_TTS_VOICES = new Set(['Nalini', 'Kaveri']);
 
 export const MAX_STT_BODY_BYTES = 1024 * 1024; // 1 MB
 export const DEFAULT_TTS_MAX_CHARS = 500;
@@ -175,10 +164,10 @@ export async function reserveVoiceQuota(
     return { allowed: false, status: 400, reason: 'invalid_quota_args' };
   }
 
-  const shopDailyCap = Math.max(0, Number(process.env.GNANI_DAILY_BUDGET_INR) || 100);
-  const shopMonthlyCap = Math.max(0, Number(process.env.GNANI_MONTHLY_BUDGET_INR) || 1500);
-  const globalMonthlyCap = Math.max(0, Number(process.env.GNANI_GLOBAL_MONTHLY_BUDGET_INR) || 25000);
-  const globalRpm = Math.max(1, Number(process.env.GNANI_GLOBAL_RPM) || 120);
+  const shopDailyCap = Math.max(0, Number(process.env.GNANI_DAILY_BUDGET_INR) || 5);
+  const shopMonthlyCap = Math.max(0, Number(process.env.GNANI_MONTHLY_BUDGET_INR) || 50);
+  const globalMonthlyCap = Math.max(0, Number(process.env.GNANI_GLOBAL_MONTHLY_BUDGET_INR) || 200);
+  const globalRpm = Math.max(1, Number(process.env.GNANI_GLOBAL_RPM) || 50);
 
   if (customVoiceQuotaAdapter) {
     return customVoiceQuotaAdapter.reserve({
