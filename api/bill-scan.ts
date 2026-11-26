@@ -129,10 +129,9 @@ async function handleBillScan(req: VercelRequest, res: VercelResponse) {
   try {
     const candidateModels = [
       process.env.GEMINI_MODEL,
-      'gemini-2.0-flash',
       'gemini-2.5-flash',
       'gemini-2.5-flash-lite',
-      'gemini-1.5-flash',
+      'gemini-2.0-flash',
     ].filter(Boolean) as string[];
 
     const promptText = `You are an expert OCR parser for Indian kirana store, retail, and supermarket receipts, invoices, and bills.
@@ -156,6 +155,7 @@ Respond STRICTLY with valid JSON in this exact structure, with no markdown fence
 }`;
 
     let lastError = '';
+    let lastStatus = 503;
     let response: Response | null = null;
 
     for (const model of candidateModels) {
@@ -191,6 +191,7 @@ Respond STRICTLY with valid JSON in this exact structure, with no markdown fence
           break;
         }
 
+        lastStatus = resAttempt.status;
         const errText = await resAttempt.text();
         lastError = `Model ${model} returned ${resAttempt.status}: ${errText.slice(0, 300)}`;
 
@@ -217,7 +218,7 @@ Respond STRICTLY with valid JSON in this exact structure, with no markdown fence
         console.warn('[BillScan Server]', lastError);
       }
 
-      const status = response?.status || 503;
+      const status = response?.status || lastStatus || 503;
       let friendlyError =
         'AI bill scanner is temporarily busy due to high demand. Please try again in a few moments.';
       if (status === 401 || status === 403) {
