@@ -558,6 +558,9 @@ export class SpeechSynthesizer {
   }
 
   private preRecordedPack = new Map<string, string>();
+  private activeAudio: HTMLAudioElement | null = null;
+  private ttsQueue: Promise<unknown> = Promise.resolve();
+  private ttsCooldownUntilMs = 0;
 
   registerPreRecordedPack(entries: Array<{ language: string; text: string; url: string }>): void {
     for (const e of entries) {
@@ -567,17 +570,29 @@ export class SpeechSynthesizer {
 
   clearPreRecordedPackForTest(): void {
     this.preRecordedPack.clear();
+    this.ttsCooldownUntilMs = 0;
+  }
+
+  private enqueueTtsFetch<T>(task: () => Promise<T>): Promise<T> {
+    const next = this.ttsQueue.then(task);
+    this.ttsQueue = next.catch(() => undefined);
+    return next;
   }
 
   private async playBase64OrUrl(src: string): Promise<boolean> {
     if (typeof Audio === 'undefined') return false;
+    this.stop();
     return new Promise((resolve) => {
       try {
         const audio = new Audio(src);
+        this.activeAudio = audio;
         let settled = false;
         const done = (ok: boolean) => {
           if (!settled) {
             settled = true;
+            if (this.activeAudio === audio) {
+              this.activeAudio = null;
+            }
             resolve(ok);
           }
         };
@@ -610,6 +625,9 @@ export class SpeechSynthesizer {
       return 'text';
     }
 
+    // Cancel any active cloud Audio or device SpeechSynthesis so two voices never overlap
+    this.stop();
+
     const code = (lang || 'hi').slice(0, 2);
     const profile = getLanguageVoiceProfile(code);
 
@@ -641,6 +659,8 @@ export class SpeechSynthesizer {
         ? 'kill_switch'
         : getRemainingVoiceBudgetInr() <= 0
         ? 'budget_exceeded'
+        : Date.now() < this.ttsCooldownUntilMs
+        ? 'http_429'
         : typeof navigator !== 'undefined' && navigator.onLine === false
         ? 'offline'
         : 'none';
@@ -683,14 +703,16 @@ export class SpeechSynthesizer {
           } catch {
             authToken = '';
           }
-          const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-            },
-            body: JSON.stringify(cacheParams),
-          });
+          const res = await this.enqueueTtsFetch(() =>
+            fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+              },
+              body: JSON.stringify(cacheParams),
+            })
+          );
           if (res.ok) {
             const data = (await res.json()) as {
               audioBase64?: string;
@@ -716,6 +738,10 @@ export class SpeechSynthesizer {
               if (ok) return 'gnani';
             }
           } else {
+            if (res.status === 429) {
+              // Back off for 15s on 429 so we don't spam Gnani TTS
+              this.ttsCooldownUntilMs = Date.now() + 15_000;
+            }
             ttsFallbackReason =
               res.status === 401
                 ? 'http_401'
@@ -810,6 +836,13 @@ export class SpeechSynthesizer {
   }
 
   stop() {
+    if (this.activeAudio) {
+      try {
+        this.activeAudio.pause();
+        this.activeAudio.src = '';
+      } catch {}
+      this.activeAudio = null;
+    }
     if (this.synth) {
       try {
         this.synth.cancel();
