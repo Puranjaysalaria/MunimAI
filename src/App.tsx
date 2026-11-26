@@ -54,6 +54,7 @@ export const AppContent: React.FC = () => {
     lastTransaction,
     offlinePendingCount,
     addTransaction,
+    addCustomer,
     applyTransactionCorrection,
     undoLastTransaction,
     attachProofClip,
@@ -228,6 +229,14 @@ export const AppContent: React.FC = () => {
       setSelectedCustomerTrigger(Date.now());
       setActiveTab('ledger');
     },
+    onCreateCustomer: async (name: string) =>
+      addCustomer({
+        name,
+        phone: '',
+        balance_owed: 0,
+        credit_limit: 5000,
+        trust_score: 4,
+      }),
     onCloseModals: () => {
       setIsBillScanOpen(false);
       setIsSupplierOrdersOpen(false);

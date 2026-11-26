@@ -39,6 +39,7 @@ interface UseVoiceControllerProps {
   onUpdateItemPrice?: (itemNameOrId: string, updates: { selling_price?: number; cost_price?: number }) => { success: boolean; previousItem?: Item; updatedItem?: Item };
   onPriceActionConfirmed?: (action: { item: Item; priceType: 'selling' | 'cost'; oldPrice: number; newPrice: number; unit: string }) => void;
   onSelectCustomer?: (customerId: string) => void;
+  onCreateCustomer?: (name: string) => Promise<Customer>;
   onCloseModals?: () => void;
   onPlayProofClip?: (clipPath?: string) => void;
   onOpenProofRecorder?: () => void;
@@ -70,6 +71,7 @@ export function useVoiceController({
   onUpdateItemPrice,
   onPriceActionConfirmed,
   onSelectCustomer,
+  onCreateCustomer,
   onCloseModals,
   onPlayProofClip,
   onOpenProofRecorder,
@@ -1192,7 +1194,7 @@ export function useVoiceController({
   }, [language, isListening, voiceState, stopListening, processInput, t]);
 
   // Confirm and save the pending transaction (or apply append-only correction)
-  const handleConfirmSave = useCallback((confirmSource: 'voice' | 'tap' = 'voice') => {
+  const handleConfirmSave = useCallback(async (confirmSource: 'voice' | 'tap' = 'voice') => {
     const pending = pendingConfirmationRef.current;
     if (!pending) return;
 
@@ -1346,10 +1348,18 @@ export function useVoiceController({
         ]
       : [];
 
+    let resolvedCustomerId = pending.customer?.id || null;
+    if (!resolvedCustomerId && pending.customerName && (txType === 'credit' || txType === 'payment') && onCreateCustomer) {
+      try {
+        const createdCust = await onCreateCustomer(pending.customerName.trim());
+        resolvedCustomerId = createdCust.id;
+      } catch {}
+    }
+
     onSaveTransaction({
       type: txType,
       amount: pending.amount,
-      customer_id: pending.customer?.id || null,
+      customer_id: resolvedCustomerId,
       items: txItems,
       confirmed_by_voice: true,
       voice_transcript: pending.rawText,

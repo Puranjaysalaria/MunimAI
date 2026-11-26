@@ -142,7 +142,7 @@ async function handleGnaniStt(req: VercelRequest, res: VercelResponse): Promise<
     const formData = new FormData();
     const audioBlob = new Blob([new Uint8Array(audioBuffer)], { type: 'audio/wav' });
     const targetLangCode =
-      hinglishMode === 'auto' || hinglishMode === 'mixed' ? 'indic-auto' : mappedLang;
+      mappedLang === 'hi-IN' && hinglishMode === 'mixed' ? 'indic-auto' : mappedLang;
     formData.append('audio_file', audioBlob, 'command.wav');
     formData.append('language_code', targetLangCode);
     formData.append('model', chosenModel);
