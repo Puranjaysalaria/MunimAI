@@ -24,5 +24,22 @@
 - Local Supabase 50-parallel concurrency & security test: [scripts/test-voice-quota-concurrency.ts](file:///C:/Users/Croma/Desktop/DukaanAI/scripts/test-voice-quota-concurrency.ts) (`npm run test:quota`), refusing non-local URLs; [supabase/tests/voice_usage_atomic_test.sql](file:///C:/Users/Croma/Desktop/DukaanAI/supabase/tests/voice_usage_atomic_test.sql) updated to verify `anon`/`authenticated` revocation and `service_role` execute grants.
 - [scripts/check-no-secrets-in-bundle.ts](file:///C:/Users/Croma/Desktop/DukaanAI/scripts/check-no-secrets-in-bundle.ts) scans `dist/` for `SUPABASE_SERVICE_ROLE_KEY`, `GNANI_API_KEY`, and service-role JWT/secret patterns, and fails if either `GNANI_API_KEY` or `SUPABASE_SERVICE_ROLE_KEY` is unset in `process.env`.
 
+### 50-Parallel Reserve Diagnosis & Fix
+- **Symptom**: `scripts/test-voice-quota-concurrency.ts` initially expected `Math.floor(0.15 / 0.015) = 10` successes and got `7`.
+- **Diagnostic Runs (3x after `npx supabase db reset` + 2x without reset)**:
+  - All 3 reset runs: `succeeded: 7, denied:shop_daily_budget: 43, errored: 0`, `voice_usage.spend_paise = 14, req_count = 7`, `voice_usage_global.spend_paise = 14, minute_req_count = 7`.
+  - Without reset: `succeeded: 7, denied:shop_daily_budget: 43, errored: 0` each time; `voice_usage_global.spend_paise` accumulated `28` then `42` across runs (confirming zero errors and zero cross-shop leakage).
+- **Hypothesis Results**:
+  - **(a) Concurrent first inserts / deadlocks**: **False** — 0 SQL errors.
+  - **(b) Global per-minute or other cap hit first**: **False** — all 43 denials were `shop_daily_budget`.
+  - **(c) Reserved amount per call differs from test assumption**: **True (Root Cause)** — `reserve_voice_quota` stores money as integer paise (`v_est_paise := GREATEST(1, round(p_estimated_inr * 100)::integer)`), so `0.015` INR (`1.5` paise) rounds to **`2` paise**, while `0.15` INR cap = `15` paise. Thus `floor(15 / 2) = 7` (`7 * 2 = 14 <= 15`, `8 * 2 = 16 > 15`).
+  - **(d) PostgREST transport limits / timeouts**: **False** — 0 transport errors.
+  - **(e) Lock timeouts / serialization failures**: **False** — 0 lock/serialization errors.
+- **Fix**: Updated [scripts/test-voice-quota-concurrency.ts](file:///C:/Users/Croma/Desktop/DukaanAI/scripts/test-voice-quota-concurrency.ts) to use a fresh shop per run, set `p_global_rpm = 1000`, compute `expectedSuccesses = Math.floor(capPaise / actualCostPaise)` from the actual `voice_reservations.reserved_paise` row in DB, distinguish `succeeded` / `denied` / `errored`, assert `errored === 0` and exact `expectedSuccesses`, and verify double/parallel reconcile, `anon` + `authenticated` permission denied, wrong-shop rejection, and negative/`NaN` rejection.
+- **3 Consecutive Passing Runs (`npm run test:quota`)**:
+  - Run 1: `succeeded: 7, denied: 43 (shop_daily_budget), errored: 0, actualCostPaise: 2, capPaise: 15` — PASSED.
+  - Run 2: `succeeded: 7, denied: 43 (shop_daily_budget), errored: 0, actualCostPaise: 2, capPaise: 15` — PASSED.
+  - Run 3: `succeeded: 7, denied: 43 (shop_daily_budget), errored: 0, actualCostPaise: 2, capPaise: 15` — PASSED.
+
 ## 5. Device-Only Provider Override (Resolved)
 - [src/voice/speechConfig.ts#L160-L220](file:///C:/Users/Croma/Desktop/DukaanAI/src/voice/speechConfig.ts#L160-L220) and [src/components/SettingsModal.tsx#L373-L416](file:///C:/Users/Croma/Desktop/DukaanAI/src/components/SettingsModal.tsx#L373-L416) allow per-language device-only STT/TTS overrides in `localStorage` on the Voice Debug screen without redeploying, while preserving shared defaults and still enforcing budgets and consent.
