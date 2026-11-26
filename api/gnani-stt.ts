@@ -26,6 +26,16 @@ function sanitizeTranscriptData(raw: unknown): string {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+  try {
+    return await handleGnaniStt(req, res);
+  } catch {
+    if (!res.headersSent) {
+      res.status(503).json({ success: false, error: 'Service temporarily unavailable' });
+    }
+  }
+}
+
+async function handleGnaniStt(req: VercelRequest, res: VercelResponse): Promise<void> {
   if (!applyCorsAllowlist(req, res)) {
     res.status(403).json({ success: false, error: 'Origin not allowed' });
     return;

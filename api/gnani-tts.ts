@@ -20,6 +20,16 @@ export function resetGnaniTtsLimitsForTest(): void {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+  try {
+    return await handleGnaniTts(req, res);
+  } catch {
+    if (!res.headersSent) {
+      res.status(503).json({ success: false, error: 'Service temporarily unavailable' });
+    }
+  }
+}
+
+async function handleGnaniTts(req: VercelRequest, res: VercelResponse): Promise<void> {
   if (!applyCorsAllowlist(req, res)) {
     res.status(403).json({ success: false, error: 'Origin not allowed' });
     return;

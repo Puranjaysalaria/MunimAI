@@ -2,6 +2,16 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  try {
+    return await handleRegister(req, res);
+  } catch {
+    if (!res.headersSent) {
+      res.status(503).json({ success: false, error: 'Service temporarily unavailable' });
+    }
+  }
+}
+
+async function handleRegister(req: VercelRequest, res: VercelResponse) {
   // 1. CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -132,10 +142,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       shopId: newShopId,
       userId: userData.user.id,
     });
-  } catch (error: any) {
-    res.status(500).json({
+  } catch {
+    res.status(503).json({
       success: false,
-      error: error?.message || 'Internal server error during registration.',
+      error: 'Registration service temporarily unavailable.',
     });
   }
 }

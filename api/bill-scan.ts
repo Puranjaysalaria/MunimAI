@@ -41,6 +41,16 @@ export function incrementDailyScan(shopId: string): number {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  try {
+    return await handleBillScan(req, res);
+  } catch {
+    if (!res.headersSent) {
+      res.status(503).json({ success: false, error: 'Service temporarily unavailable' });
+    }
+  }
+}
+
+async function handleBillScan(req: VercelRequest, res: VercelResponse) {
   // 1. CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -248,10 +258,10 @@ Respond STRICTLY with valid JSON in this exact structure, with no markdown fence
       scansUsed: updatedScans,
       remainingToday: Math.max(0, dailyCap - updatedScans),
     });
-  } catch (error: any) {
-    res.status(500).json({
+  } catch {
+    res.status(503).json({
       success: false,
-      error: error?.message || 'Internal server error while processing bill image.',
+      error: 'Bill scan service temporarily unavailable.',
     });
   }
 }
