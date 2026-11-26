@@ -389,13 +389,29 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
     process.env.GNANI_API_KEY = 'secret-gnani-key';
 
     try {
-      // Disallowed origin -> 403
+      // Disallowed cross-origin -> 403
       const badOriginRes = makeMockRes();
       await gnaniSttHandler(
-        { method: 'POST', headers: { origin: 'https://evil.example', authorization: 'Bearer ok' }, body: {} } as any,
+        {
+          method: 'POST',
+          headers: { origin: 'https://evil.example', host: 'munim-ai-sepia.vercel.app', authorization: 'Bearer ok' },
+          body: {},
+        } as any,
         badOriginRes
       );
       expect(badOriginRes.statusCode).toBe(403);
+
+      // Same-origin (host matches origin) is allowed even if ALLOWED_ORIGINS differs -> proceeds to JWT check (401)
+      const sameOriginRes = makeMockRes();
+      await gnaniSttHandler(
+        {
+          method: 'POST',
+          headers: { origin: 'https://munim-ai-sepia.vercel.app', host: 'munim-ai-sepia.vercel.app' },
+          body: {},
+        } as any,
+        sameOriginRes
+      );
+      expect(sameOriginRes.statusCode).toBe(401);
 
       // Missing JWT -> 401
       const noJwtRes = makeMockRes();

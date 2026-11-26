@@ -57,11 +57,12 @@ export function isValidWav16kMonoHeader(buffer: Buffer): boolean {
  * Enforces ALLOWED_ORIGINS allowlist (fail closed — never emits Access-Control-Allow-Origin: *).
  */
 export function applyCorsAllowlist(req: VercelRequest, res: VercelResponse): boolean {
-  const origin = req.headers?.origin;
+  const rawOrigin = req.headers?.origin;
+  const origin = typeof rawOrigin === 'string' ? rawOrigin.trim().replace(/\/+$/, '') : undefined;
   const rawAllowed = process.env.ALLOWED_ORIGINS || '';
   const allowlist = rawAllowed
     .split(',')
-    .map((s) => s.trim())
+    .map((s) => s.trim().replace(/\/+$/, ''))
     .filter(Boolean);
 
   res.setHeader('Vary', 'Origin');
@@ -69,8 +70,16 @@ export function applyCorsAllowlist(req: VercelRequest, res: VercelResponse): boo
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (!origin) {
-    // Non-browser / same-origin server call without Origin header
-    return allowlist.length === 0 ? true : true;
+    // Non-browser / server call without Origin header
+    return true;
+  }
+
+  // Always allow same-origin requests (e.g. https://munim-ai-sepia.vercel.app -> /api/gnani-stt)
+  const rawHost = req.headers?.['x-forwarded-host'] || req.headers?.host || '';
+  const host = (Array.isArray(rawHost) ? rawHost[0] : rawHost).split(',')[0].trim();
+  if (host && (origin === `https://${host}` || origin === `http://${host}`)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    return true;
   }
 
   if (allowlist.includes(origin)) {

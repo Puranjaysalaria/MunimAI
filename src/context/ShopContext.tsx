@@ -305,6 +305,34 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return false;
   };
 
+  // Loads live shop data for a real Supabase shop (never leaks demo data into a new/real account)
+  const loadLiveShopData = async (targetShopId: string) => {
+    if (!targetShopId || targetShopId === DEMO_SHOP_ID) return;
+    setLastTransaction(null);
+    setAuditLogs([]);
+    setPriceHistory([]);
+
+    try {
+      const [custRes, itemRes, txRes] = await Promise.all([
+        supabase.from('customers').select('*').eq('shop_id', targetShopId),
+        supabase.from('items').select('*').eq('shop_id', targetShopId),
+        supabase
+          .from('transactions')
+          .select('*')
+          .eq('shop_id', targetShopId)
+          .order('created_at', { ascending: false }),
+      ]);
+
+      setCustomers((custRes.data as Customer[]) || []);
+      setItems((itemRes.data as Item[]) || []);
+      setTransactions((txRes.data as Transaction[]) || []);
+    } catch {
+      setCustomers([]);
+      setItems([]);
+      setTransactions([]);
+    }
+  };
+
   // Real-time Supabase Auth Login
   const loginWithSupabase = async (
     email: string,
@@ -337,15 +365,19 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
           localStorage.setItem(`${STORAGE_KEY_PREFIX}user`, JSON.stringify(userProfile));
         }
 
-        const { data: shopProfile } = await supabase
-          .from('shops')
-          .select('*')
-          .eq('id', userProfile?.shop_id || DEMO_SHOP_ID)
-          .single();
+        const resolvedShopId = userProfile?.shop_id;
+        if (resolvedShopId) {
+          const { data: shopProfile } = await supabase
+            .from('shops')
+            .select('*')
+            .eq('id', resolvedShopId)
+            .single();
 
-        if (shopProfile) {
-          setShop(shopProfile as Shop);
-          localStorage.setItem(`${STORAGE_KEY_PREFIX}shop`, JSON.stringify(shopProfile));
+          if (shopProfile) {
+            setShop(shopProfile as Shop);
+            localStorage.setItem(`${STORAGE_KEY_PREFIX}shop`, JSON.stringify(shopProfile));
+          }
+          await loadLiveShopData(resolvedShopId);
         }
 
         return { success: true };
@@ -450,6 +482,12 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setShop(localShop);
       setUser(localUser);
+      setCustomers([]);
+      setItems([]);
+      setTransactions([]);
+      setAuditLogs([]);
+      setPriceHistory([]);
+      setLastTransaction(null);
       setIsLoggedIn(true);
       setIsLocked(false);
       localStorage.setItem(`${STORAGE_KEY_PREFIX}auth_active`, 'true');
