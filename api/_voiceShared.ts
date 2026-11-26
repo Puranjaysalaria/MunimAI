@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { getQuotaServiceRoleClient } from './_quotaServiceClient';
+import { getQuotaServiceRoleClient } from './_quotaServiceClient.js';
 
 export const LANGUAGE_MAP: Record<string, string> = {
   hi: 'hi-IN',

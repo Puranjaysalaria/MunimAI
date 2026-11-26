@@ -11,7 +11,7 @@ import {
   reserveVoiceQuota,
   resetAtomicFallbackQuotaForTest,
   verifySupabaseUserAndShop,
-} from './_voiceShared';
+} from './_voiceShared.js';
 
 const GNANI_TTS_INR_PER_CHAR = 0.0005;
 

@@ -11,7 +11,7 @@ import {
   reserveVoiceQuota,
   resetAtomicFallbackQuotaForTest,
   verifySupabaseUserAndShop,
-} from './_voiceShared';
+} from './_voiceShared.js';
 
 const GNANI_STT_INR_PER_SEC = 0.015;
 
