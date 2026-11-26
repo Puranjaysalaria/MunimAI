@@ -216,14 +216,79 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Fetch live cloud data from Supabase if configured, online, and logged into a real shop
   useEffect(() => {
-    if (!isLoggedIn || !shop.id || shop.id === DEMO_SHOP_ID || !isSupabaseConfigured() || !navigator.onLine) return;
+    if (!isLoggedIn || !isSupabaseConfigured() || !navigator.onLine) return;
 
     const fetchLiveCloudData = async () => {
       try {
+        let activeShopId = shop.id;
+
+        // Self-heal missing shop.id for an active Supabase session
+        if (!activeShopId || activeShopId === DEMO_SHOP_ID) {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const authUser = sessionData?.session?.user;
+          if (!authUser) return;
+
+          const { data: existingUser } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', authUser.id)
+            .maybeSingle();
+
+          if (existingUser?.shop_id) {
+            activeShopId = existingUser.shop_id;
+            setUser(existingUser as User);
+            localStorage.setItem(`${STORAGE_KEY_PREFIX}user`, JSON.stringify(existingUser));
+            const { data: shopProfile } = await supabase
+              .from('shops')
+              .select('*')
+              .eq('id', activeShopId)
+              .maybeSingle();
+            if (shopProfile) {
+              setShop(shopProfile as Shop);
+              localStorage.setItem(`${STORAGE_KEY_PREFIX}shop`, JSON.stringify(shopProfile));
+            }
+          } else {
+            const newShopId = crypto.randomUUID();
+            const meta = (authUser.user_metadata || {}) as Record<string, string>;
+            const newShop: Shop = {
+              id: newShopId,
+              name: meta.shop_name || 'My Shop',
+              owner_phone: authUser.phone || '+919999999999',
+              settings: { wake_word_enabled: true, cloud_speech_enabled: true },
+            };
+            const { data: createdShop } = await supabase
+              .from('shops')
+              .insert({
+                id: newShop.id,
+                name: newShop.name,
+                owner_phone: newShop.owner_phone,
+                settings: newShop.settings,
+              })
+              .select()
+              .maybeSingle();
+            const newUser: User = {
+              id: authUser.id,
+              shop_id: newShopId,
+              name: meta.owner_name || authUser.email?.split('@')[0] || 'Shop Owner',
+              phone: authUser.phone || '+919999999999',
+              role: 'owner',
+            };
+            await supabase.from('users').insert(newUser);
+            const finalShop = (createdShop as Shop) || newShop;
+            activeShopId = finalShop.id;
+            setShop(finalShop);
+            setUser(newUser);
+            localStorage.setItem(`${STORAGE_KEY_PREFIX}shop`, JSON.stringify(finalShop));
+            localStorage.setItem(`${STORAGE_KEY_PREFIX}user`, JSON.stringify(newUser));
+          }
+        }
+
+        if (!activeShopId || activeShopId === DEMO_SHOP_ID) return;
+
         const [cRes, iRes, tRes] = await Promise.all([
-          supabase.from('customers').select('*').eq('shop_id', shop.id).order('created_at', { ascending: false }),
-          supabase.from('items').select('*').eq('shop_id', shop.id),
-          supabase.from('transactions').select('*').eq('shop_id', shop.id).order('created_at', { ascending: false }).limit(60),
+          supabase.from('customers').select('*').eq('shop_id', activeShopId).order('created_at', { ascending: false }),
+          supabase.from('items').select('*').eq('shop_id', activeShopId),
+          supabase.from('transactions').select('*').eq('shop_id', activeShopId).order('created_at', { ascending: false }).limit(60),
         ]);
 
         if (cRes.data) {
@@ -375,12 +440,33 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsLocked(false);
         localStorage.setItem(`${STORAGE_KEY_PREFIX}auth_active`, 'true');
 
-        // Fetch live user & shop profile
-        const { data: userProfile } = await supabase
+        // Fetch live user & shop profile (auto-provision if missing)
+        let { data: userProfile } = await supabase
           .from('users')
           .select('*')
           .eq('id', data.user.id)
           .maybeSingle();
+
+        if (!userProfile) {
+          const newShopId = crypto.randomUUID();
+          const meta = (data.user.user_metadata || {}) as Record<string, string>;
+          const createdShopPayload = {
+            id: newShopId,
+            name: meta.shop_name || 'My Shop',
+            owner_phone: data.user.phone || '+919999999999',
+            settings: { wake_word_enabled: true, cloud_speech_enabled: true },
+          };
+          await supabase.from('shops').insert(createdShopPayload);
+          const createdUserPayload: User = {
+            id: data.user.id,
+            shop_id: newShopId,
+            name: meta.owner_name || data.user.email?.split('@')[0] || 'Shop Owner',
+            phone: data.user.phone || '+919999999999',
+            role: 'owner',
+          };
+          await supabase.from('users').insert(createdUserPayload);
+          userProfile = createdUserPayload;
+        }
 
         if (userProfile) {
           setUser(userProfile as User);
@@ -1183,7 +1269,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return updated;
     });
 
-    if (isSupabaseConfigured() && navigator.onLine) {
+    if (isSupabaseConfigured() && navigator.onLine && shop.id && shop.id !== DEMO_SHOP_ID) {
       supabase
         .from('shops')
         .update({

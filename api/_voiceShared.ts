@@ -339,11 +339,12 @@ export async function verifySupabaseUserAndShop(req: VercelRequest): Promise<Ver
     }
 
     const userId = userData.user.id;
-    const { data: userRow, error: shopErr } = await supabase
+    const lookupClient = getQuotaServiceRoleClient() || supabase;
+    const { data: userRow, error: shopErr } = await lookupClient
       .from('users')
       .select('shop_id')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
     if (shopErr || !userRow?.shop_id) {
       return { ok: false, status: 403 };
