@@ -153,10 +153,19 @@ async function handleGnaniTts(req: VercelRequest, res: VercelResponse): Promise<
 
     if (!upstream.ok) {
       await reconcileVoiceQuota(auth, quota.reservationId, 0);
-      res.status(upstream.status === 429 ? 429 : 502).json({
-        success: false,
-        error: upstream.status === 429 ? 'Rate limit exceeded' : 'Speech synthesis unavailable',
-      });
+      await upstream.json().catch(() => null);
+      const statusMap: Record<number, { status: number; error: string }> = {
+        401: { status: 502, error: 'Speech service authentication failed' },
+        402: { status: 402, error: 'Voice quota exceeded' },
+        422: { status: 400, error: 'Unsupported synthesis parameters' },
+        429: { status: 429, error: 'Rate limit exceeded' },
+        504: { status: 504, error: 'Speech synthesis timed out' },
+      };
+      const mapped = statusMap[upstream.status] || {
+        status: 502,
+        error: 'Speech synthesis unavailable',
+      };
+      res.status(mapped.status).json({ success: false, error: mapped.error });
       return;
     }
 

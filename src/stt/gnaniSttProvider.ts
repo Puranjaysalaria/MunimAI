@@ -34,6 +34,22 @@ export interface GnaniSttOptions extends STTOptions {
 
 const DEFAULT_GNANI_TIMEOUT_MS = 8_000;
 
+// Single-active-request queue + exponential backoff for Gnani REST calls
+let activeSttQueue: Promise<unknown> = Promise.resolve();
+let consecutive429s = 0;
+
+function enqueueGnaniSttRequest<T>(task: () => Promise<T>): Promise<T> {
+  const next = activeSttQueue.then(async () => {
+    if (consecutive429s > 0) {
+      const backoffMs = Math.min(4000, 300 * Math.pow(2, consecutive429s - 1));
+      await new Promise((r) => setTimeout(r, backoffMs));
+    }
+    return task();
+  });
+  activeSttQueue = next.catch(() => undefined);
+  return next;
+}
+
 export class GnaniSttProvider implements STTProvider {
   readonly id = 'gnani';
   readonly name = 'Gnani Cloud STT (with silent Browser fallback)';
@@ -252,26 +268,32 @@ export class GnaniSttProvider implements STTProvider {
           const t0 = Date.now();
 
           try {
-            const res = await fetch(endpoint, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-              },
-              body: JSON.stringify({
-                audioBase64: processed.wavBase64,
-                language: profile.sttLanguageCode,
-                model: profile.sttModel,
-                ...(hinglishMode && hinglishMode !== 'off' ? { hinglishMode } : {}),
-                speechStartedAtMs: processed.utteranceStartedAtMs,
-              }),
-              signal: controller.signal,
-            });
+            const res = await enqueueGnaniSttRequest(() =>
+              fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+                },
+                body: JSON.stringify({
+                  audioBase64: processed.wavBase64,
+                  language: profile.sttLanguageCode,
+                  model: profile.sttModel,
+                  ...(hinglishMode && hinglishMode !== 'off' ? { hinglishMode } : {}),
+                  speechStartedAtMs: processed.utteranceStartedAtMs,
+                }),
+                signal: controller.signal,
+              })
+            );
             clearTimeout(timer);
 
             if (!res.ok) {
+              if (res.status === 429) {
+                consecutive429s = Math.min(4, consecutive429s + 1);
+              }
               throw new Error(`Gnani STT HTTP ${res.status}`);
             }
+            consecutive429s = 0;
 
             const data = await res.json();
             const latency = typeof data.latency === 'number' ? data.latency : Date.now() - t0;
