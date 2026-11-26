@@ -13,13 +13,7 @@ import {
   UserRole,
 } from '../types/schema';
 import { buildAppendOnlyCorrection, TransactionCorrectionPatch } from '../lib/correctionService';
-import {
-  DEMO_SHOP_ID,
-  INITIAL_CUSTOMERS,
-  INITIAL_ITEMS,
-  INITIAL_SUPPLIERS,
-  generate14DaysTransactions,
-} from '../data/mockData';
+import { DEMO_SHOP_ID } from '../data/mockData';
 import {
   queueTransactionOffline,
   queueCorrectionOffline,
@@ -92,47 +86,48 @@ const ShopContext = createContext<ShopContextType | null>(null);
 const STORAGE_KEY_PREFIX = 'munim_ai_';
 
 export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // 1. Initial State from localStorage or default mock
+  // 1. Initial State from localStorage (empty by default — zero demo/mock/seeded data)
   const [shop, setShop] = useState<Shop>(() => {
-    const defaultShop: Shop = {
-      id: DEMO_SHOP_ID,
-      name: 'Sharma Kirana Store',
-      owner_phone: '+919876543210',
-      upi_id: 'sharmakirana@okaxis',
-      pin_hash: '1234', // Default demo PIN
+    const emptyShop: Shop = {
+      id: '',
+      name: 'My Shop',
+      owner_phone: '',
       settings: {
         wake_word_enabled: true,
+        cloud_speech_enabled: true,
       },
     };
     const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}shop`);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        return {
-          ...defaultShop,
-          ...parsed,
-          settings: {
-            wake_word_enabled: true,
-            ...(parsed.settings || {}),
-          },
-        };
+        if (parsed?.id && parsed.id !== DEMO_SHOP_ID) {
+          return {
+            ...emptyShop,
+            ...parsed,
+            settings: {
+              wake_word_enabled: true,
+              cloud_speech_enabled: true,
+              ...(parsed.settings || {}),
+            },
+          };
+        }
       } catch {}
     }
-    return defaultShop;
+    return emptyShop;
   });
 
   const [user, setUser] = useState<User | null>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}user`);
     if (saved) {
-      try { return JSON.parse(saved); } catch {}
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed?.shop_id && parsed.shop_id !== DEMO_SHOP_ID) {
+          return parsed;
+        }
+      } catch {}
     }
-    return {
-      id: '00000000-0000-0000-0000-000000000002',
-      shop_id: DEMO_SHOP_ID,
-      phone: '+919876543210',
-      name: 'Madan Lal Sharma',
-      role: 'owner',
-    };
+    return null;
   });
 
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
@@ -142,29 +137,47 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLocked, setIsLocked] = useState<boolean>(false);
 
   const [customers, setCustomers] = useState<Customer[]>(() => {
+    if (localStorage.getItem(`${STORAGE_KEY_PREFIX}auth_active`) !== 'true') return [];
     const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}customers`);
     if (saved) {
-      try { return JSON.parse(saved); } catch {}
+      try {
+        const parsed = JSON.parse(saved);
+        return Array.isArray(parsed)
+          ? parsed.filter((c: Customer) => c.shop_id !== DEMO_SHOP_ID)
+          : [];
+      } catch {}
     }
-    return INITIAL_CUSTOMERS;
+    return [];
   });
 
   const [items, setItems] = useState<Item[]>(() => {
+    if (localStorage.getItem(`${STORAGE_KEY_PREFIX}auth_active`) !== 'true') return [];
     const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}items`);
     if (saved) {
-      try { return JSON.parse(saved); } catch {}
+      try {
+        const parsed = JSON.parse(saved);
+        return Array.isArray(parsed)
+          ? parsed.filter((i: Item) => i.shop_id !== DEMO_SHOP_ID)
+          : [];
+      } catch {}
     }
-    return INITIAL_ITEMS;
+    return [];
   });
 
-  const [suppliers] = useState<Supplier[]>(INITIAL_SUPPLIERS);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
+    if (localStorage.getItem(`${STORAGE_KEY_PREFIX}auth_active`) !== 'true') return [];
     const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}transactions`);
     if (saved) {
-      try { return JSON.parse(saved); } catch {}
+      try {
+        const parsed = JSON.parse(saved);
+        return Array.isArray(parsed)
+          ? parsed.filter((t: Transaction) => t.shop_id !== DEMO_SHOP_ID)
+          : [];
+      } catch {}
     }
-    return generate14DaysTransactions();
+    return [];
   });
 
   const [lastTransaction, setLastTransaction] = useState<Transaction | null>(null);
@@ -201,25 +214,25 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     getOfflinePendingCount().then((count) => setOfflinePendingCount(count));
   }, []);
 
-  // Fetch live cloud data from Supabase if configured & online
+  // Fetch live cloud data from Supabase if configured, online, and logged into a real shop
   useEffect(() => {
-    if (!isSupabaseConfigured() || !navigator.onLine) return;
+    if (!isLoggedIn || !shop.id || shop.id === DEMO_SHOP_ID || !isSupabaseConfigured() || !navigator.onLine) return;
 
     const fetchLiveCloudData = async () => {
       try {
         const [cRes, iRes, tRes] = await Promise.all([
-          supabase.from('customers').select('*').order('created_at', { ascending: false }),
-          supabase.from('items').select('*'),
-          supabase.from('transactions').select('*').order('created_at', { ascending: false }).limit(60),
+          supabase.from('customers').select('*').eq('shop_id', shop.id).order('created_at', { ascending: false }),
+          supabase.from('items').select('*').eq('shop_id', shop.id),
+          supabase.from('transactions').select('*').eq('shop_id', shop.id).order('created_at', { ascending: false }).limit(60),
         ]);
 
-        if (cRes.data && cRes.data.length > 0) {
+        if (cRes.data) {
           setCustomers(cRes.data as Customer[]);
         }
-        if (iRes.data && iRes.data.length > 0) {
+        if (iRes.data) {
           setItems(iRes.data as Item[]);
         }
-        if (tRes.data && tRes.data.length > 0) {
+        if (tRes.data) {
           const mappedTxs: Transaction[] = tRes.data.map((row: any) => ({
             id: row.id,
             shop_id: row.shop_id,
@@ -241,7 +254,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     fetchLiveCloudData();
-  }, []);
+  }, [isLoggedIn, shop.id]);
 
   // Listen for online recovery to automatically sync offline queue
   useEffect(() => {
@@ -349,6 +362,15 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (data?.session) {
+        // Clear any stale local state before loading the authenticated shop
+        setCustomers([]);
+        setItems([]);
+        setSuppliers([]);
+        setTransactions([]);
+        setAuditLogs([]);
+        setPriceHistory([]);
+        setLastTransaction(null);
+
         setIsLoggedIn(true);
         setIsLocked(false);
         localStorage.setItem(`${STORAGE_KEY_PREFIX}auth_active`, 'true');
@@ -501,24 +523,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const loginDemo = async () => {
-    // Authenticate with real live Supabase cloud account!
+    // Demo data seeding is disabled; authenticate with real Supabase if configured
     if (isSupabaseConfigured() && navigator.onLine) {
-      const res = await loginWithSupabase('shopkeeper@munimai.com', 'MunimStore123!');
-      if (res.success) return;
+      await loginWithSupabase('shopkeeper@munimai.com', 'MunimStore123!');
     }
-
-    const demoUser: User = {
-      id: 'd7367b1a-b1fc-4835-b3b6-ccdba3f14598',
-      shop_id: DEMO_SHOP_ID,
-      phone: '+919876543210',
-      name: 'Madan Lal Sharma',
-      role: 'owner',
-    };
-    setUser(demoUser);
-    setIsLoggedIn(true);
-    setIsLocked(false);
-    localStorage.setItem(`${STORAGE_KEY_PREFIX}auth_active`, 'true');
-    localStorage.setItem(`${STORAGE_KEY_PREFIX}user`, JSON.stringify(demoUser));
   };
 
   const logout = async () => {
@@ -531,7 +539,25 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     setIsLoggedIn(false);
     setIsLocked(false);
-    localStorage.removeItem(`${STORAGE_KEY_PREFIX}auth_active`);
+    setUser(null);
+    setCustomers([]);
+    setItems([]);
+    setSuppliers([]);
+    setTransactions([]);
+    setAuditLogs([]);
+    setPriceHistory([]);
+    setLastTransaction(null);
+    [
+      'auth_active',
+      'shop',
+      'user',
+      'customers',
+      'items',
+      'transactions',
+      'audit_logs',
+      'price_history',
+      'last_price_change',
+    ].forEach((k) => localStorage.removeItem(`${STORAGE_KEY_PREFIX}${k}`));
   };
 
   const unlockWithPin = (pin: string): boolean => {

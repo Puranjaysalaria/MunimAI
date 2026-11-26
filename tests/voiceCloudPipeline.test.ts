@@ -60,7 +60,7 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
     vi.unstubAllGlobals();
   });
 
-  it('routes only Hindi to Gnani by default and keeps all other 9 languages on browser/device', () => {
+  it('routes all 10 supported languages to Gnani primary with browser/device fallback ready', () => {
     expect(VOICE_LANGUAGE_PROFILES.hi.sttProvider).toBe('gnani');
     expect(VOICE_LANGUAGE_PROFILES.hi.ttsProvider).toBe('gnani');
     expect(VOICE_LANGUAGE_PROFILES.hi.supportsMixedLanguage).toBe(true);
@@ -69,9 +69,10 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
     const otherLangs: LanguageCode[] = ['en', 'pa', 'gu', 'mr', 'bn', 'ta', 'te', 'kn', 'ml'];
     for (const lang of otherLangs) {
       const profile = getLanguageVoiceProfile(lang);
-      expect(profile.sttProvider).toBe('browser');
-      expect(profile.ttsProvider).toBe('device');
+      expect(profile.sttProvider).toBe('gnani');
+      expect(profile.ttsProvider).toBe('gnani');
       expect(profile.sttLanguageCode).toMatch(/^[a-z]{2}-IN$/);
+      expect(profile.ttsLanguageCode).toMatch(/^[a-z]{2}-IN$/);
     }
 
     expect(VOICE_LANGUAGE_PROFILES.pa.supportsMixedLanguage).toBe(false);
@@ -81,25 +82,18 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
   it('resolveProviders handles every fallback case explicitly', () => {
     const enabledSettings = { cloud_speech_enabled: true, cloud_speech_consent_at: '2026-11-26T00:00:00Z' };
 
-    // 1. Hindi with consent, online, budget > 0, no kill switch -> Gnani
-    expect(resolveProviders('hi', enabledSettings, false, true, { budgetRemainingInr: 5, isOnline: true })).toEqual({
-      configuredStt: 'gnani',
-      configuredTts: 'gnani',
-      stt: 'gnani',
-      tts: 'gnani',
-      fallbackReason: 'none',
-    });
+    // 1. Hindi and all other Gnani languages with consent, online, budget > 0, no kill switch -> Gnani
+    for (const lang of ['hi', 'en', 'pa', 'ta', 'mr'] as LanguageCode[]) {
+      expect(resolveProviders(lang, enabledSettings, false, true, { budgetRemainingInr: 5, isOnline: true })).toEqual({
+        configuredStt: 'gnani',
+        configuredTts: 'gnani',
+        stt: 'gnani',
+        tts: 'gnani',
+        fallbackReason: 'none',
+      });
+    }
 
-    // 2. Non-Hindi language defaults -> browser / device
-    expect(resolveProviders('pa', enabledSettings, false, true, { budgetRemainingInr: 5, isOnline: true })).toEqual({
-      configuredStt: 'browser',
-      configuredTts: 'device',
-      stt: 'browser',
-      tts: 'device',
-      fallbackReason: 'language_default',
-    });
-
-    // 3. Kill switch -> browser / device
+    // 2. Kill switch -> browser / device
     expect(
       resolveProviders('hi', enabledSettings, true, true, { budgetRemainingInr: 5, isOnline: true }).fallbackReason
     ).toBe('kill_switch');
@@ -536,10 +530,15 @@ describe('Phases 2-6: Gnani STT, Timbre TTS, Fallbacks, Cache, Numbers, Budgets 
         assertRequiredSecretsEnv({ GNANI_API_KEY: 'k1', SUPABASE_SERVICE_ROLE_KEY: 'k2' } as NodeJS.ProcessEnv)
       ).not.toThrow();
 
-      // Device-only provider override switches local provider per language while keeping shared config intact & respecting consent/budget
+      // Device-only provider override can still force browser/device locally while keeping shared Gnani config intact & respecting consent/budget
+      setDeviceProviderOverride('pa', { stt: 'browser', tts: 'device' });
+      expect(VOICE_LANGUAGE_PROFILES.pa.sttProvider).toBe('gnani'); // shared Gnani-first config untouched
+      expect(getLanguageVoiceProfile('pa').sttProvider).toBe('browser');
+      expect(createSTTProvider(undefined, { language: 'pa', cloudSpeechEnabled: true })).toBeInstanceOf(
+        BrowserSpeechProvider
+      );
+
       setDeviceProviderOverride('pa', { stt: 'gnani', tts: 'gnani' });
-      expect(VOICE_LANGUAGE_PROFILES.pa.sttProvider).toBe('browser'); // shared fail-closed config untouched
-      expect(getLanguageVoiceProfile('pa').sttProvider).toBe('gnani');
       expect(createSTTProvider(undefined, { language: 'pa', cloudSpeechEnabled: true })).toBeInstanceOf(
         GnaniSttProvider
       );

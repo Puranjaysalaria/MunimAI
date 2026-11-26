@@ -31,11 +31,24 @@ export const DailySummaryModal: React.FC<DailySummaryModalProps> = ({
   language,
 }) => {
   const { t } = useI18n();
+  const [isSpeaking, setIsSpeaking] = React.useState(() => speechSynthesizer.isSpeakingNow());
+
+  React.useEffect(() => {
+    const unsub = speechSynthesizer.subscribeSpeaking(setIsSpeaking);
+    if (isOpen && spokenText) {
+      speechSynthesizer.prewarm(spokenText, language);
+    }
+    return unsub;
+  }, [isOpen, spokenText, language]);
 
   if (!isOpen) return null;
 
   const handleSpeak = () => {
     triggerHaptic('start');
+    if (isSpeaking) {
+      speechSynthesizer.stop();
+      return;
+    }
     speechSynthesizer.speak(spokenText, language);
   };
 
@@ -108,10 +121,12 @@ export const DailySummaryModal: React.FC<DailySummaryModalProps> = ({
             </span>
             <button
               onClick={handleSpeak}
-              className="px-2.5 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-bold flex items-center space-x-1 active:scale-95"
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center space-x-1 active:scale-95 transition-colors ${
+                isSpeaking ? 'bg-accent text-amber-950' : 'bg-white/20 hover:bg-white/30 text-white'
+              }`}
             >
-              <Volume2 className="w-3.5 h-3.5 text-accent" />
-              <span>{t.summary.listen}</span>
+              <Volume2 className={`w-3.5 h-3.5 ${isSpeaking ? 'animate-pulse text-amber-950' : 'text-accent'}`} />
+              <span>{isSpeaking ? 'Speaking...' : t.summary.listen}</span>
             </button>
           </div>
           <div className="text-3xl font-black mt-1 text-white">

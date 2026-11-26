@@ -3,6 +3,7 @@ import { Customer, Item, Transaction, Supplier, Shop, AuditLogEntry } from '../t
 import { createSTTProvider, STTProvider } from '../stt';
 import { parseSpeech } from '../parser';
 import { resolveCrossScriptCustomer } from '../voice/crossScriptMatcher';
+import { buildNumberedCustomerPrompt, resolveOrdinalSelection } from '../voice/ordinalMatcher';
 import { parsePendingCorrection } from '../voice/pendingCorrectionParser';
 import { resolveTargetEntry, extractNewEditValue } from '../voice/entryResolver';
 import { analyzeEditSideEffects } from '../voice/sideEffectAnalyzer';
@@ -232,20 +233,9 @@ export function useVoiceController({
             : disambiguationCustomers;
 
         if (currentDisambig.length > 0) {
-          const isFirst = /\b(first(\s*one)?|number\s*(one|1)|pehla(\s*wala)?|ek|1|one|ਪਹਿਲਾ|पहला)\b/i.test(text);
-          const isSecond = /\b(second(\s*one)?|number\s*(two|2)|doosra(\s*wala)?|do|2|two|ਦੂਜਾ|दूसरा)\b/i.test(text);
-          const isThird = /\b(third(\s*one)?|number\s*(three|3)|teesra(\s*wala)?|teen|3|three|ਤੀਜਾ|तीसरा)\b/i.test(text);
-
-          if (isFirst && currentDisambig[0]) {
-            handleSelectDisambiguatedCustomer(currentDisambig[0]);
-            return;
-          }
-          if (isSecond && currentDisambig[1]) {
-            handleSelectDisambiguatedCustomer(currentDisambig[1]);
-            return;
-          }
-          if (isThird && currentDisambig[2]) {
-            handleSelectDisambiguatedCustomer(currentDisambig[2]);
+          const ordinalCustomer = resolveOrdinalSelection(text, currentDisambig);
+          if (ordinalCustomer) {
+            handleSelectDisambiguatedCustomer(ordinalCustomer);
             return;
           }
 
@@ -277,18 +267,11 @@ export function useVoiceController({
           }
         }
 
-        // 00. Entry Disambiguation reply ("pehla", "doosra", "500 wala")
+        // 00. Entry Disambiguation reply ("second one", "2nd", "doosra", "500 wala")
         const currentEntryDisambig = disambiguationEntriesRef.current;
         if (currentEntryDisambig.length > 0) {
-          const isFirst = /\b(first(\s*one)?|number\s*(one|1)|pehla(\s*wala)?|ek|1|one|ਪਹਿਲਾ|पहला)\b/i.test(text);
-          const isSecond = /\b(second(\s*one)?|number\s*(two|2)|doosra(\s*wala)?|do|2|two|ਦੂਜਾ|दूसरा)\b/i.test(text);
-          const isThird = /\b(third(\s*one)?|number\s*(three|3)|teesra(\s*wala)?|teen|3|three|ਤੀਜਾ|तीसरा)\b/i.test(text);
-
-          let chosenEntry: Transaction | undefined;
-          if (isFirst) chosenEntry = currentEntryDisambig[0];
-          else if (isSecond) chosenEntry = currentEntryDisambig[1];
-          else if (isThird) chosenEntry = currentEntryDisambig[2];
-          else {
+          let chosenEntry: Transaction | undefined = resolveOrdinalSelection(text, currentEntryDisambig);
+          if (!chosenEntry) {
             const numMatch = text.match(/\b(\d+)\b/);
             if (numMatch) {
               chosenEntry = currentEntryDisambig.find((tx) => Number(tx.amount) === Number(numMatch[1]));
@@ -339,8 +322,13 @@ export function useVoiceController({
               triggerHaptic('warning');
               setDisambiguationCustomers(correction.ambiguousCustomers);
               disambiguationCustomersRef.current = correction.ambiguousCustomers;
-              speechSynthesizer.speak(correction.spokenReadback, language);
+              const promptText = buildNumberedCustomerPrompt(correction.ambiguousCustomers, language);
               setVoiceState('idle');
+              speechSynthesizer.speak(promptText, language).then(() => {
+                if (disambiguationCustomersRef.current.length > 0) {
+                  startListeningForReply();
+                }
+              });
               return;
             }
 
@@ -381,7 +369,21 @@ export function useVoiceController({
           }
         }
 
-        // Safety Tier: Delete entry / clip / bill is ALWAYS tap-only
+        // Safety Tier: Delete specific old entry/clip/bill is tap-only,
+        // EXCEPT safe single-step undo/cancel/remove of the last transaction
+        const isLastTxUndoPhrase =
+          /\b(undo|last|latest|recent|just\s*(now|made|added)|pichla|pichli|aakhri|abhi\s*wala|abhi\s*wali|पिछला|आखिरी|ਪਿਛਲਾ|ਆਖਰੀ)\b/i.test(
+            text
+          ) && /\b(undo|cancel|remove|delete|revert|wapas|hatao|hata\s*do|mitao|mita\s*do|वापस|हटा|मिटा|ਰੱਦ|ਹਟਾ)\b/i.test(text);
+
+        if (isLastTxUndoPhrase) {
+          const res = onUndoLast();
+          playAudioCue('cancel');
+          speechSynthesizer.speak(res.message, language);
+          setVoiceState('idle');
+          return;
+        }
+
         if (
           /\b(delete|remove|erase|mita\s*do|hata\s*do|udaa\s*do)\b/i.test(text) &&
           /\b(entry|transaction|clip|proof|recording|bill|invoice|record|hisab)\b/i.test(text)
@@ -682,6 +684,87 @@ export function useVoiceController({
           return;
         }
 
+        if (result.intent === 'last_customer_record') {
+          if (result.ambiguousCustomers && result.ambiguousCustomers.length > 1) {
+            triggerHaptic('warning');
+            setDisambiguationCustomers(result.ambiguousCustomers);
+            disambiguationCustomersRef.current = result.ambiguousCustomers;
+            setPendingConfirmation({
+              intent: 'show_customer_ledger',
+              amount: 0,
+              rawText: text,
+              spokenReply: result.spokenReply,
+            });
+            const promptText = buildNumberedCustomerPrompt(result.ambiguousCustomers, language);
+            setVoiceState('idle');
+            speechSynthesizer.speak(promptText, language).then(() => {
+              if (disambiguationCustomersRef.current.length > 0) {
+                startListeningForReply();
+              }
+            });
+            return;
+          }
+
+          setVoiceState('success');
+          onNavigateTab('ledger');
+          let targetCustomer = result.matchedCustomer || null;
+          if (!targetCustomer && result.customer) {
+            targetCustomer =
+              customers.find((c) => c.name.toLowerCase() === result.customer?.toLowerCase()) || null;
+          }
+          if (targetCustomer && onSelectCustomer) {
+            onSelectCustomer(targetCustomer.id);
+          }
+
+          const latestTx = targetCustomer
+            ? [...transactions]
+                .filter((tx) => tx.customer_id === targetCustomer!.id)
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+            : [...transactions].sort(
+                (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+              )[0];
+
+          let reply: string;
+          if (latestTx) {
+            const typeLabel =
+              latestTx.type === 'credit'
+                ? language === 'en'
+                  ? 'credit'
+                  : 'उधार'
+                : latestTx.type === 'payment'
+                ? language === 'en'
+                  ? 'payment'
+                  : 'पेमेंट'
+                : latestTx.type === 'sale'
+                ? language === 'en'
+                  ? 'cash sale'
+                  : 'नकद बिक्री'
+                : language === 'en'
+                ? 'expense'
+                : 'खर्च';
+            const who = targetCustomer?.name || (language === 'en' ? 'the last entry' : 'आखिरी एंट्री');
+            reply =
+              language === 'en'
+                ? `Last record for ${who}: ₹${latestTx.amount} ${typeLabel}.`
+                : language === 'pa'
+                ? `${who} ਦਾ ਆਖਰੀ ਰਿਕਾਰਡ: ₹${latestTx.amount} ${typeLabel}।`
+                : `${who} का आखिरी हिसाब: ₹${latestTx.amount} ${typeLabel}।`;
+          } else {
+            reply = targetCustomer
+              ? language === 'en'
+                ? `No transactions found yet for ${targetCustomer.name}.`
+                : `${targetCustomer.name} का अभी कोई लेन-देन नहीं मिला।`
+              : language === 'en'
+              ? 'No recent transactions found.'
+              : 'अभी कोई लेन-देन नहीं मिला।';
+          }
+
+          lastSpokenTextRef.current = reply;
+          speechSynthesizer.speak(reply, language);
+          setTimeout(() => setVoiceState('idle'), 1500);
+          return;
+        }
+
         if (result.intent === 'show_customer_ledger') {
           if (result.ambiguousCustomers && result.ambiguousCustomers.length > 1) {
             triggerHaptic('warning');
@@ -693,18 +776,13 @@ export function useVoiceController({
               rawText: text,
               spokenReply: result.spokenReply,
             });
-            const disambiguationPrompt =
-              language === 'en'
-                ? 'Which customer?'
-                : language === 'pa'
-                ? 'ਕਿਹੜਾ ਗਾਹਕ?'
-                : 'कौनसा ग्राहक?';
-            const promptText = result.spokenReply || disambiguationPrompt;
-            speechSynthesizer.speak(promptText, language);
+            const promptText = buildNumberedCustomerPrompt(result.ambiguousCustomers, language);
             setVoiceState('idle');
-            setTimeout(() => {
-              startListening();
-            }, 1800);
+            speechSynthesizer.speak(promptText, language).then(() => {
+              if (disambiguationCustomersRef.current.length > 0) {
+                startListeningForReply();
+              }
+            });
             return;
           }
 
@@ -863,8 +941,12 @@ export function useVoiceController({
             setDisambiguationEntries(res.candidates);
             disambiguationEntriesRef.current = res.candidates;
             setDisambiguationEntryQuestion(res.question);
-            speechSynthesizer.speak(res.question, language);
             setVoiceState('idle');
+            speechSynthesizer.speak(res.question, language).then(() => {
+              if (disambiguationEntriesRef.current.length > 0) {
+                startListeningForReply();
+              }
+            });
             return;
           }
 
@@ -953,6 +1035,7 @@ export function useVoiceController({
         if (result.ambiguousCustomers && result.ambiguousCustomers.length > 1) {
           triggerHaptic('warning');
           setDisambiguationCustomers(result.ambiguousCustomers);
+          disambiguationCustomersRef.current = result.ambiguousCustomers;
           setPendingConfirmation({
             intent: result.intent,
             amount: result.amount || 0,
@@ -962,14 +1045,13 @@ export function useVoiceController({
             rawText: text,
             spokenReply: result.spokenReply,
           });
-          const disambiguationPrompt =
-            language === 'en'
-              ? 'Which customer?'
-              : language === 'pa'
-              ? 'ਕਿਹੜਾ ਗਾਹਕ?'
-              : 'कौनसा ग्राहक?';
-          speechSynthesizer.speak(result.spokenReply || disambiguationPrompt, language);
+          const promptText = buildNumberedCustomerPrompt(result.ambiguousCustomers, language);
           setVoiceState('idle');
+          speechSynthesizer.speak(promptText, language).then(() => {
+            if (disambiguationCustomersRef.current.length > 0) {
+              startListeningForReply();
+            }
+          });
           return;
         }
 
@@ -1032,8 +1114,12 @@ export function useVoiceController({
       return;
     }
 
+    // Mic-echo guard: stop any active TTS before opening the mic
+    speechSynthesizer.stop();
     triggerHaptic('start');
     playAudioCue('start');
+    // Mic-echo guard: stop any active TTS before opening the mic
+    speechSynthesizer.stop();
     setErrorMessage(null);
     setLiveTranscript('');
     setVoiceState('listening');
@@ -1371,6 +1457,8 @@ export function useVoiceController({
         sttProviderRef.current.stopListening();
       } catch {}
     }
+    // Mic-echo guard: stop any active TTS before opening the mic
+    speechSynthesizer.stop();
     setErrorMessage(null);
     setLiveTranscript('');
     setIsListening(true);
@@ -1463,6 +1551,30 @@ export function useVoiceController({
     );
   }, [language, handleConfirmSave, handleCancelConfirmation]);
 
+  const handleManualUpdateConfirmation = useCallback(
+    (updates: Partial<PendingConfirmation>) => {
+      setPendingConfirmation((prev) => {
+        if (!prev) return null;
+        let nextCustomer = updates.customer !== undefined ? updates.customer : prev.customer;
+        const nextCustomerName =
+          updates.customerName !== undefined ? updates.customerName : prev.customerName;
+        if (updates.customerName !== undefined && updates.customer === undefined) {
+          const found = customers.find(
+            (c) => c.name.toLowerCase() === (updates.customerName || '').toLowerCase()
+          );
+          nextCustomer = found || null;
+        }
+        return {
+          ...prev,
+          ...updates,
+          customer: nextCustomer,
+          customerName: nextCustomerName,
+        };
+      });
+    },
+    [customers]
+  );
+
   return {
     isListening,
     voiceState,
@@ -1480,6 +1592,7 @@ export function useVoiceController({
     processInput,
     handleConfirmSave,
     handleCancelConfirmation,
+    handleManualUpdateConfirmation,
     handleSelectDisambiguatedCustomer,
     openDiffConfirmationForEdit,
     handleSelectDisambiguatedEntry,

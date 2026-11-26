@@ -63,12 +63,12 @@ export function parseWithRules(
   const mentionedItems = findMentionedItems(text, context.items);
   const firstItem = mentionedItems.length > 0 ? mentionedItems[0].canonical : null;
 
-  // 3. Undo: "Wapas karo" / "Undo" / "Remove it" / "Cancel last"
+  // 3. Undo: "Wapas karo" / "Undo" / "Remove last transaction" / "Cancel last entry"
   // Note: "<amount> wapis kite" or "ne wapis diye" is PAYMENT, not undo!
   const isPaymentReturn = /\b(wapis\s*kite|wapas\s*diye|wapis\s*diye|lauta\s*diye)\b/i.test(lower);
   if (
     !isPaymentReturn &&
-    /\b(wapas\s*karo|wapis\s*karo|wapas\s*lo|wapas\s*le\s*lo|undo(?:\s*(?:it|that|this|last))?|mod\s*do|galat\s*ho\s*gaya|cancel\s*(?:last|it|that)|remove\s*(?:it|that|last)|delete\s*(?:it|that|last)|pichhla\s*hatao|isko\s*hatao|ise\s*hatao|revert)\b/i.test(
+    /\b(wapas\s*karo|wapis\s*karo|wapas\s*lo|wapas\s*le\s*lo|undo(?:\s*(?:it|that|this|last(?:\s*(?:transaction|entry|record|one))?))?|mod\s*do|galat\s*ho\s*gaya|cancel\s*(?:the\s*)?(?:last|it|that|this)(?:\s*(?:transaction|entry|record))?|remove\s*(?:the\s*)?(?:it|that|last(?:\s*(?:transaction|entry|record))?|entry\s*i\s*just\s*made)|delete\s*(?:the\s*)?(?:it|that|last(?:\s*(?:transaction|entry|record))?|entry\s*i\s*just\s*made)|pichh?l[aei]\s*(?:hisab|entry|transaction)?\s*(?:hatao|mitao|cancel|wapas)|isko\s*hatao|ise\s*hatao|revert)\b/i.test(
       lower
     )
   ) {
@@ -657,6 +657,30 @@ export function parseWithRules(
         break;
       }
     }
+  }
+
+  // 4a. Last Customer Record Inquiry: e.g. "what was the last record of Ramesh", "Ramesh ka last hisab", "how much did Ramesh pay last time"
+  const isLastRecordQuery =
+    /\b(?:last|latest|aakhri|akhri|pichh?l[aei]|recent)\b/i.test(lower) &&
+    /\b(?:record|transaction|entry|hisab|hisaab|bill|payment|udhaar|udhar|amount|paid|gave|diye|time|baat|batao|kya\s*tha)\b/i.test(
+      lower
+    );
+
+  if (matchedCustomerName && isLastRecordQuery && !amount) {
+    return {
+      intent: 'last_customer_record',
+      customer: matchedCustomerName,
+      targetTab: 'ledger',
+      confidence: 0.97,
+      language: detectedLang,
+      rawText: text,
+      spokenReply:
+        detectedLang === 'en'
+          ? `Checking last record for ${matchedCustomerName}`
+          : detectedLang === 'pa'
+          ? `${matchedCustomerName} ਦਾ ਆਖਰੀ ਰਿਕਾਰਡ ਵੇਖ ਰਹੇ ਹਾਂ`
+          : `${matchedCustomerName} का आखिरी हिसाब देख रहे हैं`,
+    };
   }
 
   // 4b. Customer Ledger Inquiry: e.g. "Ramesh ka khata", "Show Ramesh ledger", "Ramesh record", "Open Ramesh account"

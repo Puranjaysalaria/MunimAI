@@ -559,9 +559,36 @@ export class SpeechSynthesizer {
 
   private preRecordedPack = new Map<string, string>();
   private activeAudio: HTMLAudioElement | null = null;
+  private activeFetchController: AbortController | null = null;
+  private inFlightTts = new Map<string, Promise<{ audioBase64: string; mimeType: string; latencyMs: number } | null>>();
   private ttsQueue: Promise<unknown> = Promise.resolve();
   private ttsCooldownUntilMs = 0;
   private speechEpoch = 0;
+  private speakingState = false;
+  private speakingListeners = new Set<(speaking: boolean) => void>();
+
+  isSpeakingNow(): boolean {
+    return this.speakingState;
+  }
+
+  subscribeSpeaking(listener: (speaking: boolean) => void): () => void {
+    this.speakingListeners.add(listener);
+    listener(this.speakingState);
+    return () => {
+      this.speakingListeners.delete(listener);
+    };
+  }
+
+  private setSpeakingState(next: boolean): void {
+    if (this.speakingState !== next) {
+      this.speakingState = next;
+      for (const cb of this.speakingListeners) {
+        try {
+          cb(next);
+        } catch {}
+      }
+    }
+  }
 
   registerPreRecordedPack(entries: Array<{ language: string; text: string; url: string }>): void {
     for (const e of entries) {
@@ -611,6 +638,12 @@ export class SpeechSynthesizer {
   }
 
   private stopAudioOnly(): void {
+    if (this.activeFetchController) {
+      try {
+        this.activeFetchController.abort();
+      } catch {}
+      this.activeFetchController = null;
+    }
     if (this.activeAudio) {
       try {
         this.activeAudio.pause();
@@ -622,6 +655,182 @@ export class SpeechSynthesizer {
       try {
         this.synth.cancel();
       } catch {}
+    }
+    this.setSpeakingState(false);
+  }
+
+  private splitIntoSpeechChunks(text: string): string[] {
+    const clean = text.replace(/[\u0000-\u001F\u007F]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!clean) return [];
+    if (clean.length <= 100) return [clean];
+    const parts = clean
+      .split(/(?<=[।.!?])\s+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (parts.length <= 1) return [clean.slice(0, 500)];
+
+    // Group short adjacent sentences up to ~160 chars for natural cadence without round-trip bloat
+    const chunks: string[] = [];
+    let current = '';
+    for (const part of parts) {
+      if (!current) {
+        current = part;
+      } else if (current.length + 1 + part.length <= 160) {
+        current = `${current} ${part}`;
+      } else {
+        chunks.push(current);
+        current = part;
+      }
+    }
+    if (current) chunks.push(current);
+    return chunks.map((c) => c.slice(0, 500));
+  }
+
+  private async fetchGnaniAudioChunk(
+    chunkText: string,
+    profile: ReturnType<typeof getLanguageVoiceProfile>,
+    options?: { isPrewarm?: boolean; epoch?: number }
+  ): Promise<{ audioBase64: string; mimeType: string; latencyMs: number; fallbackReason?: FallbackReason } | null> {
+    const cacheParams = {
+      language: profile.ttsLanguageCode,
+      voice: profile.ttsVoice,
+      model: profile.ttsModel,
+      text: chunkText,
+    };
+    const cached = getCachedTTSAudio(cacheParams);
+    if (cached) {
+      return { audioBase64: cached.audioBase64, mimeType: cached.mimeType, latencyMs: 1 };
+    }
+    if (typeof fetch === 'undefined') return null;
+
+    const dedupeKey = `${cacheParams.language}:${cacheParams.voice}:${cacheParams.model}:${hashTTSText(chunkText)}`;
+    const existing = this.inFlightTts.get(dedupeKey);
+    if (existing) {
+      const joined = await existing;
+      return joined ? { ...joined } : null;
+    }
+
+    const t0 = Date.now();
+    const run = async (): Promise<{
+      audioBase64: string;
+      mimeType: string;
+      latencyMs: number;
+      fallbackReason?: FallbackReason;
+    } | null> => {
+      try {
+        const endpoint =
+          (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TTS_API_URL) || '/api/gnani-tts';
+        let authToken = '';
+        try {
+          const { supabase } = await import('../lib/supabase');
+          const { data } = await supabase.auth.getSession();
+          authToken = data?.session?.access_token || '';
+        } catch {
+          authToken = '';
+        }
+        if (options?.epoch !== undefined && options.epoch !== this.speechEpoch) {
+          return null;
+        }
+
+        const controller = new AbortController();
+        if (!options?.isPrewarm) {
+          this.activeFetchController = controller;
+        }
+
+        const res = await this.enqueueTtsFetch(() => {
+          if (options?.epoch !== undefined && options.epoch !== this.speechEpoch) {
+            return Promise.resolve(null);
+          }
+          return fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+            },
+            body: JSON.stringify(cacheParams),
+            signal: controller.signal,
+          });
+        });
+
+        if (this.activeFetchController === controller) {
+          this.activeFetchController = null;
+        }
+        if (!res) return null;
+        if (res.ok) {
+          const data = (await res.json()) as {
+            audioBase64?: string;
+            mimeType?: string;
+            latency?: number;
+            costInr?: number;
+          };
+          if (data.audioBase64) {
+            const mimeType = data.mimeType || 'audio/wav';
+            setCachedTTSAudio(cacheParams, data.audioBase64, mimeType);
+            const costInr =
+              typeof data.costInr === 'number' ? data.costInr : estimateTtsCostInr(chunkText.length);
+            const latencyMs = typeof data.latency === 'number' ? data.latency : Date.now() - t0;
+            recordVoiceUsage({
+              channel: 'tts',
+              provider: 'gnani_tts',
+              activeProviderLabel: 'gnani',
+              latencyMs,
+              costInr,
+              fallbackReason: 'none',
+            });
+            return { audioBase64: data.audioBase64, mimeType, latencyMs };
+          }
+          return null;
+        }
+
+        if (res.status === 429) {
+          this.ttsCooldownUntilMs = Date.now() + 15_000;
+        }
+        const reason: FallbackReason =
+          res.status === 401
+            ? 'http_401'
+            : res.status === 402
+            ? 'http_402'
+            : res.status === 429
+            ? 'http_429'
+            : res.status >= 500
+            ? 'http_5xx'
+            : 'error';
+        return { audioBase64: '', mimeType: '', latencyMs: Date.now() - t0, fallbackReason: reason };
+      } catch (err: any) {
+        const reason: FallbackReason = err?.name === 'AbortError' ? 'timeout' : 'error';
+        return { audioBase64: '', mimeType: '', latencyMs: Date.now() - t0, fallbackReason: reason };
+      }
+    };
+
+    const promise = run().finally(() => {
+      this.inFlightTts.delete(dedupeKey);
+    });
+    this.inFlightTts.set(dedupeKey, promise);
+    return promise;
+  }
+
+  /** Pre-warms Gnani TTS audio cache in the background for instant playback (e.g. Today's Summary). */
+  async prewarm(
+    text: string,
+    lang: LanguageCode | string = 'hi',
+    options?: { cloudSpeechEnabled?: boolean }
+  ): Promise<void> {
+    if (this.isMuted || !text) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    const code = (lang || 'hi').slice(0, 2);
+    const profile = getLanguageVoiceProfile(code);
+    if (
+      profile.ttsProvider !== 'gnani' ||
+      options?.cloudSpeechEnabled === false ||
+      isCloudSpeechKillSwitchActive() ||
+      getRemainingVoiceBudgetInr() <= 0 ||
+      Date.now() < this.ttsCooldownUntilMs
+    ) {
+      return;
+    }
+    const chunks = this.splitIntoSpeechChunks(text);
+    if (chunks.length > 0) {
+      await this.fetchGnaniAudioChunk(chunks[0], profile, { isPrewarm: true }).catch(() => undefined);
     }
   }
 
@@ -644,6 +853,7 @@ export class SpeechSynthesizer {
     // Supersede any in-flight or active speech so two voices NEVER play together
     const myEpoch = ++this.speechEpoch;
     this.stopAudioOnly();
+    this.setSpeakingState(true);
 
     const code = (lang || 'hi').slice(0, 2);
     const profile = getLanguageVoiceProfile(code);
@@ -655,6 +865,7 @@ export class SpeechSynthesizer {
       const ok = await this.playBase64OrUrl(packUrl, myEpoch);
       if (myEpoch !== this.speechEpoch) return 'text';
       if (ok) {
+        this.setSpeakingState(false);
         recordVoiceUsage({
           channel: 'tts',
           provider: 'device_tts',
@@ -666,8 +877,8 @@ export class SpeechSynthesizer {
       }
     }
 
-    // 2. Configured cloud provider (Gnani / Timbre) with cache + 500-char text rule
-    const sanitizedText = text.replace(/[\u0000-\u001F\u007F]/g, ' ').replace(/\s+/g, ' ').trim();
+    // 2. Configured cloud provider (Gnani / Timbre) with chunked pipelining + cache
+    const chunks = this.splitIntoSpeechChunks(text);
     let ttsFallbackReason: FallbackReason =
       profile.ttsProvider !== 'gnani'
         ? 'language_default'
@@ -683,105 +894,51 @@ export class SpeechSynthesizer {
         ? 'offline'
         : 'none';
 
-    const allowCloud =
-      ttsFallbackReason === 'none' && sanitizedText.length > 0 && sanitizedText.length <= 500;
+    const allowCloud = ttsFallbackReason === 'none' && chunks.length > 0;
 
     if (allowCloud) {
-      const cacheParams = {
-        language: profile.ttsLanguageCode,
-        voice: profile.ttsVoice,
-        model: profile.ttsModel,
-        text: sanitizedText,
-      };
-      const cached = getCachedTTSAudio(cacheParams);
-      if (cached) {
-        const dataUri = `data:${cached.mimeType};base64,${cached.audioBase64}`;
-        const ok = await this.playBase64OrUrl(dataUri, myEpoch);
+      let allPlayed = true;
+      let nextPrefetch: Promise<Awaited<ReturnType<SpeechSynthesizer['fetchGnaniAudioChunk']>>> | null = null;
+
+      for (let i = 0; i < chunks.length; i++) {
         if (myEpoch !== this.speechEpoch) return 'text';
-        if (ok) {
-          recordVoiceUsage({
-            channel: 'tts',
-            provider: 'gnani_tts',
-            activeProviderLabel: 'gnani',
-            latencyMs: 1,
-            costInr: 0,
-            fallbackReason: 'none',
-          });
-          return 'gnani';
-        }
-      } else if (typeof fetch !== 'undefined') {
-        const t0 = Date.now();
-        try {
-          const endpoint =
-            (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TTS_API_URL) || '/api/gnani-tts';
-          let authToken = '';
-          try {
-            const { supabase } = await import('../lib/supabase');
-            const { data } = await supabase.auth.getSession();
-            authToken = data?.session?.access_token || '';
-          } catch {
-            authToken = '';
+        const fetched = nextPrefetch
+          ? await nextPrefetch
+          : await this.fetchGnaniAudioChunk(chunks[i], profile, { epoch: myEpoch });
+        nextPrefetch = null;
+
+        if (myEpoch !== this.speechEpoch) return 'text';
+        if (!fetched || !fetched.audioBase64) {
+          if (fetched?.fallbackReason) ttsFallbackReason = fetched.fallbackReason;
+          allPlayed = false;
+          // If first chunk failed, fall back cleanly to device TTS for remaining text
+          if (i === 0) break;
+          // Otherwise speak remaining chunks with device voice
+          const remainingText = chunks.slice(i).join(' ');
+          if (this.synth && remainingText) {
+            await this.speakWithDeviceSynth(remainingText, lang);
+            if (myEpoch === this.speechEpoch) this.setSpeakingState(false);
+            return 'device';
           }
-          if (myEpoch !== this.speechEpoch) return 'text';
-          const res = await this.enqueueTtsFetch(() => {
-            if (myEpoch !== this.speechEpoch) {
-              return Promise.resolve(null);
-            }
-            return fetch(endpoint, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-              },
-              body: JSON.stringify(cacheParams),
-            });
-          });
-          if (!res || myEpoch !== this.speechEpoch) return 'text';
-          if (res.ok) {
-            const data = (await res.json()) as {
-              audioBase64?: string;
-              mimeType?: string;
-              latency?: number;
-              costInr?: number;
-            };
-            if (myEpoch !== this.speechEpoch) return 'text';
-            if (data.audioBase64) {
-              const mimeType = data.mimeType || 'audio/wav';
-              setCachedTTSAudio(cacheParams, data.audioBase64, mimeType);
-              const costInr =
-                typeof data.costInr === 'number' ? data.costInr : estimateTtsCostInr(text.length);
-              const latencyMs = typeof data.latency === 'number' ? data.latency : Date.now() - t0;
-              recordVoiceUsage({
-                channel: 'tts',
-                provider: 'gnani_tts',
-                activeProviderLabel: 'gnani',
-                latencyMs,
-                costInr,
-                fallbackReason: 'none',
-              });
-              const ok = await this.playBase64OrUrl(`data:${mimeType};base64,${data.audioBase64}`, myEpoch);
-              if (myEpoch !== this.speechEpoch) return 'text';
-              if (ok) return 'gnani';
-            }
-          } else {
-            if (res.status === 429) {
-              // Back off for 15s on 429 so we don't spam Gnani TTS
-              this.ttsCooldownUntilMs = Date.now() + 15_000;
-            }
-            ttsFallbackReason =
-              res.status === 401
-                ? 'http_401'
-                : res.status === 402
-                ? 'http_402'
-                : res.status === 429
-                ? 'http_429'
-                : res.status >= 500
-                ? 'http_5xx'
-                : 'error';
-          }
-        } catch (err: any) {
-          ttsFallbackReason = err?.name === 'AbortError' ? 'timeout' : 'error';
+          break;
         }
+
+        // Pre-fetch next chunk while current chunk plays to eliminate inter-sentence lag
+        if (i + 1 < chunks.length) {
+          nextPrefetch = this.fetchGnaniAudioChunk(chunks[i + 1], profile, { epoch: myEpoch });
+        }
+
+        const ok = await this.playBase64OrUrl(`data:${fetched.mimeType};base64,${fetched.audioBase64}`, myEpoch);
+        if (myEpoch !== this.speechEpoch) return 'text';
+        if (!ok) {
+          allPlayed = false;
+          break;
+        }
+      }
+
+      if (allPlayed) {
+        if (myEpoch === this.speechEpoch) this.setSpeakingState(false);
+        return 'gnani';
       }
     }
 
@@ -793,6 +950,7 @@ export class SpeechSynthesizer {
     if (this.synth) {
       const t0 = Date.now();
       await this.speakWithDeviceSynth(text, lang);
+      if (myEpoch === this.speechEpoch) this.setSpeakingState(false);
       recordVoiceUsage({
         channel: 'tts',
         provider: 'device_tts',
@@ -804,6 +962,7 @@ export class SpeechSynthesizer {
       return 'device';
     }
 
+    if (myEpoch === this.speechEpoch) this.setSpeakingState(false);
     // 4. Text only fallback
     return 'text';
   }

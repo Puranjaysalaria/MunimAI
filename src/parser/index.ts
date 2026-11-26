@@ -95,7 +95,11 @@ export async function parseSpeech(
   let questionToAsk: string | null = cleanResult.questionToAsk || null;
   let spokenReply = cleanResult.spokenReply || '';
 
-  const rawCandidate = cleanResult.customer || (cleanResult.intent === 'show_customer_ledger' ? rawText : null);
+  const rawCandidate =
+    cleanResult.customer ||
+    (cleanResult.intent === 'show_customer_ledger' || cleanResult.intent === 'last_customer_record'
+      ? rawText
+      : null);
   if (rawCandidate) {
     const queryCust = cleanCustomerQuery(rawCandidate) || rawCandidate;
     const crossMatch = resolveCrossScriptCustomer(queryCust, context.customers);

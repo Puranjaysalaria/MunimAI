@@ -26,13 +26,9 @@ export const DEFAULT_GLOBAL_RPM = 50;
 export const GNANI_STT_RATE_INR_PER_SEC = 0.015; // ₹0.015 / sec (~₹0.90 / min)
 export const GNANI_TTS_RATE_INR_PER_CHAR = 0.0005; // ₹0.50 / 1000 chars
 
-// Fail-closed cloud defaults:
-// Only Hindi ('hi') defaults to 'gnani' STT & TTS.
-// To enable Gnani for any of the other 9 languages (en, pa, gu, mr, bn, ta, te, kn, ml)
-// one at a time:
-//   1. Change that language's `sttProvider` from 'browser' -> 'gnani' and/or `ttsProvider` from 'device' -> 'gnani' below.
-//   2. Ensure its `sttModel` ('prisma-v2.5' / 'prisma-v3.0') and `ttsModel`/`ttsVoice` ('timbre-v3.0', 'Nalini') are tested.
-//   3. For local A/B testing without redeploying, use Settings -> Voice Debug -> Device Override.
+// Gnani-first cloud defaults across all 10 supported languages (hi, en, pa, gu, mr, bn, ta, te, kn, ml).
+// Browser STT / Device TTS act as automatic silent fallback on 401/402/429/5xx, timeout, missing consent,
+// budget cap, offline mode, or kill switch.
 export const VOICE_LANGUAGE_PROFILES: Record<LanguageCode, LanguageVoiceProfile> = {
   hi: {
     language: 'hi',
@@ -49,12 +45,12 @@ export const VOICE_LANGUAGE_PROFILES: Record<LanguageCode, LanguageVoiceProfile>
   },
   en: {
     language: 'en',
-    sttProvider: 'browser',
+    sttProvider: 'gnani',
     sttModel: 'prisma-v3.0',
     sttLanguageCode: 'en-IN',
     hinglishMode: 'auto',
     supportsMixedLanguage: true,
-    ttsProvider: 'device',
+    ttsProvider: 'gnani',
     ttsModel: 'timbre-v2.5',
     ttsVoice: 'Kaveri',
     ttsLanguageCode: 'en-IN',
@@ -62,12 +58,12 @@ export const VOICE_LANGUAGE_PROFILES: Record<LanguageCode, LanguageVoiceProfile>
   },
   pa: {
     language: 'pa',
-    sttProvider: 'browser',
+    sttProvider: 'gnani',
     sttModel: 'prisma-v2.5',
     sttLanguageCode: 'pa-IN',
     hinglishMode: 'off',
     supportsMixedLanguage: false,
-    ttsProvider: 'device',
+    ttsProvider: 'gnani',
     ttsModel: 'timbre-v3.0',
     ttsVoice: 'Nalini',
     ttsLanguageCode: 'pa-IN',
@@ -75,12 +71,12 @@ export const VOICE_LANGUAGE_PROFILES: Record<LanguageCode, LanguageVoiceProfile>
   },
   gu: {
     language: 'gu',
-    sttProvider: 'browser',
+    sttProvider: 'gnani',
     sttModel: 'prisma-v2.5',
     sttLanguageCode: 'gu-IN',
     hinglishMode: 'off',
     supportsMixedLanguage: false,
-    ttsProvider: 'device',
+    ttsProvider: 'gnani',
     ttsModel: 'timbre-v3.0',
     ttsVoice: 'Nalini',
     ttsLanguageCode: 'gu-IN',
@@ -88,12 +84,12 @@ export const VOICE_LANGUAGE_PROFILES: Record<LanguageCode, LanguageVoiceProfile>
   },
   mr: {
     language: 'mr',
-    sttProvider: 'browser',
+    sttProvider: 'gnani',
     sttModel: 'prisma-v2.5',
     sttLanguageCode: 'mr-IN',
     hinglishMode: 'off',
     supportsMixedLanguage: false,
-    ttsProvider: 'device',
+    ttsProvider: 'gnani',
     ttsModel: 'timbre-v3.0',
     ttsVoice: 'Nalini',
     ttsLanguageCode: 'mr-IN',
@@ -101,12 +97,12 @@ export const VOICE_LANGUAGE_PROFILES: Record<LanguageCode, LanguageVoiceProfile>
   },
   bn: {
     language: 'bn',
-    sttProvider: 'browser',
+    sttProvider: 'gnani',
     sttModel: 'prisma-v2.5',
     sttLanguageCode: 'bn-IN',
     hinglishMode: 'off',
     supportsMixedLanguage: false,
-    ttsProvider: 'device',
+    ttsProvider: 'gnani',
     ttsModel: 'timbre-v3.0',
     ttsVoice: 'Nalini',
     ttsLanguageCode: 'bn-IN',
@@ -114,12 +110,12 @@ export const VOICE_LANGUAGE_PROFILES: Record<LanguageCode, LanguageVoiceProfile>
   },
   ta: {
     language: 'ta',
-    sttProvider: 'browser',
+    sttProvider: 'gnani',
     sttModel: 'prisma-v2.5',
     sttLanguageCode: 'ta-IN',
     hinglishMode: 'off',
     supportsMixedLanguage: false,
-    ttsProvider: 'device',
+    ttsProvider: 'gnani',
     ttsModel: 'timbre-v3.0',
     ttsVoice: 'Nalini',
     ttsLanguageCode: 'ta-IN',
@@ -127,12 +123,12 @@ export const VOICE_LANGUAGE_PROFILES: Record<LanguageCode, LanguageVoiceProfile>
   },
   te: {
     language: 'te',
-    sttProvider: 'browser',
+    sttProvider: 'gnani',
     sttModel: 'prisma-v2.5',
     sttLanguageCode: 'te-IN',
     hinglishMode: 'off',
     supportsMixedLanguage: false,
-    ttsProvider: 'device',
+    ttsProvider: 'gnani',
     ttsModel: 'timbre-v3.0',
     ttsVoice: 'Nalini',
     ttsLanguageCode: 'te-IN',
@@ -140,12 +136,12 @@ export const VOICE_LANGUAGE_PROFILES: Record<LanguageCode, LanguageVoiceProfile>
   },
   kn: {
     language: 'kn',
-    sttProvider: 'browser',
+    sttProvider: 'gnani',
     sttModel: 'prisma-v2.5',
     sttLanguageCode: 'kn-IN',
     hinglishMode: 'off',
     supportsMixedLanguage: false,
-    ttsProvider: 'device',
+    ttsProvider: 'gnani',
     ttsModel: 'timbre-v3.0',
     ttsVoice: 'Nalini',
     ttsLanguageCode: 'kn-IN',
@@ -153,12 +149,12 @@ export const VOICE_LANGUAGE_PROFILES: Record<LanguageCode, LanguageVoiceProfile>
   },
   ml: {
     language: 'ml',
-    sttProvider: 'browser',
+    sttProvider: 'gnani',
     sttModel: 'prisma-v2.5',
     sttLanguageCode: 'ml-IN',
     hinglishMode: 'off',
     supportsMixedLanguage: false,
-    ttsProvider: 'device',
+    ttsProvider: 'gnani',
     ttsModel: 'timbre-v3.0',
     ttsVoice: 'Nalini',
     ttsLanguageCode: 'ml-IN',

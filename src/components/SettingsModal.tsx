@@ -2,19 +2,9 @@ import React, { useState } from 'react';
 import { useShop } from '../context/ShopContext';
 import { useI18n } from '../i18n';
 import { LanguageCode } from '../i18n/types';
-import { X, Globe, Lock, Shield, LogOut, Check, Store, UserCheck, Bell, ChevronRight, Mic, AlertTriangle, Volume2, Activity } from 'lucide-react';
+import { X, Globe, Lock, Shield, LogOut, Check, Store, UserCheck, Bell, ChevronRight, Mic, AlertTriangle, Volume2 } from 'lucide-react';
 import { isValidUPI } from '../lib/reminderService';
 import { DEFAULT_EDIT_RUPEE_THRESHOLD, DEFAULT_EDIT_AGE_DAYS_THRESHOLD } from '../voice/safetyTiers';
-import {
-  getDeviceProviderOverride,
-  getLanguageVoiceProfile,
-  getRemainingVoiceBudgetInr,
-  getVoiceTelemetry,
-  isCloudSpeechKillSwitchActive,
-  resolveProviders,
-  setDeviceProviderOverride,
-} from '../voice/speechConfig';
-import { speechSynthesizer } from '../tts/speechSynthesizer';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -32,8 +22,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
   const [pinInput, setPinInput] = useState(shop.pin_hash || '');
   const [wakeWordEnabled, setWakeWordEnabled] = useState(shop.settings?.wake_word_enabled ?? true);
   const [cloudSpeechEnabled, setCloudSpeechEnabled] = useState(shop.settings?.cloud_speech_enabled ?? true);
-  const [showVoiceDebug, setShowVoiceDebug] = useState(false);
-  const [debugTick, setDebugTick] = useState(0);
   const [editRupeeThreshold, setEditRupeeThreshold] = useState<string>(
     String(shop.settings?.edit_rupee_threshold ?? DEFAULT_EDIT_RUPEE_THRESHOLD)
   );
@@ -354,132 +342,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                 }`}
               />
             </button>
-          </div>
-
-          {/* Voice Debug Screen (Phase 5) */}
-          <div className="border border-slate-200 rounded-xl overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setShowVoiceDebug((v) => !v)}
-              className="w-full px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100 flex items-center justify-between text-xs font-bold text-app-text"
-            >
-              <span className="flex items-center space-x-2">
-                <Activity className="w-4 h-4 text-primary" />
-                <span>Voice Debug ({language.toUpperCase()})</span>
-              </span>
-              <span>{showVoiceDebug ? '▲' : '▼'}</span>
-            </button>
-            {showVoiceDebug && (() => {
-              void debugTick;
-              const profile = getLanguageVoiceProfile(language);
-              const devOverride = getDeviceProviderOverride(language);
-              const telemetry = getVoiceTelemetry();
-              const remainingBudget = getRemainingVoiceBudgetInr();
-              const resolved = resolveProviders(
-                language,
-                { ...shop.settings, cloud_speech_enabled: cloudSpeechEnabled },
-                isCloudSpeechKillSwitchActive(),
-                Boolean(shop.settings?.cloud_speech_consent_at),
-                { budgetRemainingInr: remainingBudget }
-              );
-              return (
-                <div className="p-3 bg-white text-xs space-y-2 border-t border-slate-200">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <span className="text-app-muted block">Configured (STT / TTS)</span>
-                      <span className="font-bold text-app-text">
-                        {resolved.configuredStt} ({profile.sttModel}) / {resolved.configuredTts} ({profile.ttsModel})
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-app-muted block">Used Last Time</span>
-                      <span className="font-bold text-app-text">
-                        {telemetry.lastActiveProvider.stt} / {telemetry.lastActiveProvider.tts}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-app-muted block">Fallback Reason</span>
-                      <span className="font-bold text-amber-700">
-                        {telemetry.lastFallbackReason?.stt && telemetry.lastFallbackReason.stt !== 'none'
-                          ? `STT: ${telemetry.lastFallbackReason.stt}`
-                          : telemetry.lastFallbackReason?.tts && telemetry.lastFallbackReason.tts !== 'none'
-                          ? `TTS: ${telemetry.lastFallbackReason.tts}`
-                          : resolved.fallbackReason}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-app-muted block">Last STT / TTS Latency</span>
-                      <span className="font-bold text-app-text">
-                        {telemetry.lastLatencyMs.stt ?? '—'} ms / {telemetry.lastLatencyMs.tts ?? '—'} ms
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-[11px] text-emerald-700 font-bold">
-                    Budget Remaining: ₹{remainingBudget.toFixed(2)}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
-                    <div>
-                      <label className="block text-[10px] font-bold text-app-muted mb-0.5">
-                        Device STT Override ({language})
-                      </label>
-                      <select
-                        value={devOverride.stt || 'default'}
-                        onChange={(e) => {
-                          setDeviceProviderOverride(language, {
-                            ...devOverride,
-                            stt: e.target.value as 'default' | 'gnani' | 'browser',
-                          });
-                          setDebugTick((n) => n + 1);
-                        }}
-                        className="w-full px-2 py-1 rounded border border-slate-200 bg-slate-50 text-[11px] font-semibold"
-                      >
-                        <option value="default">Default (Config)</option>
-                        <option value="gnani">Gnani</option>
-                        <option value="browser">Browser</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-app-muted mb-0.5">
-                        Device TTS Override ({language})
-                      </label>
-                      <select
-                        value={devOverride.tts || 'default'}
-                        onChange={(e) => {
-                          setDeviceProviderOverride(language, {
-                            ...devOverride,
-                            tts: e.target.value as 'default' | 'gnani' | 'device',
-                          });
-                          setDebugTick((n) => n + 1);
-                        }}
-                        className="w-full px-2 py-1 rounded border border-slate-200 bg-slate-50 text-[11px] font-semibold"
-                      >
-                        <option value="default">Default (Config)</option>
-                        <option value="gnani">Gnani (Timbre)</option>
-                        <option value="device">Device Voice</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="text-[11px] text-app-muted pt-1 border-t border-slate-100">
-                    Today&apos;s Spend: STT ₹{telemetry.spendByProvider.gnani_stt.toFixed(3)} · TTS ₹
-                    {telemetry.spendByProvider.gnani_tts.toFixed(3)}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await speechSynthesizer.speak(
-                        language === 'en' ? 'Voice check successful' : 'नमस्ते, आवाज़ जांच सफल रही',
-                        language,
-                        { cloudSpeechEnabled, shopId: shop.id }
-                      );
-                      setDebugTick((n) => n + 1);
-                    }}
-                    className="w-full py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary font-bold"
-                  >
-                    Test speaking
-                  </button>
-                </div>
-              );
-            })()}
           </div>
 
           {/* Privacy Note */}

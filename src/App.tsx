@@ -328,6 +328,14 @@ export const AppContent: React.FC = () => {
     );
   };
 
+  useEffect(() => {
+    if (isLoggedIn && activeTab === 'today' && dailySummaryVoiceText) {
+      speechSynthesizer.prewarm(dailySummaryVoiceText, language, {
+        cloudSpeechEnabled: shop.settings?.cloud_speech_enabled,
+      });
+    }
+  }, [isLoggedIn, activeTab, dailySummaryVoiceText, language, shop.settings?.cloud_speech_enabled]);
+
   const handleSpeakTodaySummary = () => {
     setIsDailySummaryOpen(true);
     speechSynthesizer.speak(dailySummaryVoiceText, language);
@@ -518,6 +526,7 @@ export const AppContent: React.FC = () => {
         pending={voice.pendingConfirmation}
         onConfirm={voice.handleConfirmSave}
         onCancel={voice.handleCancelConfirmation}
+        onManualUpdate={voice.handleManualUpdateConfirmation}
         onRerecordProof={(tx, cust) => {
           voice.handleCancelConfirmation();
           setProofTargetTx(tx);

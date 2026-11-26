@@ -25,6 +25,7 @@ export const ParsedIntentEnum = z.enum([
   'build_order_list',
   'send_order',
   'show_customer_ledger',
+  'last_customer_record',
   'recent_transactions',
   'top_debtors',
   'monthly_credit_summary',

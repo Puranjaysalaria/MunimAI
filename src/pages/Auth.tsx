@@ -1,25 +1,40 @@
 import React, { useState } from 'react';
 import { useShop } from '../context/ShopContext';
-import { useI18n } from '../i18n';
-import { KeyRound, Sparkles, ArrowRight, ShieldCheck, Mail, Lock, Store, User, Loader2, Eye, EyeOff } from 'lucide-react';
+import {
+  KeyRound,
+  Sparkles,
+  ArrowRight,
+  ShieldCheck,
+  Mail,
+  Lock,
+  Store,
+  User,
+  Loader2,
+  Eye,
+  EyeOff,
+} from 'lucide-react';
 
 export const Auth: React.FC = () => {
-  const { loginWithSupabase, signUpWithSupabase, loginDemo } = useShop();
-  const { t, language } = useI18n();
+  const { loginWithSupabase, signUpWithSupabase } = useShop();
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
-  const [email, setEmail] = useState('shopkeeper@munimai.com');
-  const [password, setPassword] = useState('MunimStore123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [shopName, setShopName] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const handleModeSwitch = (nextMode: 'signin' | 'signup') => {
+    setMode(nextMode);
+    setError(null);
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      setError(t.auth.errEmailPasswordRequired);
+    if (!email.trim() || !password) {
+      setError('Please enter your email and password.');
       return;
     }
 
@@ -30,354 +45,307 @@ export const Auth: React.FC = () => {
     setLoading(false);
 
     if (!res.success) {
-      setError(res.error || t.auth.errInvalidCredentials);
+      setError(res.error || 'Invalid email or password.');
     }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || !shopName) {
-      setError(t.auth.errRegisterRequired);
+    if (!shopName.trim() || !email.trim() || !password) {
+      setError('Please fill in shop name, email, and password.');
       return;
     }
     if (password.length < 6) {
-      setError(t.auth.errPasswordMinLength);
+      setError('Password must be at least 6 characters.');
       return;
     }
 
     setLoading(true);
     setError(null);
 
-    const res = await signUpWithSupabase(email, password, shopName, ownerName);
+    const res = await signUpWithSupabase(email, password, shopName.trim(), ownerName.trim());
     setLoading(false);
 
     if (!res.success) {
-      setError(res.error || t.auth.errRegisterFailed);
+      setError(res.error || 'Could not create account. Please try again.');
     }
   };
 
-  const handleQuickDemo = async () => {
-    setLoading(true);
-    setError(null);
-    await loginDemo();
-    setLoading(false);
-  };
-
-  const fillDemoCreds = () => {
-    setEmail('shopkeeper@munimai.com');
-    setPassword('MunimStore123!');
-    setError(null);
-  };
-
   return (
-    <div className="min-h-screen bg-ambient-canvas flex items-center justify-center p-3 sm:p-5">
-      <div className="w-full max-w-md lg:max-w-3xl bg-surface rounded-3xl shadow-float border border-slate-200/80 overflow-hidden grid grid-cols-1 lg:grid-cols-12">
-        {/* Left Column: Compact Kirana Branding Banner */}
+    <div className="min-h-screen bg-ambient-canvas flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+      <div className="w-full max-w-md lg:max-w-3xl bg-surface rounded-2xl sm:rounded-3xl shadow-float border border-slate-200/80 overflow-hidden grid grid-cols-1 lg:grid-cols-12 my-auto">
+        {/* Left Column: Compact Branding Panel */}
         <div className="lg:col-span-5 bg-gradient-to-br from-primary-dark via-primary to-emerald-900 text-white p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden">
-          {/* Ambient decorative backdrop rings */}
-          <div className="absolute -top-16 -left-16 w-44 h-44 bg-emerald-500/15 rounded-full blur-2xl pointer-events-none" />
-          <div className="absolute -bottom-20 -right-20 w-52 h-52 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -top-14 -left-14 w-40 h-40 bg-emerald-500/15 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute -bottom-16 -right-16 w-44 h-44 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
 
-          {/* Top Brand identity */}
-          <div className="relative z-10 text-center lg:text-left">
-            <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white shadow-lg mb-2.5">
-              <span className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                {language === 'en' ? 'M' : 'मु'}
-              </span>
+          <div className="relative z-10 flex items-center lg:block gap-3.5 text-left">
+            <div className="inline-flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-white/15 backdrop-blur-md border border-white/20 text-white shadow-md shrink-0 lg:mb-3">
+              <span className="text-xl sm:text-2xl font-black tracking-tight">M</span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">{t.auth.loginTitle}</h1>
-            <p className="text-emerald-100 text-xs sm:text-sm mt-1 font-medium">{t.auth.loginSubtitle}</p>
+            <div>
+              <h1 className="text-lg sm:text-2xl font-black text-white tracking-tight leading-tight">
+                Munim AI
+              </h1>
+              <p className="text-emerald-100/90 text-xs sm:text-sm mt-0.5 font-medium">
+                Voice-first khata &amp; smart shop ledger
+              </p>
+            </div>
           </div>
 
-          {/* Value Propositions: Compact cards on desktop */}
           <div className="hidden lg:flex flex-col space-y-2.5 my-5 relative z-10">
-            <div className="flex items-start space-x-3 bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/10">
-              <div className="w-8 h-8 rounded-lg bg-amber-400/20 text-amber-300 flex items-center justify-center flex-shrink-0">
-                <Sparkles className="w-4 h-4" />
+            <div className="flex items-start space-x-2.5 bg-white/10 p-2.5 rounded-xl border border-white/10">
+              <div className="w-7 h-7 rounded-lg bg-amber-400/20 text-amber-300 flex items-center justify-center shrink-0">
+                <Sparkles className="w-3.5 h-3.5" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-white">{t.auth.voiceFirstHighlight}</h4>
-                <p className="text-[11px] text-emerald-100/90 mt-0.5">{t.auth.voiceFirstSub}</p>
+                <h4 className="text-xs font-bold text-white">Voice-First Entries</h4>
+                <p className="text-[11px] text-emerald-100/85 mt-0.5 leading-snug">
+                  Speak naturally in your language to record udhaar, payments, and bills.
+                </p>
               </div>
             </div>
 
-            <div className="flex items-start space-x-3 bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/10">
-              <div className="w-8 h-8 rounded-lg bg-emerald-400/20 text-emerald-300 flex items-center justify-center flex-shrink-0">
-                <ShieldCheck className="w-4 h-4" />
+            <div className="flex items-start space-x-2.5 bg-white/10 p-2.5 rounded-xl border border-white/10">
+              <div className="w-7 h-7 rounded-lg bg-emerald-400/20 text-emerald-300 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-3.5 h-3.5" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-white">{t.auth.cloudSecurityHighlight}</h4>
-                <p className="text-[11px] text-emerald-100/90 mt-0.5">{t.auth.cloudSecuritySub}</p>
+                <h4 className="text-xs font-bold text-white">Private Shop Ledger</h4>
+                <p className="text-[11px] text-emerald-100/85 mt-0.5 leading-snug">
+                  Your shop data stays isolated and encrypted in your own account.
+                </p>
               </div>
             </div>
 
-            <div className="flex items-start space-x-3 bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/10">
-              <div className="w-8 h-8 rounded-lg bg-amber-400/20 text-amber-300 flex items-center justify-center flex-shrink-0">
-                <Store className="w-4 h-4" />
+            <div className="flex items-start space-x-2.5 bg-white/10 p-2.5 rounded-xl border border-white/10">
+              <div className="w-7 h-7 rounded-lg bg-amber-400/20 text-amber-300 flex items-center justify-center shrink-0">
+                <Store className="w-3.5 h-3.5" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-white">{t.auth.offlineSyncHighlight}</h4>
-                <p className="text-[11px] text-emerald-100/90 mt-0.5">{t.auth.offlineSyncSub}</p>
+                <h4 className="text-xs font-bold text-white">Offline + Cloud Sync</h4>
+                <p className="text-[11px] text-emerald-100/85 mt-0.5 leading-snug">
+                  Works even without internet and syncs automatically when back online.
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Footer note */}
-          <div className="relative z-10 pt-2.5 border-t border-white/15 text-[11px] text-emerald-200/80 text-center lg:text-left hidden lg:block">
-            <span>{t.auth.dedicatedFootnote}</span>
+          <div className="relative z-10 pt-2.5 border-t border-white/15 text-[11px] text-emerald-200/80 hidden lg:block">
+            Built for Indian shopkeepers &amp; kirana stores
           </div>
         </div>
 
-        {/* Right Column: Compact Login & Registration Form */}
-        <div className="lg:col-span-7 p-5 sm:p-6 flex flex-col justify-between bg-surface">
-          <div>
-            {/* Tab Toggle: Sign In vs Sign Up */}
-            <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-6 text-sm font-bold">
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('signin');
-                  setError(null);
-                  if (!email) setEmail('shopkeeper@munimai.com');
-                  if (!password) setPassword('MunimStore123!');
-                }}
-                className={`flex-1 py-2.5 rounded-xl transition-all ${
-                  mode === 'signin'
-                    ? 'bg-white text-primary shadow-xs font-black'
-                    : 'text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                {t.auth.signInTab}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('signup');
-                  setError(null);
-                  if (email === 'shopkeeper@munimai.com') setEmail('');
-                  if (password === 'MunimStore123!') setPassword('');
-                }}
-                className={`flex-1 py-2.5 rounded-xl transition-all ${
-                  mode === 'signup'
-                    ? 'bg-white text-primary shadow-xs font-black'
-                    : 'text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                {t.auth.registerTab}
-              </button>
-            </div>
+        {/* Right Column: Compact Responsive Auth Form */}
+        <div className="lg:col-span-7 p-5 sm:p-6 flex flex-col justify-center bg-surface">
+          {/* Segmented Mode Toggle */}
+          <div className="flex bg-slate-100 p-1 rounded-xl mb-5 text-xs sm:text-sm font-bold">
+            <button
+              type="button"
+              onClick={() => handleModeSwitch('signin')}
+              className={`flex-1 py-2 rounded-lg transition-all ${
+                mode === 'signin'
+                  ? 'bg-white text-primary shadow-xs font-black'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => handleModeSwitch('signup')}
+              className={`flex-1 py-2 rounded-lg transition-all ${
+                mode === 'signup'
+                  ? 'bg-white text-primary shadow-xs font-black'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              Register
+            </button>
+          </div>
 
-            {/* Main Form Body */}
-            {mode === 'signin' ? (
-              <form onSubmit={handleSignIn} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
-                    {t.auth.emailLabel}
-                  </label>
-                  <div className="relative flex items-center">
-                    <Mail className="absolute left-3.5 w-5 h-5 text-slate-400" />
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="shopkeeper@munimai.com"
-                      className="w-full pl-11 pr-4 py-3 text-base font-semibold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50/50"
-                      required
-                    />
-                  </div>
+          {mode === 'signin' ? (
+            <form onSubmit={handleSignIn} className="space-y-3.5">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                  Email
+                </label>
+                <div className="relative flex items-center">
+                  <Mail className="absolute left-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="w-full pl-10 pr-3.5 py-2.5 text-sm font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50/60"
+                    required
+                  />
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
-                    {t.auth.passwordLabel}
-                  </label>
-                  <div className="relative flex items-center">
-                    <Lock className="absolute left-3.5 w-5 h-5 text-slate-400" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full pl-11 pr-11 py-3 text-base font-semibold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50/50"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 text-slate-400 hover:text-slate-600"
-                    >
-                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Quick Demo Credential Pill */}
-                <div className="flex items-center justify-between text-xs bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-3">
-                  <div>
-                    <span className="font-bold">{t.auth.demoCredsLabel} </span>
-                    <span className="font-mono font-medium">shopkeeper@munimai.com</span>
-                  </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                  Password
+                </label>
+                <div className="relative flex items-center">
+                  <Lock className="absolute left-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    className="w-full pl-10 pr-10 py-2.5 text-sm font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50/60"
+                    required
+                  />
                   <button
                     type="button"
-                    onClick={fillDemoCreds}
-                    className="text-primary font-black hover:underline ml-2"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 text-slate-400 hover:text-slate-600"
                   >
-                    {t.auth.fillDemoBtn}
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+              </div>
 
-                {error && (
-                  <p className="text-owed text-sm font-bold bg-rose-50 border border-rose-200 rounded-xl p-3 text-center">
-                    {error}
-                  </p>
+              {error && (
+                <p className="text-rose-700 text-xs font-semibold bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 text-center">
+                  {error}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full h-11 bg-primary hover:bg-primary-dark text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-[0.99] flex items-center justify-center space-x-2 disabled:opacity-60 mt-1"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Signing in...</span>
+                  </>
+                ) : (
+                  <>
+                    <KeyRound className="w-4 h-4" />
+                    <span>Sign In</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
                 )}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="touch-target-64 w-full bg-primary hover:bg-primary-dark text-white font-black text-base rounded-2xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center space-x-2 disabled:opacity-60"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>{t.auth.authenticating}</span>
-                    </>
-                  ) : (
-                    <>
-                      <KeyRound className="w-5 h-5" />
-                      <span>{t.auth.liveLoginBtn}</span>
-                      <ArrowRight className="w-5 h-5 ml-1" />
-                    </>
-                  )}
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleSignUp} className="space-y-3.5">
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleSignUp} className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">
-                    {t.auth.shopNameLabel}
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                    Shop Name
                   </label>
                   <div className="relative flex items-center">
-                    <Store className="absolute left-3.5 w-5 h-5 text-slate-400" />
+                    <Store className="absolute left-3 w-4 h-4 text-slate-400 pointer-events-none" />
                     <input
                       type="text"
                       value={shopName}
                       onChange={(e) => setShopName(e.target.value)}
-                      placeholder={t.auth.shopNamePlaceholder}
-                      className="w-full pl-11 pr-4 py-2.5 text-base font-semibold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50/50"
+                      placeholder="e.g. Gupta General Store"
+                      className="w-full pl-9 pr-3 py-2.5 text-sm font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50/60"
                       required
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">
-                    {t.auth.ownerNameLabel}
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                    Owner Name
                   </label>
                   <div className="relative flex items-center">
-                    <User className="absolute left-3.5 w-5 h-5 text-slate-400" />
+                    <User className="absolute left-3 w-4 h-4 text-slate-400 pointer-events-none" />
                     <input
                       type="text"
                       value={ownerName}
                       onChange={(e) => setOwnerName(e.target.value)}
-                      placeholder={t.auth.ownerNamePlaceholder}
-                      className="w-full pl-11 pr-4 py-2.5 text-base font-semibold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50/50"
+                      placeholder="Your name"
+                      className="w-full pl-9 pr-3 py-2.5 text-sm font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50/60"
                     />
                   </div>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">
-                    {t.auth.emailLabel}
-                  </label>
-                  <div className="relative flex items-center">
-                    <Mail className="absolute left-3.5 w-5 h-5 text-slate-400" />
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="owner@example.com"
-                      className="w-full pl-11 pr-4 py-2.5 text-base font-semibold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50/50"
-                      required
-                    />
-                  </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                  Email
+                </label>
+                <div className="relative flex items-center">
+                  <Mail className="absolute left-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="owner@example.com"
+                    className="w-full pl-10 pr-3.5 py-2.5 text-sm font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50/60"
+                    required
+                  />
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1">
-                    {t.auth.passwordLabel}
-                  </label>
-                  <div className="relative flex items-center">
-                    <Lock className="absolute left-3.5 w-5 h-5 text-slate-400" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full pl-11 pr-11 py-2.5 text-base font-semibold rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50/50"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 text-slate-400 hover:text-slate-600"
-                    >
-                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                    </button>
-                  </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                  Password
+                </label>
+                <div className="relative flex items-center">
+                  <Lock className="absolute left-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="At least 6 characters"
+                    className="w-full pl-10 pr-10 py-2.5 text-sm font-medium rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-slate-50/60"
+                    required
+                  />
+                  <button
+                    type="button"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 text-slate-400 hover:text-slate-600"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
+              </div>
 
-                {error && (
-                  <p className="text-owed text-sm font-bold bg-rose-50 border border-rose-200 rounded-xl p-3 text-center">
-                    {error}
-                  </p>
+              {error && (
+                <p className="text-rose-700 text-xs font-semibold bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 text-center">
+                  {error}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full h-11 bg-primary hover:bg-primary-dark text-white font-bold text-sm rounded-xl shadow-sm transition-all active:scale-[0.99] flex items-center justify-center space-x-2 disabled:opacity-60 mt-1"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Creating account...</span>
+                  </>
+                ) : (
+                  <>
+                    <Store className="w-4 h-4" />
+                    <span>Create Account</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
                 )}
+              </button>
+            </form>
+          )}
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="touch-target-64 w-full bg-primary hover:bg-primary-dark text-white font-black text-base rounded-2xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center space-x-2 disabled:opacity-60"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>{t.auth.creatingAccount}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Store className="w-5 h-5" />
-                      <span>{t.auth.createShopBtn}</span>
-                      <ArrowRight className="w-5 h-5 ml-1" />
-                    </>
-                  )}
-                </button>
-              </form>
-            )}
-          </div>
-
-          {/* 1-Tap Instant Live Cloud Login Button & Security Badges */}
-          <div className="space-y-3 pt-6 mt-4 border-t border-slate-100">
-            <div className="relative flex py-1 items-center">
-              <div className="flex-grow border-t border-slate-200"></div>
-              <span className="flex-shrink mx-3 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                {t.auth.orInstantOpen}
-              </span>
-              <div className="flex-grow border-t border-slate-200"></div>
-            </div>
-
-            <button
-              onClick={handleQuickDemo}
-              disabled={loading}
-              className="touch-target-64 w-full bg-accent hover:bg-accent-hover text-app-text font-black text-base rounded-2xl shadow-mic-hero transition-all active:scale-[0.98] flex items-center justify-center space-x-2 border-2 border-amber-500/40"
-            >
-              <Sparkles className="w-5 h-5 text-amber-950" />
-              <span>{t.auth.instantDemoBtn}</span>
-            </button>
-
-            <div className="flex items-center justify-center space-x-1.5 text-xs text-slate-500 pt-1">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>{t.auth.securityBadge}</span>
-            </div>
+          <div className="flex items-center justify-center space-x-1.5 text-[11px] text-slate-500 pt-4 mt-4 border-t border-slate-100">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span>100% private cloud ledger • Starts clean with your own data</span>
           </div>
         </div>
       </div>

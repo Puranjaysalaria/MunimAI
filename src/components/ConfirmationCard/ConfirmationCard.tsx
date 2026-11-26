@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Customer, Item, ParsedIntent, Transaction } from '../../types/schema';
 import { SideEffectAnalysis } from '../../voice/sideEffectAnalyzer';
@@ -18,6 +18,7 @@ import {
   ArrowRight,
   Mic,
   Tag,
+  Pencil,
 } from 'lucide-react';
 import { triggerHaptic, playAudioCue } from '../../lib/sound';
 import { CustomerAvatar } from '../CustomerAvatar';
@@ -62,6 +63,7 @@ interface ConfirmationCardProps {
   pending: PendingConfirmation | null;
   onConfirm: (source?: 'voice' | 'tap') => void;
   onCancel: () => void;
+  onManualUpdate?: (updates: Partial<PendingConfirmation>) => void;
   onRerecordProof?: (tx: Transaction, customer?: Customer | null) => void;
   isListeningForReply?: boolean;
   onStartListeningForReply?: () => void;
@@ -72,12 +74,28 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
   pending,
   onConfirm,
   onCancel,
+  onManualUpdate,
   onRerecordProof,
   isListeningForReply = false,
   onStartListeningForReply,
   onStopListeningForReply,
 }) => {
   const { language, t } = useI18n();
+  const [isManualEditing, setIsManualEditing] = useState(false);
+  const [editAmount, setEditAmount] = useState('');
+  const [editIntent, setEditIntent] = useState<ParsedIntent>('credit');
+  const [editCustomerName, setEditCustomerName] = useState('');
+  const [editNote, setEditNote] = useState('');
+
+  useEffect(() => {
+    setIsManualEditing(false);
+    if (pending) {
+      setEditAmount(String(pending.amount ?? ''));
+      setEditIntent(pending.intent);
+      setEditCustomerName(pending.customerName || pending.customer?.name || '');
+      setEditNote(pending.note || '');
+    }
+  }, [pending?.rawText, pending?.intent, pending?.amount]);
 
   const isEditDiff = Boolean(pending?.editTargetTx);
   const isTapOnly = Boolean(pending?.safetyTier?.requiresTapOnly);
@@ -361,27 +379,135 @@ export const ConfirmationCard: React.FC<ConfirmationCardProps> = ({
                 </div>
               </div>
 
-              {/* Voice Prompt Playback Button */}
-              <motion.button
-                whileHover={{ scale: 1.08 }}
-                whileTap={{ scale: 0.92 }}
-                onClick={() => {
-                  triggerHaptic('light');
-                  onStopListeningRef.current?.();
-                  speechSynthesizer.speak(
-                    spokenPrompt,
-                    language
-                  ).then(() => {
-                    onStartListeningRef.current?.();
-                  });
-                }}
-                className="p-3 rounded-2xl bg-gray-100 hover:bg-gray-200 text-primary shadow-xs transition-colors flex items-center space-x-1"
-                title="Repeat voice prompt"
-                aria-label="Repeat voice prompt"
-              >
-                <Volume2 className="w-5 h-5 stroke-[2.4]" />
-              </motion.button>
+              {/* Voice Prompt Playback + Manual Edit Fallback */}
+              <div className="flex items-center space-x-2">
+                {onManualUpdate && !isPriceAction && (
+                  <motion.button
+                    type="button"
+                    whileHover={{ scale: 1.06 }}
+                    whileTap={{ scale: 0.94 }}
+                    onClick={() => {
+                      triggerHaptic('light');
+                      setIsManualEditing((prev) => !prev);
+                    }}
+                    className={`p-3 rounded-2xl shadow-xs transition-colors flex items-center space-x-1 ${
+                      isManualEditing
+                        ? 'bg-primary text-white'
+                        : 'bg-gray-100 hover:bg-gray-200 text-slate-700'
+                    }`}
+                    title="Edit manually"
+                    aria-label="Edit manually"
+                  >
+                    <Pencil className="w-4 h-4 stroke-[2.4]" />
+                  </motion.button>
+                )}
+                <motion.button
+                  whileHover={{ scale: 1.08 }}
+                  whileTap={{ scale: 0.92 }}
+                  onClick={() => {
+                    triggerHaptic('light');
+                    onStopListeningRef.current?.();
+                    speechSynthesizer.speak(
+                      spokenPrompt,
+                      language
+                    ).then(() => {
+                      onStartListeningRef.current?.();
+                    });
+                  }}
+                  className="p-3 rounded-2xl bg-gray-100 hover:bg-gray-200 text-primary shadow-xs transition-colors flex items-center space-x-1"
+                  title="Repeat voice prompt"
+                  aria-label="Repeat voice prompt"
+                >
+                  <Volume2 className="w-5 h-5 stroke-[2.4]" />
+                </motion.button>
+              </div>
             </div>
+
+              {/* Inline Manual Edit Fallback Form */}
+              {isManualEditing && onManualUpdate && (
+                <div className="p-3.5 rounded-2xl my-3 bg-slate-50 border border-slate-200 space-y-2.5">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                        Amount (₹)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editAmount}
+                        onChange={(e) => setEditAmount(e.target.value)}
+                        className="w-full px-2.5 py-2 rounded-xl border border-slate-300 bg-white text-sm font-bold text-slate-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                        Type
+                      </label>
+                      <select
+                        value={editIntent}
+                        onChange={(e) => setEditIntent(e.target.value as ParsedIntent)}
+                        className="w-full px-2.5 py-2 rounded-xl border border-slate-300 bg-white text-sm font-bold text-slate-900"
+                      >
+                        <option value="credit">Credit (Udhaar)</option>
+                        <option value="payment">Payment Received</option>
+                        <option value="sale">Cash Sale</option>
+                        <option value="expense">Expense</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                        Customer
+                      </label>
+                      <input
+                        type="text"
+                        value={editCustomerName}
+                        onChange={(e) => setEditCustomerName(e.target.value)}
+                        placeholder="Optional"
+                        className="w-full px-2.5 py-2 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                        Note
+                      </label>
+                      <input
+                        type="text"
+                        value={editNote}
+                        onChange={(e) => setEditNote(e.target.value)}
+                        placeholder="Optional note"
+                        className="w-full px-2.5 py-2 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-900"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end space-x-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsManualEditing(false)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-200"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const num = Number(editAmount);
+                        onManualUpdate({
+                          amount: Number.isFinite(num) && num >= 0 ? num : pending.amount,
+                          intent: editIntent,
+                          customerName: editCustomerName.trim() || null,
+                          note: editNote.trim() || null,
+                        });
+                        setIsManualEditing(false);
+                      }}
+                      className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-primary text-white hover:bg-primary-dark"
+                    >
+                      Apply Changes
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Central Hero Amount Display (>=32px per design guidelines) */}
               {isEditDiff && pending.editBefore ? (
