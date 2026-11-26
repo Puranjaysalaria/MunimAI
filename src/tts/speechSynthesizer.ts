@@ -1,6 +1,7 @@
 import { LanguageCode } from '../i18n/types';
 import { getCachedTTSAudio, hashTTSText, setCachedTTSAudio } from './ttsCache';
 import {
+  FallbackReason,
   SpeakingProviderId,
   estimateTtsCostInr,
   getLanguageVoiceProfile,
@@ -631,14 +632,21 @@ export class SpeechSynthesizer {
 
     // 2. Configured cloud provider (Gnani / Timbre) with cache + 500-char text rule
     const sanitizedText = text.replace(/[\u0000-\u001F\u007F]/g, ' ').replace(/\s+/g, ' ').trim();
+    let ttsFallbackReason: FallbackReason =
+      profile.ttsProvider !== 'gnani'
+        ? 'language_default'
+        : options?.cloudSpeechEnabled === false
+        ? 'cloud_disabled'
+        : isCloudSpeechKillSwitchActive()
+        ? 'kill_switch'
+        : getRemainingVoiceBudgetInr() <= 0
+        ? 'budget_exceeded'
+        : typeof navigator !== 'undefined' && navigator.onLine === false
+        ? 'offline'
+        : 'none';
+
     const allowCloud =
-      options?.cloudSpeechEnabled !== false &&
-      profile.ttsProvider === 'gnani' &&
-      sanitizedText.length > 0 &&
-      sanitizedText.length <= 500 &&
-      !isCloudSpeechKillSwitchActive() &&
-      getRemainingVoiceBudgetInr() > 0 &&
-      (typeof navigator === 'undefined' || navigator.onLine !== false);
+      ttsFallbackReason === 'none' && sanitizedText.length > 0 && sanitizedText.length <= 500;
 
     if (allowCloud) {
       const cacheParams = {
@@ -658,6 +666,7 @@ export class SpeechSynthesizer {
             activeProviderLabel: 'gnani',
             latencyMs: 1,
             costInr: 0,
+            fallbackReason: 'none',
           });
           return 'gnani';
         }
@@ -701,13 +710,25 @@ export class SpeechSynthesizer {
                 activeProviderLabel: 'gnani',
                 latencyMs,
                 costInr,
+                fallbackReason: 'none',
               });
               const ok = await this.playBase64OrUrl(`data:${mimeType};base64,${data.audioBase64}`);
               if (ok) return 'gnani';
             }
+          } else {
+            ttsFallbackReason =
+              res.status === 401
+                ? 'http_401'
+                : res.status === 402
+                ? 'http_402'
+                : res.status === 429
+                ? 'http_429'
+                : res.status >= 500
+                ? 'http_5xx'
+                : 'error';
           }
-        } catch {
-          // Silent fallback to device voice
+        } catch (err: any) {
+          ttsFallbackReason = err?.name === 'AbortError' ? 'timeout' : 'error';
         }
       }
     }
@@ -722,6 +743,7 @@ export class SpeechSynthesizer {
         activeProviderLabel: 'device',
         latencyMs: Date.now() - t0,
         costInr: 0,
+        fallbackReason: ttsFallbackReason,
       });
       return 'device';
     }

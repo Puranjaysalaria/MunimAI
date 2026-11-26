@@ -7,6 +7,7 @@ import {
   processCommandAudioBlob,
 } from './audioClipProcessor';
 import {
+  FallbackReason,
   HinglishMode,
   estimateSttCostInr,
   getLanguageVoiceProfile,
@@ -76,13 +77,13 @@ export class GnaniSttProvider implements STTProvider {
     );
   }
 
-  private canUseCloudStt(options: GnaniSttOptions): boolean {
-    if (options.cloudSpeechEnabled === false) return false;
-    if (isCloudSpeechKillSwitchActive()) return false;
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
-    if (getRemainingVoiceBudgetInr() <= 0) return false;
-    if (!this.isSupported) return false;
-    return true;
+  private getFallbackReasonForCloudCheck(options: GnaniSttOptions): FallbackReason | null {
+    if (options.cloudSpeechEnabled === false) return 'cloud_disabled';
+    if (isCloudSpeechKillSwitchActive()) return 'kill_switch';
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'offline';
+    if (getRemainingVoiceBudgetInr() <= 0) return 'budget_exceeded';
+    if (!this.isSupported) return 'error';
+    return null;
   }
 
   private clearMaxDurationTimer(): void {
@@ -107,7 +108,9 @@ export class GnaniSttProvider implements STTProvider {
       onError: (error: STTError) => void;
       onStateChange: (state: STTState) => void;
       onSpeechStart?: (startedAtMs: number) => void;
-    }
+      onAudioLevel?: (level: number) => void;
+    },
+    fallbackReason: FallbackReason = 'error'
   ): Promise<void> {
     this.usingFallback = true;
     recordVoiceUsage({
@@ -116,6 +119,7 @@ export class GnaniSttProvider implements STTProvider {
       activeProviderLabel: 'browser',
       latencyMs: 0,
       costInr: 0,
+      fallbackReason,
     });
     return this.fallbackProvider.startListening(options, callbacks);
   }
@@ -140,8 +144,9 @@ export class GnaniSttProvider implements STTProvider {
     this.usingFallback = false;
     this.wasAborted = false;
 
-    if (!this.canUseCloudStt(options)) {
-      return this.fallbackToBrowser(options, callbacks);
+    const preCheckFallback = this.getFallbackReasonForCloudCheck(options);
+    if (preCheckFallback) {
+      return this.fallbackToBrowser(options, callbacks, preCheckFallback);
     }
 
     const profile = getLanguageVoiceProfile(options.language);
@@ -319,10 +324,23 @@ export class GnaniSttProvider implements STTProvider {
             });
             this.state = 'idle';
             callbacks.onStateChange('idle');
-          } catch {
+          } catch (err: any) {
             clearTimeout(timer);
+            const msg = String(err?.message || '');
+            const reason: FallbackReason =
+              err?.name === 'AbortError'
+                ? 'timeout'
+                : msg.includes('401')
+                ? 'http_401'
+                : msg.includes('402')
+                ? 'http_402'
+                : msg.includes('429')
+                ? 'http_429'
+                : msg.includes('50')
+                ? 'http_5xx'
+                : 'error';
             // Silent fallback to browser STT without alarming the user
-            await this.fallbackToBrowser(options, callbacks);
+            await this.fallbackToBrowser(options, callbacks, reason);
           }
         } catch {
           await this.fallbackToBrowser(options, callbacks);

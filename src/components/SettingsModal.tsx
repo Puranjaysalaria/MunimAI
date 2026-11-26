@@ -11,6 +11,7 @@ import {
   getRemainingVoiceBudgetInr,
   getVoiceTelemetry,
   isCloudSpeechKillSwitchActive,
+  resolveProviders,
   setDeviceProviderOverride,
 } from '../voice/speechConfig';
 import { speechSynthesizer } from '../tts/speechSynthesizer';
@@ -374,23 +375,36 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
               const devOverride = getDeviceProviderOverride(language);
               const telemetry = getVoiceTelemetry();
               const remainingBudget = getRemainingVoiceBudgetInr();
-              const activeStt =
-                cloudSpeechEnabled && !isCloudSpeechKillSwitchActive() ? profile.sttProvider : 'browser';
-              const activeTts =
-                cloudSpeechEnabled && !isCloudSpeechKillSwitchActive() ? profile.ttsProvider : 'device';
+              const resolved = resolveProviders(
+                language,
+                { ...shop.settings, cloud_speech_enabled: cloudSpeechEnabled },
+                isCloudSpeechKillSwitchActive(),
+                Boolean(shop.settings?.cloud_speech_consent_at),
+                { budgetRemainingInr: remainingBudget }
+              );
               return (
                 <div className="p-3 bg-white text-xs space-y-2 border-t border-slate-200">
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <span className="text-app-muted block">Listening Provider</span>
+                      <span className="text-app-muted block">Configured (STT / TTS)</span>
                       <span className="font-bold text-app-text">
-                        {activeStt} ({profile.sttModel})
+                        {resolved.configuredStt} ({profile.sttModel}) / {resolved.configuredTts} ({profile.ttsModel})
                       </span>
                     </div>
                     <div>
-                      <span className="text-app-muted block">Speaking Provider</span>
+                      <span className="text-app-muted block">Used Last Time</span>
                       <span className="font-bold text-app-text">
-                        {activeTts} ({profile.ttsModel})
+                        {telemetry.lastActiveProvider.stt} / {telemetry.lastActiveProvider.tts}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-app-muted block">Fallback Reason</span>
+                      <span className="font-bold text-amber-700">
+                        {telemetry.lastFallbackReason?.stt && telemetry.lastFallbackReason.stt !== 'none'
+                          ? `STT: ${telemetry.lastFallbackReason.stt}`
+                          : telemetry.lastFallbackReason?.tts && telemetry.lastFallbackReason.tts !== 'none'
+                          ? `TTS: ${telemetry.lastFallbackReason.tts}`
+                          : resolved.fallbackReason}
                       </span>
                     </div>
                     <div>
@@ -399,10 +413,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                         {telemetry.lastLatencyMs.stt ?? '—'} ms / {telemetry.lastLatencyMs.tts ?? '—'} ms
                       </span>
                     </div>
-                    <div>
-                      <span className="text-app-muted block">Budget Remaining</span>
-                      <span className="font-bold text-emerald-700">₹{remainingBudget.toFixed(2)}</span>
-                    </div>
+                  </div>
+                  <div className="text-[11px] text-emerald-700 font-bold">
+                    Budget Remaining: ₹{remainingBudget.toFixed(2)}
                   </div>
                   <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
                     <div>

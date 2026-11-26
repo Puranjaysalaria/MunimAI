@@ -26,17 +26,22 @@ export const DEFAULT_GLOBAL_RPM = 50;
 export const GNANI_STT_RATE_INR_PER_SEC = 0.015; // ₹0.015 / sec (~₹0.90 / min)
 export const GNANI_TTS_RATE_INR_PER_CHAR = 0.0005; // ₹0.50 / 1000 chars
 
-// Fail-closed cloud defaults: every language starts on 'browser' STT and 'device' TTS
-// until explicitly enabled via config or localStorage device override.
+// Fail-closed cloud defaults:
+// Only Hindi ('hi') defaults to 'gnani' STT & TTS.
+// To enable Gnani for any of the other 9 languages (en, pa, gu, mr, bn, ta, te, kn, ml)
+// one at a time:
+//   1. Change that language's `sttProvider` from 'browser' -> 'gnani' and/or `ttsProvider` from 'device' -> 'gnani' below.
+//   2. Ensure its `sttModel` ('prisma-v2.5' / 'prisma-v3.0') and `ttsModel`/`ttsVoice` ('timbre-v3.0', 'Nalini') are tested.
+//   3. For local A/B testing without redeploying, use Settings -> Voice Debug -> Device Override.
 export const VOICE_LANGUAGE_PROFILES: Record<LanguageCode, LanguageVoiceProfile> = {
   hi: {
     language: 'hi',
-    sttProvider: 'browser',
+    sttProvider: 'gnani',
     sttModel: 'prisma-v3.0',
     sttLanguageCode: 'hi-IN',
     hinglishMode: 'mixed',
     supportsMixedLanguage: true,
-    ttsProvider: 'device',
+    ttsProvider: 'gnani',
     ttsModel: 'timbre-v2.5',
     ttsVoice: 'Nalini',
     ttsLanguageCode: 'hi-IN',
@@ -237,6 +242,21 @@ export function estimateTtsCostInr(charCount: number): number {
   return Number((chars * GNANI_TTS_RATE_INR_PER_CHAR).toFixed(6));
 }
 
+export type FallbackReason =
+  | 'none'
+  | 'language_default'
+  | 'cloud_disabled'
+  | 'missing_consent'
+  | 'kill_switch'
+  | 'budget_exceeded'
+  | 'offline'
+  | 'http_401'
+  | 'http_402'
+  | 'http_429'
+  | 'http_5xx'
+  | 'timeout'
+  | 'error';
+
 export interface VoiceTelemetryState {
   date: string;
   dailyBudgetInr: number;
@@ -253,6 +273,10 @@ export interface VoiceTelemetryState {
   lastActiveProvider: {
     stt: ListeningProviderId;
     tts: SpeakingProviderId;
+  };
+  lastFallbackReason: {
+    stt: FallbackReason;
+    tts: FallbackReason;
   };
   killSwitch: boolean;
 }
@@ -275,6 +299,7 @@ function createInitialTelemetry(): VoiceTelemetryState {
     },
     lastLatencyMs: { stt: null, tts: null },
     lastActiveProvider: { stt: 'browser', tts: 'device' },
+    lastFallbackReason: { stt: 'none', tts: 'none' },
     killSwitch: false,
   };
 }
@@ -351,6 +376,7 @@ export function recordVoiceUsage(params: {
   activeProviderLabel: ListeningProviderId | SpeakingProviderId;
   latencyMs: number;
   costInr: number;
+  fallbackReason?: FallbackReason;
 }): void {
   const cur = getVoiceTelemetry();
   const next: VoiceTelemetryState = {
@@ -367,8 +393,76 @@ export function recordVoiceUsage(params: {
       ...cur.lastActiveProvider,
       [params.channel]: params.activeProviderLabel,
     },
+    lastFallbackReason: {
+      ...(cur.lastFallbackReason || { stt: 'none', tts: 'none' }),
+      [params.channel]: params.fallbackReason ?? 'none',
+    },
   };
   saveVoiceTelemetry(next);
+}
+
+export interface ResolvedProviders {
+  configuredStt: ListeningProviderId;
+  configuredTts: 'gnani' | 'device';
+  stt: ListeningProviderId;
+  tts: 'gnani' | 'device';
+  fallbackReason: FallbackReason;
+}
+
+/**
+ * Explicit, pure provider resolver for STT and TTS with fail-closed fallback chain.
+ */
+export function resolveProviders(
+  language: LanguageCode | string,
+  userSettings?: Shop['settings'] | null,
+  killSwitch: boolean = isCloudSpeechKillSwitchActive(),
+  consent: boolean = Boolean(userSettings?.cloud_speech_consent_at),
+  options?: { budgetRemainingInr?: number; isOnline?: boolean }
+): ResolvedProviders {
+  const profile = getLanguageVoiceProfile(language);
+  const configuredStt = profile.sttProvider;
+  const configuredTts = profile.ttsProvider;
+
+  if (configuredStt === 'browser' && configuredTts === 'device') {
+    return {
+      configuredStt,
+      configuredTts,
+      stt: 'browser',
+      tts: 'device',
+      fallbackReason: 'language_default',
+    };
+  }
+
+  if (killSwitch) {
+    return { configuredStt, configuredTts, stt: 'browser', tts: 'device', fallbackReason: 'kill_switch' };
+  }
+
+  if (userSettings?.cloud_speech_enabled === false) {
+    return { configuredStt, configuredTts, stt: 'browser', tts: 'device', fallbackReason: 'cloud_disabled' };
+  }
+
+  if (!consent) {
+    return { configuredStt, configuredTts, stt: 'browser', tts: 'device', fallbackReason: 'missing_consent' };
+  }
+
+  const budgetRemaining = options?.budgetRemainingInr ?? getRemainingVoiceBudgetInr();
+  if (budgetRemaining <= 0) {
+    return { configuredStt, configuredTts, stt: 'browser', tts: 'device', fallbackReason: 'budget_exceeded' };
+  }
+
+  const isOnline =
+    options?.isOnline ?? (typeof navigator === 'undefined' ? true : navigator.onLine !== false);
+  if (!isOnline) {
+    return { configuredStt, configuredTts, stt: 'browser', tts: 'device', fallbackReason: 'offline' };
+  }
+
+  return {
+    configuredStt,
+    configuredTts,
+    stt: configuredStt,
+    tts: configuredTts,
+    fallbackReason: 'none',
+  };
 }
 
 export function isCloudSpeechKillSwitchActive(): boolean {
