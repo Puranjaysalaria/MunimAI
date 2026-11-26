@@ -339,12 +339,43 @@ export async function verifySupabaseUserAndShop(req: VercelRequest): Promise<Ver
     }
 
     const userId = userData.user.id;
-    const lookupClient = getQuotaServiceRoleClient() || supabase;
+    const serviceClient = getQuotaServiceRoleClient();
+    const lookupClient = serviceClient || supabase;
     const { data: userRow, error: shopErr } = await lookupClient
       .from('users')
       .select('shop_id')
       .eq('id', userId)
       .maybeSingle();
+
+    if (userRow?.shop_id) {
+      return { ok: true, status: 200, userId, shopId: userRow.shop_id, token };
+    }
+
+    // If user is authenticated via Supabase Auth but has no users/shops row yet, provision it server-side
+    if (serviceClient) {
+      const newShopId = crypto.randomUUID();
+      const meta = (userData.user.user_metadata || {}) as Record<string, string>;
+      const uniquePhone =
+        userData.user.phone ||
+        `+919${String(Math.floor(100000000 + Math.random() * 900000000))}`;
+      const { error: createShopErr } = await serviceClient.from('shops').insert({
+        id: newShopId,
+        name: meta.shop_name || 'My Shop',
+        owner_phone: uniquePhone,
+      });
+      if (!createShopErr) {
+        const { error: createUserErr } = await serviceClient.from('users').insert({
+          id: userId,
+          shop_id: newShopId,
+          name: meta.owner_name || userData.user.email?.split('@')[0] || 'Shop Owner',
+          phone: uniquePhone,
+          role: 'owner',
+        });
+        if (!createUserErr) {
+          return { ok: true, status: 200, userId, shopId: newShopId, token };
+        }
+      }
+    }
 
     if (shopErr || !userRow?.shop_id) {
       return { ok: false, status: 403 };

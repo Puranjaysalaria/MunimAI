@@ -95,11 +95,12 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
 
       const newShopId = crypto.randomUUID();
       const meta = (authUser.user_metadata || {}) as Record<string, string>;
+      const uniqueFallbackPhone = `+919${String(Math.floor(100000000 + Math.random() * 900000000))}`;
+      const ownerPhone = authUser.phone || uniqueFallbackPhone;
       const shopPayload = {
         id: newShopId,
         name: meta.shop_name || 'My Shop',
-        owner_phone: authUser.phone || '+919999999999',
-        settings: { wake_word_enabled: true, cloud_speech_enabled: true },
+        owner_phone: ownerPhone,
       };
       const { data: createdShop, error: shopErr } = await supabaseAdmin
         .from('shops')
@@ -115,7 +116,7 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
         id: authUser.id,
         shop_id: newShopId,
         name: meta.owner_name || authUser.email?.split('@')[0] || 'Shop Owner',
-        phone: authUser.phone || '+919999999999',
+        phone: ownerPhone,
         role: 'owner',
       };
       const { data: createdUser, error: usrErr } = await supabaseAdmin
@@ -144,7 +145,9 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
   const password = String(payload.password || '');
   const shopName = String(payload.shopName || '').trim();
   const ownerName = String(payload.ownerName || '').trim();
-  const phone = String(payload.phone || '+919999999999').trim();
+  const phone = String(
+    payload.phone || `+919${String(Math.floor(100000000 + Math.random() * 900000000))}`
+  ).trim();
 
   if (!email || !password || !shopName) {
     res.status(400).json({
