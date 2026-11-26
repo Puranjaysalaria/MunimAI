@@ -6,6 +6,7 @@ import { storeCustomerProofClip } from '../../storage/proofStorage';
 import { triggerHaptic, playAudioCue } from '../../lib/sound';
 import { getLocalizedCustomerName } from '../../lib/nameTranslation';
 import { createSTTProvider, STTProvider } from '../../stt';
+import { speechSynthesizer } from '../../tts/speechSynthesizer';
 import {
   Mic,
   Square,
@@ -50,7 +51,7 @@ export const ProofRecorderModal: React.FC<ProofRecorderModalProps> = ({
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const sttRef = useRef<STTProvider | null>(null);
 
-  // Voice hands-free control for ProofRecorderModal ('ready' -> record, 'review' -> save/retry/skip)
+  // Voice hands-free control for ProofRecorderModal ('ready' -> speak consent & record, 'review' -> save/retry/skip)
   useEffect(() => {
     if (!isOpen || (state !== 'ready' && state !== 'review')) {
       if (sttRef.current) {
@@ -60,40 +61,58 @@ export const ProofRecorderModal: React.FC<ProofRecorderModalProps> = ({
       return;
     }
 
-    const provider = createSTTProvider();
-    if (!provider.isSupported) return;
-    sttRef.current = provider;
+    let cancelled = false;
+    const startStt = () => {
+      if (cancelled) return;
+      const provider = createSTTProvider(undefined, { language, cloudSpeechEnabled: true });
+      if (!provider.isSupported) return;
+      sttRef.current = provider;
 
-    provider.startListening(
-      { language, continuous: true, interimResults: false },
-      {
-        onResult: (res) => {
-          if (!res.isFinal) return;
-          const lower = res.transcript.trim().toLowerCase();
-          if (state === 'ready') {
-            if (/\b(record|start|haan|ha|yes|ok|shuru|bulwayein)\b/i.test(lower) || /(रिकॉर्ड|शुरू|हाँ|ਹਾਂ)/.test(res.transcript)) {
-              start5SecondRecording();
-            } else if (/\b(skip|cancel|close|nahi|no)\b/i.test(lower) || /(नहीं|रद्द|छोड़ो|ਨਹੀਂ)/.test(res.transcript)) {
-              stopRecordingCleanup();
-              onClose();
+      provider.startListening(
+        { language, continuous: true, interimResults: false },
+        {
+          onResult: (res) => {
+            if (!res.isFinal) return;
+            const lower = res.transcript.trim().toLowerCase();
+            if (state === 'ready') {
+              if (/\b(record|start|haan|ha|yes|ok|shuru|bulwayein)\b/i.test(lower) || /(रिकॉर्ड|शुरू|हाँ|ਹਾਂ)/.test(res.transcript)) {
+                start5SecondRecording();
+              } else if (/\b(skip|cancel|close|nahi|no)\b/i.test(lower) || /(नहीं|रद्द|छोड़ो|ਨਹੀਂ)/.test(res.transcript)) {
+                stopRecordingCleanup();
+                onClose();
+              }
+            } else if (state === 'review') {
+              if (/\b(save|haan|ha|yes|ok|theek|confirm|submit)\b/i.test(lower) || /(सेव|हाँ|ठीक|ਹਾਂ)/.test(res.transcript)) {
+                handleSave();
+              } else if (/\b(retry|again|dobara)\b/i.test(lower) || /(दोबारा|फिर)/.test(res.transcript)) {
+                setState('ready');
+              } else if (/\b(skip|cancel|close|nahi|no)\b/i.test(lower) || /(नहीं|रद्द|छोड़ो|ਨਹੀਂ)/.test(res.transcript)) {
+                stopRecordingCleanup();
+                onClose();
+              }
             }
-          } else if (state === 'review') {
-            if (/\b(save|haan|ha|yes|ok|theek|confirm|submit)\b/i.test(lower) || /(सेव|हाँ|ठीक|ਹਾਂ)/.test(res.transcript)) {
-              handleSave();
-            } else if (/\b(retry|again|dobara)\b/i.test(lower) || /(दोबारा|फिर)/.test(res.transcript)) {
-              setState('ready');
-            } else if (/\b(skip|cancel|close|nahi|no)\b/i.test(lower) || /(नहीं|रद्द|छोड़ो|ਨਹੀਂ)/.test(res.transcript)) {
-              stopRecordingCleanup();
-              onClose();
-            }
-          }
-        },
-        onError: () => {},
-        onStateChange: () => {},
-      }
-    );
+          },
+          onError: () => {},
+          onStateChange: () => {},
+        }
+      );
+    };
+
+    if (state === 'ready') {
+      const amtText = transaction?.amount ? `₹${transaction.amount}` : '';
+      const readyMsg =
+        language === 'en'
+          ? `Customer voice consent for ${amtText}. Ask the customer to confirm, then say Record or tap the mic.`
+          : language === 'pa'
+          ? `${amtText} ਲਈ ਗਾਹਕ ਦੀ ਆਵਾਜ਼ ਸਹਿਮਤੀ। ਗਾਹਕ ਤੋਂ ਪੁਸ਼ਟੀ ਲਵੋ ਅਤੇ ਰਿਕਾਰਡ ਬੋਲੋ ਜਾਂ ਦਬਾਓ।`
+          : `${amtText} के लिए ग्राहक की आवाज़ सहमति। ग्राहक से पुष्टि करवाएं और रिकॉर्ड बोलें या दबाएं।`;
+      speechSynthesizer.speak(readyMsg, language).then(startStt);
+    } else {
+      startStt();
+    }
 
     return () => {
+      cancelled = true;
       if (sttRef.current) {
         try { sttRef.current.stopListening(); } catch {}
         sttRef.current = null;

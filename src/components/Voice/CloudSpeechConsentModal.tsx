@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { ShieldCheck, Mic, Volume2, X } from 'lucide-react';
 import { LanguageCode } from '../../i18n/types';
+import { speechSynthesizer } from '../../tts/speechSynthesizer';
+import { createSTTProvider, STTProvider } from '../../stt';
 
 interface CloudSpeechConsentModalProps {
   isOpen: boolean;
@@ -52,8 +54,54 @@ export const CloudSpeechConsentModal: React.FC<CloudSpeechConsentModalProps> = (
   onAccept,
   onDecline,
 }) => {
-  if (!isOpen) return null;
+  const sttRef = useRef<STTProvider | null>(null);
   const copy = CONSENT_COPY[language] || CONSENT_COPY.en;
+
+  useEffect(() => {
+    if (!isOpen) {
+      if (sttRef.current) {
+        try { sttRef.current.stopListening(); } catch {}
+        sttRef.current = null;
+      }
+      return;
+    }
+
+    let cancelled = false;
+    const notice = `${copy.title}. ${copy.whatSent} ${copy.toWhom}`;
+    speechSynthesizer.speak(notice, language, { cloudSpeechEnabled: false }).then(() => {
+      if (cancelled) return;
+      const provider = createSTTProvider(undefined, { language, cloudSpeechEnabled: false });
+      if (!provider.isSupported) return;
+      sttRef.current = provider;
+      provider.startListening(
+        { language, continuous: false, interimResults: false },
+        {
+          onResult: (res) => {
+            if (!res.isFinal) return;
+            const lower = res.transcript.trim().toLowerCase();
+            if (/\b(allow|yes|haan|ha|ok|agree|enable|confirm)\b/i.test(lower) || /(हाँ|ठीक|चलाओ|ਹਾਂ)/.test(res.transcript)) {
+              onAccept();
+            } else if (/\b(no|nahi|decline|device|cancel|skip)\b/i.test(lower) || /(नहीं|ਰੱਦ|ਨਹੀਂ)/.test(res.transcript)) {
+              onDecline();
+            }
+          },
+          onError: () => {},
+          onStateChange: () => {},
+        }
+      );
+    });
+
+    return () => {
+      cancelled = true;
+      speechSynthesizer.stop();
+      if (sttRef.current) {
+        try { sttRef.current.stopListening(); } catch {}
+        sttRef.current = null;
+      }
+    };
+  }, [isOpen, language]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-xs">

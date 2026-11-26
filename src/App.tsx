@@ -16,6 +16,7 @@ import { ConfirmationCard } from './components/ConfirmationCard/ConfirmationCard
 import { DisambiguationModal } from './components/DisambiguationModal/DisambiguationModal';
 import { EntryDisambiguationModal } from './components/DisambiguationModal/EntryDisambiguationModal';
 import { UndoToast } from './components/Voice/UndoToast';
+import { UndoConfirmModal } from './components/Voice/UndoConfirmModal';
 import { ProofRecorderModal } from './components/ProofRecorder/ProofRecorderModal';
 import { PrivacyModal } from './components/PrivacyModal';
 import { SupplierOrdersModal } from './components/SupplierOrder/SupplierOrdersModal';
@@ -79,6 +80,10 @@ export const AppContent: React.FC = () => {
   const [recoveryThreshold, setRecoveryThreshold] = useState(1000);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showUndoToast, setShowUndoToast] = useState(false);
+  const [pendingUndoConfirm, setPendingUndoConfirm] = useState<{
+    tx: Transaction;
+    filterType?: Transaction['type'];
+  } | null>(null);
   const [selectedLedgerCustomerId, setSelectedLedgerCustomerId] = useState<string | null>(null);
   const [selectedCustomerTrigger, setSelectedCustomerTrigger] = useState<number>(0);
   const [supplierOrdersTargetSupplierId, setSupplierOrdersTargetSupplierId] = useState<string | null>(null);
@@ -106,8 +111,8 @@ export const AppContent: React.FC = () => {
   }, [stockAnalyses, suppliers]);
 
   const dailySummary = React.useMemo(() => {
-    return computeDailySummary(transactions);
-  }, [transactions]);
+    return computeDailySummary(transactions, items);
+  }, [transactions, items]);
 
   const dailySummaryVoiceText = React.useMemo(() => {
     return generateDailySummaryVoice(dailySummary, language);
@@ -176,11 +181,26 @@ export const AppContent: React.FC = () => {
       const savedTx = addTransaction(txData);
       return savedTx;
     },
-    onUndoLast: () => {
-      const res = undoLastTransaction();
+    onUndoLast: (filterType) => {
+      const candidate = filterType
+        ? [...transactions]
+            .filter((tx) => tx.type === filterType && !tx.is_reversal && !tx.superseded_by)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+        : lastTransaction ||
+          [...transactions]
+            .filter((tx) => !tx.is_reversal && !tx.superseded_by)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+
+      if (!candidate) {
+        return {
+          success: false,
+          message: filterType ? `No recent ${filterType} transaction to undo.` : 'No recent transaction to undo.',
+        };
+      }
+      setPendingUndoConfirm({ tx: candidate, filterType });
       setShowUndoToast(false);
       setShowProofPrompt(false);
-      return res;
+      return { success: true, message: '', awaitingConfirm: true };
     },
     onNavigateTab: (tab) => setActiveTab(tab),
     onOpenSupplierOrders: (supplierId) => {
@@ -255,11 +275,21 @@ export const AppContent: React.FC = () => {
       }
     },
     onOpenProofRecorder: () => {
-      const target = proofTargetTx || transactions.find((tx) => tx.type === 'credit') || null;
+      const target =
+        proofTargetTx ||
+        transactions.find((tx) => tx.type === 'credit') ||
+        transactions[0] ||
+        null;
       if (target) {
         setProofTargetTx(target);
         setProofTargetCustomer(customers.find((c) => c.id === target.customer_id) || null);
         setShowProofPrompt(false);
+      } else {
+        const noTxMsg =
+          language === 'en'
+            ? 'Please record a transaction first, then capture customer voice consent.'
+            : 'पहले एक लेन-देन दर्ज करें, फिर ग्राहक की आवाज़ सहमति रिकॉर्ड करें।';
+        speechSynthesizer.speak(noTxMsg, language);
       }
     },
   });
@@ -644,9 +674,16 @@ export const AppContent: React.FC = () => {
             let lastUpdatedItem: Item | undefined;
 
             extracted.forEach((item) => {
-              const res = updateItemPrice(item.name, {
-                [item.priceType === 'cost' ? 'cost_price' : 'selling_price']: item.price,
-              });
+              const res = updateItemPrice(
+                item.name,
+                {
+                  [item.priceType === 'cost' ? 'cost_price' : 'selling_price']: item.price,
+                  ...(item.mrp && item.priceType === 'cost' ? { selling_price: item.mrp } : {}),
+                  unit: item.unit,
+                  quantityDelta: item.quantity,
+                },
+                'bill_scan'
+              );
               if (res.updatedItem) {
                 lastUpdatedItem = res.updatedItem;
               }
@@ -719,14 +756,29 @@ export const AppContent: React.FC = () => {
         <UndoToast
           lastTransaction={lastTransaction}
           onUndo={() => {
-            const res = undoLastTransaction();
-            speechSynthesizer.speak(res.message, language);
+            setPendingUndoConfirm({ tx: lastTransaction });
             setShowUndoToast(false);
             setShowProofPrompt(false);
           }}
           onDismiss={() => setShowUndoToast(false)}
         />
       )}
+
+      {/* Double-Warning Undo Confirmation Modal */}
+      <UndoConfirmModal
+        transaction={pendingUndoConfirm?.tx || null}
+        customers={customers}
+        language={language}
+        onConfirm={() => {
+          if (!pendingUndoConfirm) return;
+          const res = undoLastTransaction(pendingUndoConfirm.filterType);
+          setPendingUndoConfirm(null);
+          speechSynthesizer.speak(res.message, language);
+        }}
+        onCancel={() => {
+          setPendingUndoConfirm(null);
+        }}
+      />
 
       {/* Global Floating Voice Pill (All screens except Home, Wispr Flow style) */}
       <GlobalVoicePill

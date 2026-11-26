@@ -178,8 +178,12 @@ export function parseWithRules(
     }
   }
 
-  // Proof Intent: "Customer se bulwayein"
-  if (/\b(customer se bulwayein|proof|audio recording|saboot|awaaz record|grahak di awaaz)\b/i.test(lower)) {
+  // Proof Intent: "Customer se bulwayein" / "Customer voice consent"
+  if (
+    /\b(customer\s*(?:voice\s*)?(?:consent|proof|recording)|voice\s*(?:consent|proof)|customer se bulwayein|proof|audio recording|saboot|awaaz record|grahak di awaaz|grahak ki awaaz)\b/i.test(
+      lower
+    )
+  ) {
     return {
       intent: 'proof',
       confidence: 0.95,

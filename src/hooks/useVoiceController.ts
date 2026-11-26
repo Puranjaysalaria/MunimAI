@@ -29,7 +29,7 @@ interface UseVoiceControllerProps {
   transactions: Transaction[];
   isOnline: boolean;
   onSaveTransaction: (tx: Omit<Transaction, 'id' | 'shop_id' | 'created_at'>) => Transaction;
-  onUndoLast: () => { success: boolean; message: string };
+  onUndoLast: (filterType?: Transaction['type']) => { success: boolean; message: string; awaitingConfirm?: boolean };
   onNavigateTab: (tab: 'home' | 'ledger' | 'stock' | 'today') => void;
   onOpenSupplierOrders?: (supplierId?: string) => void;
   onOpenDailySummary?: () => void;
@@ -379,9 +379,21 @@ export function useVoiceController({
           ) && /\b(undo|cancel|remove|delete|revert|wapas|hatao|hata\s*do|mitao|mita\s*do|वापस|हटा|मिटा|ਰੱਦ|ਹਟਾ)\b/i.test(text);
 
         if (isLastTxUndoPhrase) {
-          const res = onUndoLast();
+          const undoType: Transaction['type'] | undefined =
+            /\b(sale|sales|cash\s*sale|becha|bikri)\b/i.test(text)
+              ? 'sale'
+              : /\b(credit|udhaar|udhar)\b/i.test(text)
+              ? 'credit'
+              : /\b(payment|jama|paid|received|diye)\b/i.test(text)
+              ? 'payment'
+              : /\b(expense|kharch)\b/i.test(text)
+              ? 'expense'
+              : undefined;
+          const res = onUndoLast(undoType);
           playAudioCue('cancel');
-          speechSynthesizer.speak(res.message, language);
+          if (!res.awaitingConfirm) {
+            speechSynthesizer.speak(res.message, language);
+          }
           setVoiceState('idle');
           return;
         }
@@ -428,9 +440,21 @@ export function useVoiceController({
         }
 
         if (result.intent === 'undo') {
-          const res = onUndoLast();
+          const undoType: Transaction['type'] | undefined =
+            /\b(sale|sales|cash\s*sale|becha|bikri)\b/i.test(text)
+              ? 'sale'
+              : /\b(credit|udhaar|udhar)\b/i.test(text)
+              ? 'credit'
+              : /\b(payment|jama|paid|received|diye)\b/i.test(text)
+              ? 'payment'
+              : /\b(expense|kharch)\b/i.test(text)
+              ? 'expense'
+              : undefined;
+          const res = onUndoLast(undoType);
           playAudioCue('cancel');
-          speechSynthesizer.speak(res.message, language);
+          if (!res.awaitingConfirm) {
+            speechSynthesizer.speak(res.message, language);
+          }
           setVoiceState('idle');
           return;
         }
@@ -439,7 +463,7 @@ export function useVoiceController({
         if (result.intent === 'summary') {
           setVoiceState('success');
           onNavigateTab('today');
-          const summary = computeDailySummary(transactions);
+          const summary = computeDailySummary(transactions, items);
           const summaryVoice = generateDailySummaryVoice(summary, language);
           speechSynthesizer.speak(summaryVoice, language);
           if (onOpenDailySummary) {
@@ -557,7 +581,32 @@ export function useVoiceController({
         if (result.intent === 'open_stock') {
           setVoiceState('success');
           onNavigateTab('stock');
-          speechSynthesizer.speak(t.navigation.openingStockVoice, language);
+          let stockListReply: string;
+          if (items.length === 0) {
+            stockListReply =
+              language === 'en'
+                ? 'Your stock is currently empty. Add items or scan a bill to update inventory.'
+                : language === 'pa'
+                ? 'ਤੁਹਾਡਾ ਸਟਾਕ ਖਾਲੀ ਹੈ। ਸਾਮਾਨ ਜੋੜੋ ਜਾਂ ਬਿੱਲ ਸਕੈਨ ਕਰੋ।'
+                : 'आपका स्टॉक अभी खाली है। सामान जोड़ें या बिल स्कैन करें।';
+          } else {
+            const topItems = items
+              .slice(0, 5)
+              .map(
+                (it) =>
+                  `${formatItemName(it.name, language)} ${it.current_stock} ${formatUnit(it.unit, language)}`
+              )
+              .join(', ');
+            const extra = items.length > 5 ? (language === 'en' ? ` and ${items.length - 5} more` : ` और ${items.length - 5} अन्य`) : '';
+            stockListReply =
+              language === 'en'
+                ? `You have ${items.length} items in stock: ${topItems}${extra}.`
+                : language === 'pa'
+                ? `ਸਟਾਕ ਵਿੱਚ ${items.length} ਚੀਜ਼ਾਂ ਹਨ: ${topItems}${extra}।`
+                : `स्टॉक में ${items.length} सामान हैं: ${topItems}${extra}।`;
+          }
+          lastSpokenTextRef.current = stockListReply;
+          speechSynthesizer.speak(stockListReply, language);
           setTimeout(() => setVoiceState('idle'), 1500);
           return;
         }
@@ -901,6 +950,13 @@ export function useVoiceController({
 
         if (result.intent === 'proof') {
           setVoiceState('success');
+          const proofOpenMsg =
+            language === 'en'
+              ? 'Opening customer voice consent recorder.'
+              : language === 'pa'
+              ? 'ਗਾਹਕ ਦੀ ਆਵਾਜ਼ ਸਹਿਮਤੀ ਰਿਕਾਰਡਰ ਖੋਲ੍ਹਿਆ ਜਾ ਰਿਹਾ ਹੈ।'
+              : 'ग्राहक की आवाज़ सहमति रिकॉर्डर खोला जा रहा है।';
+          speechSynthesizer.speak(proofOpenMsg, language);
           if (onOpenProofRecorder) onOpenProofRecorder();
           setTimeout(() => setVoiceState('idle'), 1200);
           return;

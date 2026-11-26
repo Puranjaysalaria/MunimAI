@@ -205,7 +205,7 @@ export function groupOrdersBySupplier(
 /**
  * Computes financial metrics for today's transactions
  */
-export function computeDailySummary(transactions: Transaction[]): DailySummaryMetrics {
+export function computeDailySummary(transactions: Transaction[], items: Item[] = []): DailySummaryMetrics {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
@@ -231,11 +231,34 @@ export function computeDailySummary(transactions: Transaction[]): DailySummaryMe
 
   const grossRevenue = totalSales + cashCollected;
 
-  // Compute profit: 15% estimated average gross margin on kirana sales minus expenses
-  const estimatedProfit = Math.max(
-    0,
-    Math.round((totalSales + creditGiven) * 0.15 - expenses)
-  );
+  // Compute gross profit from actual item cost vs selling price when available, else 15% fallback margin
+  let grossMargin = 0;
+  for (const tx of todayTxs) {
+    if (tx.type !== 'sale' && tx.type !== 'credit') continue;
+    if (tx.items && tx.items.length > 0 && items.length > 0) {
+      let txCost = 0;
+      let matchedAnyCost = false;
+      for (const line of tx.items) {
+        const matched = items.find(
+          (it) =>
+            it.id === line.item_id ||
+            it.name.toLowerCase() === (line.name || '').toLowerCase() ||
+            it.synonyms.some((s) => s.toLowerCase() === (line.name || '').toLowerCase())
+        );
+        if (matched && matched.cost_price > 0) {
+          txCost += matched.cost_price * (line.quantity || 1);
+          matchedAnyCost = true;
+        }
+      }
+      if (matchedAnyCost) {
+        grossMargin += Math.max(0, Number(tx.amount) - txCost);
+        continue;
+      }
+    }
+    grossMargin += Number(tx.amount) * 0.15;
+  }
+
+  const estimatedProfit = Math.round(grossMargin - expenses);
 
   return {
     totalSales,

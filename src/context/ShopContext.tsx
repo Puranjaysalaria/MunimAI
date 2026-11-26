@@ -57,10 +57,10 @@ interface ShopContextType {
     source?: 'voice' | 'tap',
     reason?: string
   ) => { success: boolean; correctionTx?: Transaction; auditLog?: AuditLogEntry; error?: string };
-  undoLastTransaction: () => { success: boolean; message: string };
+  undoLastTransaction: (filterType?: Transaction['type']) => { success: boolean; message: string; undoneTx?: Transaction };
   updateItemPrice: (
     itemNameOrId: string,
-    updates: { selling_price?: number; cost_price?: number },
+    updates: { selling_price?: number; cost_price?: number; unit?: Item['unit']; quantityDelta?: number },
     source?: 'voice' | 'tap' | 'bill_scan'
   ) => { success: boolean; previousItem?: Item; updatedItem?: Item };
   updateItemStockCount: (
@@ -707,7 +707,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Update item price (selling or cost price) with PriceHistory & AuditLog
   const updateItemPrice = (
     itemNameOrId: string,
-    updates: { selling_price?: number; cost_price?: number },
+    updates: { selling_price?: number; cost_price?: number; unit?: Item['unit']; quantityDelta?: number },
     source: 'voice' | 'tap' | 'bill_scan' = 'tap'
   ): { success: boolean; previousItem?: Item; updatedItem?: Item } => {
     let prevItem: Item | undefined;
@@ -728,9 +728,12 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const newPrice =
             priceType === 'selling' ? updates.selling_price! : updates.cost_price!;
 
+          const addedQty = source === 'bill_scan' && updates.quantityDelta ? Math.max(0, updates.quantityDelta) : 0;
+          const { quantityDelta: _qd, unit: _u, ...priceFields } = updates;
           nextItem = {
             ...item,
-            ...updates,
+            ...priceFields,
+            current_stock: item.current_stock + addedQty,
           };
 
           const priceRecord: LastPriceChange = {
@@ -798,10 +801,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       shop_id: shop.id,
       name: itemNameOrId,
       synonyms: [itemNameOrId.toLowerCase()],
-      unit: 'piece',
+      unit: updates.unit || 'piece',
       cost_price: costPrice,
       selling_price: sellingPrice,
-      current_stock: 10,
+      current_stock: updates.quantityDelta && updates.quantityDelta > 0 ? updates.quantityDelta : 10,
       min_threshold: 3,
       created_at: new Date().toISOString(),
     };
@@ -1128,10 +1131,13 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   };
 
-  // Undo Last Transaction, Correction, or Price Change ("Wapas karo")
-  const undoLastTransaction = (): { success: boolean; message: string; restoredItem?: Item } => {
-    // 0. If a correction was performed most recently, undo that correction cleanly
+  // Undo Last Transaction (optionally filtered by type), Correction, or Price Change ("Wapas karo")
+  const undoLastTransaction = (
+    filterType?: Transaction['type']
+  ): { success: boolean; message: string; restoredItem?: Item; undoneTx?: Transaction } => {
+    // 0. If a correction was performed most recently (and no type filter), undo that correction cleanly
     if (
+      !filterType &&
       lastCorrectionUndo &&
       (!lastPriceChange || lastCorrectionUndo.timestamp >= lastPriceChange.timestamp)
     ) {
@@ -1187,6 +1193,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // If a price change was performed more recently than last transaction, undo price change
     if (
+      !filterType &&
       lastPriceChange &&
       (!lastTransaction ||
         lastPriceChange.timestamp > (new Date(lastTransaction.created_at).getTime() || 0))
@@ -1194,11 +1201,21 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return undoLastPriceChange();
     }
 
-    if (!lastTransaction) {
-      return { success: false, message: 'No recent transaction to undo' };
-    }
+    const txToUndo = filterType
+      ? [...transactions]
+          .filter((t) => t.type === filterType && !t.is_reversal && !t.superseded_by)
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+      : lastTransaction ||
+        [...transactions]
+          .filter((t) => !t.is_reversal && !t.superseded_by)
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
 
-    const txToUndo = lastTransaction;
+    if (!txToUndo) {
+      return {
+        success: false,
+        message: filterType ? `No recent ${filterType} transaction to undo` : 'No recent transaction to undo',
+      };
+    }
 
     // Reverse customer balance
     if (txToUndo.type === 'credit' && txToUndo.customer_id) {
@@ -1218,11 +1235,14 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Remove from transactions list
     setTransactions((prev) => prev.filter((t) => t.id !== txToUndo.id));
-    setLastTransaction(null);
+    if (lastTransaction?.id === txToUndo.id) {
+      setLastTransaction(null);
+    }
 
     return {
       success: true,
-      message: `Transaction of ₹${txToUndo.amount} undone successfully`,
+      message: `${txToUndo.type} transaction of ₹${txToUndo.amount} undone successfully`,
+      undoneTx: txToUndo,
     };
   };
 

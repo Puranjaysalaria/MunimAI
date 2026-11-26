@@ -119,8 +119,15 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
     if (onPricesExtracted) {
       onPricesExtracted(selected);
     }
+    const doneMsg =
+      language === 'pa'
+        ? `${selected.length} ਚੀਜ਼ਾਂ ਸਟਾਕ ਅਤੇ ਰੇਟ ਵਿੱਚ ਅਪਡੇਟ ਹੋ ਗਈਆਂ ਹਨ।`
+        : language === 'en'
+        ? `Updated ${selected.length} items in stock and prices.`
+        : `${selected.length} सामान स्टॉक और दाम में अपडेट हो गए हैं।`;
+    speechSynthesizer.speak(doneMsg, language);
     onClose();
-  }, [stopVoiceListening, onPricesExtracted, onClose]);
+  }, [stopVoiceListening, onPricesExtracted, onClose, language]);
 
   const handleVoiceInput = useCallback(
     (text: string, currentItems: ExtractedBillItem[]) => {
@@ -224,6 +231,7 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
 
   const startVoiceListening = useCallback(
     (itemsToMatch?: ExtractedBillItem[]) => {
+      speechSynthesizer.stop();
       if (sttProviderRef.current) {
         try {
           sttProviderRef.current.stopListening();
@@ -232,16 +240,21 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
       setIsListening(true);
       setVoiceTranscript('');
 
-      const provider = createSTTProvider();
+      const provider = createSTTProvider(undefined, {
+        language,
+        cloudSpeechEnabled: true,
+      });
       sttProviderRef.current = provider;
 
       provider.startListening(
-        { language, continuous: true, interimResults: true },
+        { language, continuous: true, interimResults: true, isPillActive: true, maxDurationMs: 15_000 },
         {
           onResult: (result) => {
             const text = result.transcript.trim();
             setVoiceTranscript(text);
-            handleVoiceInput(text, itemsToMatch || extractedItemsRef.current);
+            if (result.isFinal) {
+              handleVoiceInput(text, itemsToMatch || extractedItemsRef.current);
+            }
           },
           onError: (err) => {
             console.warn('Bill scan STT error:', err);
@@ -303,11 +316,9 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
                 : `बिल से ${count} सामान के दाम मिले हैं। अगर कोई अंतर है तो बताएं, या दाम अपडेट करने के लिए 'हाँ' कहें।`;
 
             setVoiceFeedback(promptMsg);
-            speechSynthesizer.speak(promptMsg, language);
-
-            setTimeout(() => {
+            speechSynthesizer.speak(promptMsg, language).then(() => {
               startVoiceListening(res.items);
-            }, 2200);
+            });
           }
         } catch (err) {
           console.error('Failed to parse bill photo:', err);
