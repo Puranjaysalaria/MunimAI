@@ -40,6 +40,106 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
   }
   payload = payload || {};
 
+  const action = String(payload.action || 'register').trim();
+
+  // Supabase Credentials
+  const supabaseUrl = (
+    process.env.SUPABASE_URL ||
+    process.env.VITE_SUPABASE_URL ||
+    'https://eaordgyzpvbzshjqcxbv.supabase.co'
+  ).trim();
+  const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+
+  if (!serviceRoleKey) {
+    res.status(500).json({
+      success: false,
+      error: 'Supabase admin service key is not configured on the server.',
+    });
+    return;
+  }
+
+  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  // Provision shop & user profile for an existing authenticated user whose profile row is missing
+  if (action === 'provision') {
+    const authHeader = String(req.headers?.authorization || '').trim();
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    if (!token) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+    try {
+      const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
+      if (userErr || !userData?.user?.id) {
+        res.status(401).json({ success: false, error: 'Invalid session' });
+        return;
+      }
+      const authUser = userData.user;
+      const { data: existingUser } = await supabaseAdmin
+        .from('users')
+        .select('*')
+        .eq('id', authUser.id)
+        .maybeSingle();
+
+      if (existingUser?.shop_id) {
+        const { data: existingShop } = await supabaseAdmin
+          .from('shops')
+          .select('*')
+          .eq('id', existingUser.shop_id)
+          .maybeSingle();
+        res.status(200).json({ success: true, shop: existingShop, user: existingUser });
+        return;
+      }
+
+      const newShopId = crypto.randomUUID();
+      const meta = (authUser.user_metadata || {}) as Record<string, string>;
+      const shopPayload = {
+        id: newShopId,
+        name: meta.shop_name || 'My Shop',
+        owner_phone: authUser.phone || '+919999999999',
+        settings: { wake_word_enabled: true, cloud_speech_enabled: true },
+      };
+      const { data: createdShop, error: shopErr } = await supabaseAdmin
+        .from('shops')
+        .insert(shopPayload)
+        .select()
+        .maybeSingle();
+      if (shopErr) {
+        res.status(500).json({ success: false, error: shopErr.message });
+        return;
+      }
+
+      const userPayload = {
+        id: authUser.id,
+        shop_id: newShopId,
+        name: meta.owner_name || authUser.email?.split('@')[0] || 'Shop Owner',
+        phone: authUser.phone || '+919999999999',
+        role: 'owner',
+      };
+      const { data: createdUser, error: usrErr } = await supabaseAdmin
+        .from('users')
+        .insert(userPayload)
+        .select()
+        .maybeSingle();
+      if (usrErr) {
+        res.status(500).json({ success: false, error: usrErr.message });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        shop: createdShop || shopPayload,
+        user: createdUser || userPayload,
+      });
+      return;
+    } catch {
+      res.status(503).json({ success: false, error: 'Provisioning failed' });
+      return;
+    }
+  }
+
   const email = String(payload.email || '').trim().toLowerCase();
   const password = String(payload.password || '');
   const shopName = String(payload.shopName || '').trim();
@@ -62,26 +162,7 @@ async function handleRegister(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  // 3. Supabase Credentials
-  const supabaseUrl = (
-    process.env.SUPABASE_URL ||
-    process.env.VITE_SUPABASE_URL ||
-    'https://eaordgyzpvbzshjqcxbv.supabase.co'
-  ).trim();
-  const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
-
-  if (!serviceRoleKey) {
-    res.status(500).json({
-      success: false,
-      error: 'Supabase admin service key is not configured on the server.',
-    });
-    return;
-  }
-
   try {
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
 
     // 4. Create user with email_confirm: true (bypasses email delivery rate limits)
     const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({

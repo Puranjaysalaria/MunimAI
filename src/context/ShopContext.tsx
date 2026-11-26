@@ -247,39 +247,25 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setShop(shopProfile as Shop);
               localStorage.setItem(`${STORAGE_KEY_PREFIX}shop`, JSON.stringify(shopProfile));
             }
-          } else {
-            const newShopId = crypto.randomUUID();
-            const meta = (authUser.user_metadata || {}) as Record<string, string>;
-            const newShop: Shop = {
-              id: newShopId,
-              name: meta.shop_name || 'My Shop',
-              owner_phone: authUser.phone || '+919999999999',
-              settings: { wake_word_enabled: true, cloud_speech_enabled: true },
-            };
-            const { data: createdShop } = await supabase
-              .from('shops')
-              .insert({
-                id: newShop.id,
-                name: newShop.name,
-                owner_phone: newShop.owner_phone,
-                settings: newShop.settings,
-              })
-              .select()
-              .maybeSingle();
-            const newUser: User = {
-              id: authUser.id,
-              shop_id: newShopId,
-              name: meta.owner_name || authUser.email?.split('@')[0] || 'Shop Owner',
-              phone: authUser.phone || '+919999999999',
-              role: 'owner',
-            };
-            await supabase.from('users').insert(newUser);
-            const finalShop = (createdShop as Shop) || newShop;
-            activeShopId = finalShop.id;
-            setShop(finalShop);
-            setUser(newUser);
-            localStorage.setItem(`${STORAGE_KEY_PREFIX}shop`, JSON.stringify(finalShop));
-            localStorage.setItem(`${STORAGE_KEY_PREFIX}user`, JSON.stringify(newUser));
+          } else if (sessionData.session?.access_token) {
+            const provRes = await fetch('/api/register', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${sessionData.session.access_token}`,
+              },
+              body: JSON.stringify({ action: 'provision' }),
+            });
+            const provData = await provRes.json().catch(() => ({}));
+            if (provRes.ok && provData.success && provData.shop?.id) {
+              activeShopId = provData.shop.id;
+              setShop(provData.shop as Shop);
+              if (provData.user) {
+                setUser(provData.user as User);
+                localStorage.setItem(`${STORAGE_KEY_PREFIX}user`, JSON.stringify(provData.user));
+              }
+              localStorage.setItem(`${STORAGE_KEY_PREFIX}shop`, JSON.stringify(provData.shop));
+            }
           }
         }
 
@@ -440,32 +426,28 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsLocked(false);
         localStorage.setItem(`${STORAGE_KEY_PREFIX}auth_active`, 'true');
 
-        // Fetch live user & shop profile (auto-provision if missing)
+        // Fetch live user & shop profile (provision server-side if missing)
         let { data: userProfile } = await supabase
           .from('users')
           .select('*')
           .eq('id', data.user.id)
           .maybeSingle();
 
-        if (!userProfile) {
-          const newShopId = crypto.randomUUID();
-          const meta = (data.user.user_metadata || {}) as Record<string, string>;
-          const createdShopPayload = {
-            id: newShopId,
-            name: meta.shop_name || 'My Shop',
-            owner_phone: data.user.phone || '+919999999999',
-            settings: { wake_word_enabled: true, cloud_speech_enabled: true },
-          };
-          await supabase.from('shops').insert(createdShopPayload);
-          const createdUserPayload: User = {
-            id: data.user.id,
-            shop_id: newShopId,
-            name: meta.owner_name || data.user.email?.split('@')[0] || 'Shop Owner',
-            phone: data.user.phone || '+919999999999',
-            role: 'owner',
-          };
-          await supabase.from('users').insert(createdUserPayload);
-          userProfile = createdUserPayload;
+        let resolvedShop: Shop | null = null;
+        if (!userProfile && data.session.access_token) {
+          const provRes = await fetch('/api/register', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${data.session.access_token}`,
+            },
+            body: JSON.stringify({ action: 'provision' }),
+          });
+          const provData = await provRes.json().catch(() => ({}));
+          if (provRes.ok && provData.success) {
+            userProfile = provData.user || null;
+            resolvedShop = provData.shop || null;
+          }
         }
 
         if (userProfile) {
@@ -473,8 +455,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
           localStorage.setItem(`${STORAGE_KEY_PREFIX}user`, JSON.stringify(userProfile));
         }
 
-        const resolvedShopId = userProfile?.shop_id;
-        if (resolvedShopId) {
+        const resolvedShopId = resolvedShop?.id || userProfile?.shop_id;
+        if (resolvedShop) {
+          setShop(resolvedShop);
+          localStorage.setItem(`${STORAGE_KEY_PREFIX}shop`, JSON.stringify(resolvedShop));
+        } else if (resolvedShopId) {
           const { data: shopProfile } = await supabase
             .from('shops')
             .select('*')
@@ -485,6 +470,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setShop(shopProfile as Shop);
             localStorage.setItem(`${STORAGE_KEY_PREFIX}shop`, JSON.stringify(shopProfile));
           }
+        }
+        if (resolvedShopId) {
           await loadLiveShopData(resolvedShopId);
         }
 
