@@ -306,6 +306,14 @@ This log records major technical and product decisions made during the developme
   - **Hardened Server Proxies & Service-Role Quotas**: `api/gnani-stt.ts` and `api/gnani-tts.ts` verify Supabase JWTs, derive `shop_id` from `public.users`, enforce `ALLOWED_ORIGINS` CORS and strict payload/model/voice allowlists, and reserve/reconcile quotas in integer paise (`Asia/Kolkata`) via `service_role`-only RPCs (`voice_reservations`, `voice_usage`, `voice_usage_global`). Failed Gnani calls refund once idempotently; any quota/network error fails closed and falls back silently to browser STT / device voice.
   - **Local A/B Comparison**: Voice Debug in Settings offers `localStorage` device-only provider overrides per language while keeping shared config defaults and consent/budget gates intact.
 
+---
+
+### DECISION-028: Hardening `apply_correction_atomic` Against `NULL auth_shop_id()` & Anonymous Execution
+- **Date**: 2026-11-26
+- **Context**: `p_shop_id <> public.auth_shop_id()` evaluates to SQL `UNKNOWN` (not `TRUE`) when `auth_shop_id()` is `NULL`, and newly created functions in `public` inherit `EXECUTE` for `PUBLIC`/`anon` by default in Postgres.
+- **Decision**:
+  - Added additive migration [20261126020000_harden_apply_correction_atomic.sql](file:///C:/Users/Croma/Desktop/DukaanAI/supabase/migrations/20261126020000_harden_apply_correction_atomic.sql) keeping `SECURITY INVOKER`, setting `SET search_path = public`, guarding with `IF public.auth_shop_id() IS NULL OR p_shop_id IS DISTINCT FROM public.auth_shop_id()`, and revoking `EXECUTE` from `PUBLIC` and `anon` before and after `CREATE OR REPLACE`.
+
 
 
 

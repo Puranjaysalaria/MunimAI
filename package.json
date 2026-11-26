@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:quota": "npx tsx scripts/test-voice-quota-concurrency.ts",
+    "test:rpc": "npx tsx scripts/test-apply-correction-rpc.ts",
     "check:i18n": "node scripts/check-translations.ts",
     "check:secrets": "npx tsx scripts/check-no-secrets-in-bundle.ts"
   },

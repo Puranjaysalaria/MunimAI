@@ -104,3 +104,61 @@ Proposed harness (e.g. `scripts/eval-audio-e2e.ts` with fixture folder `tests/au
 4. **STT `speechStartedAtMs` Support**: Add optional `speechStartedAtMs` to `STTResult` / `onSpeechStart` so batch providers that buffer pre-card audio don't bypass the post-card guard.
 5. **500-Seed Invariant Script**: Add `scripts/verify-invariants-500.ts` (outside `tests/` so it doesn't slow `vitest run`).
 6. **Real-Audio E2E Harness**: Add `scripts/eval-audio-e2e.ts` scaffolding when audio fixtures & server STT keys are ready.
+
+---
+
+## 8. Hardening Migration (`20261126020000_harden_apply_correction_atomic.sql`) & Local `test:rpc` Output
+
+- **New Migration**: [20261126020000_harden_apply_correction_atomic.sql](file:///C:/Users/Croma/Desktop/DukaanAI/supabase/migrations/20261126020000_harden_apply_correction_atomic.sql)
+  - `REVOKE ALL ON FUNCTION public.apply_correction_atomic(...) FROM PUBLIC, anon;` (before and after `CREATE OR REPLACE`)
+  - `GRANT EXECUTE ... TO authenticated, service_role;`
+  - `SECURITY INVOKER` + `SET search_path = public`
+  - First check: `IF public.auth_shop_id() IS NULL OR p_shop_id IS DISTINCT FROM public.auth_shop_id() THEN RAISE EXCEPTION 'Unauthorized shop_id'; END IF;`
+- **Local `npm run test:rpc` Output** (`http://127.0.0.1:54321`):
+  ```text
+  1. Anon denied: 42501 permission denied for function apply_correction_atomic
+  2. Cross-shop rejected: Unauthorized shop_id
+  3. NULL auth_shop_id() rejected: Unauthorized shop_id
+  4. Halfway failure rolled back cleanly (0 partial rows).
+  5. Valid apply + idempotent replay passed: { status: 'applied', ... } { status: 'already_applied', ... }
+  6. Stale p_expected_superseded_by returned conflict and wrote nothing: { status: 'conflict', ... }
+  All apply_correction_atomic RPC security, rollback & idempotency tests passed!
+  ```
+
+---
+
+## 9. Read-Only `public` Schema Function Audit
+
+**Exact SQL executed against local Postgres (`127.0.0.1:54322`)**:
+```sql
+SELECT
+  p.proname,
+  pg_get_function_identity_arguments(p.oid) AS args,
+  CASE WHEN p.prosecdef THEN 'SECURITY DEFINER' ELSE 'SECURITY INVOKER' END AS security_type,
+  has_function_privilege('public', p.oid, 'EXECUTE') AS public_exec,
+  has_function_privilege('anon', p.oid, 'EXECUTE') AS anon_exec,
+  has_function_privilege('authenticated', p.oid, 'EXECUTE') AS auth_exec
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname = 'public'
+ORDER BY p.proname;
+```
+
+**Result**:
+| Function (`proname`) | Security Type | `PUBLIC` Execute | `anon` Execute | `authenticated` Execute | Flag |
+|---|---|---|---|---|---|
+| `apply_correction_atomic` | `SECURITY INVOKER` | `f` | `f` | `t` | OK |
+| `auth_shop_id` | `SECURITY DEFINER` | `t` | `t` | `t` | Expected helper (`auth_shop_id`) |
+| `expire_stale_voice_reservations` | `SECURITY DEFINER` | `f` | `f` | `f` | OK (`service_role` only) |
+| `reconcile_voice_quota` | `SECURITY DEFINER` | `f` | `f` | `f` | OK (`service_role` only) |
+| `reserve_voice_quota` | `SECURITY DEFINER` | `f` | `f` | `f` | OK (`service_role` only) |
+
+**Flagged functions executable by `anon` other than `auth_shop_id`**: **None (0)**.
+
+---
+
+## 10. `GREATEST(0, ...)` Clamp Analysis (Report Only, No Fix)
+
+- **Where it occurs**: [20261126020000_harden_apply_correction_atomic.sql#L91](file:///C:/Users/Croma/Desktop/DukaanAI/supabase/migrations/20261126020000_harden_apply_correction_atomic.sql#L91) (`balance_owed = GREATEST(0, balance_owed + delta)`) and [#L98](file:///C:/Users/Croma/Desktop/DukaanAI/supabase/migrations/20261126020000_harden_apply_correction_atomic.sql#L98) (`current_stock = GREATEST(0, current_stock - quantityDelta)`).
+- **Would the invariant tests catch drift hidden by that clamp?**
+  - **No, if both sides clamp per step; Yes, if recomputed from unclamped sums — and the DB state will permanently drift after an intermediate negative**. Specifically: if a reversal or payment temporarily pushes `balance_owed` (or `current_stock`) below `0`, `GREATEST(0, ...)` discards the negative remainder. A subsequent positive edit or sale then adds onto `0` instead of the true negative value, leaving `balance_owed`/`current_stock` permanently higher than the sum of effective transactions. Any invariant check that applies the same per-step `Math.max(0, ...)` hides this drift, whereas an unclamped effective-transaction recomputation exposes it.

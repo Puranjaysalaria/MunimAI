@@ -35,3 +35,5 @@ scratch*
 # Phase 6 Voice Evaluation audio/tts folders
 tests/audio-eval
 tests/tts-eval
+backup_*.sql
+supabase/.temp/
