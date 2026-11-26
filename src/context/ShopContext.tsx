@@ -380,7 +380,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .from('users')
           .select('*')
           .eq('id', data.user.id)
-          .single();
+          .maybeSingle();
 
         if (userProfile) {
           setUser(userProfile as User);
@@ -393,7 +393,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .from('shops')
             .select('*')
             .eq('id', resolvedShopId)
-            .single();
+            .maybeSingle();
 
           if (shopProfile) {
             setShop(shopProfile as Shop);

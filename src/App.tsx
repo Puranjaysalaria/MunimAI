@@ -306,6 +306,14 @@ export const AppContent: React.FC = () => {
     voice.startListening,
   ]);
 
+  useEffect(() => {
+    if (isLoggedIn && !isLocked && activeTab === 'today' && dailySummaryVoiceText) {
+      speechSynthesizer.prewarm(dailySummaryVoiceText, language, {
+        cloudSpeechEnabled: shop.settings?.cloud_speech_enabled,
+      });
+    }
+  }, [isLoggedIn, isLocked, activeTab, dailySummaryVoiceText, language, shop.settings?.cloud_speech_enabled]);
+
   if (!isLoggedIn) {
     return <Auth />;
   }
@@ -327,14 +335,6 @@ export const AppContent: React.FC = () => {
         : `${customer.name} ne 500 diye`
     );
   };
-
-  useEffect(() => {
-    if (isLoggedIn && activeTab === 'today' && dailySummaryVoiceText) {
-      speechSynthesizer.prewarm(dailySummaryVoiceText, language, {
-        cloudSpeechEnabled: shop.settings?.cloud_speech_enabled,
-      });
-    }
-  }, [isLoggedIn, activeTab, dailySummaryVoiceText, language, shop.settings?.cloud_speech_enabled]);
 
   const handleSpeakTodaySummary = () => {
     setIsDailySummaryOpen(true);
