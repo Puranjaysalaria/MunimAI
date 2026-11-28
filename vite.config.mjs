@@ -43,6 +43,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{js,css,ico,png,svg,woff2}', 'index.html'],
         globIgnores: ['**/pay/**', 'pay/**', '**/pay/index.html'],
         navigateFallback: '/index.html',

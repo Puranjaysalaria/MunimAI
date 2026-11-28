@@ -787,6 +787,19 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     if (prevItem && nextItem) {
+      if (isSupabaseConfigured() && navigator.onLine && shop.id && shop.id !== DEMO_SHOP_ID) {
+        supabase
+          .from('items')
+          .update({
+            selling_price: nextItem.selling_price,
+            cost_price: nextItem.cost_price,
+            current_stock: nextItem.current_stock,
+          })
+          .eq('id', nextItem.id)
+          .then(({ error }) => {
+            if (error) console.warn('Item price sync skipped:', error.message);
+          });
+      }
       return { success: true, previousItem: prevItem, updatedItem: nextItem };
     }
 
@@ -797,7 +810,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const sellingPrice = updates.selling_price ?? (updates.cost_price ? Math.round(updates.cost_price * 1.15) : 0);
 
     const createdItem: Item = {
-      id: `item-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: crypto.randomUUID(),
       shop_id: shop.id,
       name: itemNameOrId,
       synonyms: [itemNameOrId.toLowerCase()],
@@ -810,6 +823,15 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setItems((prev) => [createdItem, ...prev]);
+
+    if (isSupabaseConfigured() && navigator.onLine && shop.id && shop.id !== DEMO_SHOP_ID) {
+      supabase
+        .from('items')
+        .insert(createdItem)
+        .then(({ error }) => {
+          if (error) console.warn('New item sync skipped:', error.message);
+        });
+    }
 
     const priceRecord: LastPriceChange = {
       item: createdItem,

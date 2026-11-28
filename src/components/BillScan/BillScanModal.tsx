@@ -134,16 +134,7 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
       if (!text) return;
       const lower = text.toLowerCase();
 
-      // 1. Check for confirmation / "yes" intent
-      const latinYes = /\b(haan|ha|haa|yes|yeah|yup|ok|okay|confirm|save|update|theek\s*hai|theek|sahi|sahi\s*hai|kar\s*do|karo|done|right|aaho|ho)\b/i;
-      const indicYes = /(?:^|\s|[^\p{L}\p{N}])(हाँ|हां|हाँजी|जी\s*हाँ|लिख\s*दो|कर\s*दो|ठीक\s*है|सही\s*है|ਹਾਂ|ਹਾਂਜੀ|ਜੀ\s*ਹਾਂ|ਆਹੋ|ਠੀਕ\s*ਹੈ)(?:$|\s|[^\p{L}\p{N}])/u;
-
-      if (latinYes.test(lower) || indicYes.test(text)) {
-        handleApplyUpdates();
-        return;
-      }
-
-      // 1b. Check for line removal ("remove sugar" / "chini hatao")
+      // 1. Check for line removal ("remove sugar" / "chini hatao")
       const isRemoveLine = /\b(remove|hatao|hata\s*do|delete|nikalo|हटाओ|निकालो|ਹਟਾਓ)\b/iu.test(text);
       const itemsForRemove = currentItems.length > 0 ? currentItems : extractedItemsRef.current;
       if (isRemoveLine && itemsForRemove.length > 0) {
@@ -160,7 +151,7 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
         }
       }
 
-      // 2. Check for item price discrepancy adjustment (e.g. "Butter biscuit 45", "Rusk 25 rupaye")
+      // 2. Check for item price discrepancy adjustment BEFORE confirmation ("update biscuit to 45", "Rusk 25 rupaye")
       const numMatches = text.match(/\b(\d+(?:\.\d+)?)\b/g);
       const itemsToSearch = currentItems.length > 0 ? currentItems : extractedItemsRef.current;
       if (numMatches && numMatches.length > 0 && itemsToSearch.length > 0) {
@@ -168,7 +159,7 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
         const query = text
           .replace(/\b(\d+(?:\.\d+)?)\b/g, '')
           .replace(
-            /\b(rupaye|rupayee|rupees|rs|inr|daam|bhaav|price|rate|karo|kar|do|ka|to|change|set|update|badlo|kardo|packet|piece|litre|kg|kilo|cost|selling)\b/gi,
+            /\b(rupaye|rupayee|rupees|rs|inr|daam|bhaav|price|rate|karo|kar|do|ka|ki|ke|to|of|change|set|update|make|badlo|kardo|packet|piece|litre|kg|kilo|cost|selling)\b/gi,
             ''
           )
           .trim()
@@ -218,12 +209,22 @@ export const BillScanModal: React.FC<BillScanModalProps> = ({
             language === 'pa'
               ? `${localizedName} ਦਾ ਮੁੱਲ ₹${newPrice} ਕਰ ਦਿੱਤਾ ਗਿਆ ਹੈ। ਅਪਡੇਟ ਕਰਨ ਲਈ 'ਹਾਂ' ਕਹੋ।`
               : language === 'en'
-              ? `Updated ${localizedName} to ₹${newPrice}. Say 'Yes' to update prices.`
-              : `${localizedName} का दाम ₹${newPrice} कर दिया गया है। अपडेट करने के लिए 'हाँ' कहें।`;
+              ? `Updated ${localizedName} to ₹${newPrice}. Say 'Yes' to save prices.`
+              : `${localizedName} का दाम ₹${newPrice} कर दिया गया है। सेव करने के लिए 'हाँ' कहें।`;
 
           setVoiceFeedback(feedback);
           speechSynthesizer.speak(feedback, language);
+          return;
         }
+      }
+
+      // 3. Check for confirmation / "yes" / "save" intent (only when not editing a numbered item price)
+      const latinYes = /\b(haan|ha|haa|yes|yeah|yup|ok|okay|confirm|save|apply|theek\s*hai|theek|sahi|sahi\s*hai|kar\s*do|done|right|aaho|ho|update\s*(?:prices?|all|it|items?)?)\b/i;
+      const indicYes = /(?:^|\s|[^\p{L}\p{N}])(हाँ|हां|हाँजी|जी\s*हाँ|लिख\s*दो|कर\s*दो|ठीक\s*है|सही\s*है|ਹਾਂ|ਹਾਂਜੀ|ਜੀ\s*ਹਾਂ|ਆਹੋ|ਠੀਕ\s*ਹੈ)(?:$|\s|[^\p{L}\p{N}])/u;
+
+      if ((!numMatches || numMatches.length === 0) && (latinYes.test(lower) || indicYes.test(text))) {
+        handleApplyUpdates();
+        return;
       }
     },
     [language, handleApplyUpdates]
